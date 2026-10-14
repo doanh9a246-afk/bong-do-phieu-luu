@@ -254,6 +254,7 @@ addEventListener('keydown', e => {
   if (typing(e)) return;
   if (e.code === 'KeyR') { reset(); return; }
   if (e.code === 'KeyM') { setMuted(!muted); return; }
+  if (e.code === 'KeyB' && TEST_MODE) { warpToBoss(); return; }
   const k = KEYMAP[e.code];
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
 });
@@ -317,7 +318,7 @@ function step(h) {
 }
 function die() {
   if (S.dead) return;
-  S.dead = .9; S.deaths++; S.lives--;
+  S.dead = .9; S.deaths++; if (!TEST_MODE) S.lives--;
   sfx('hurt');
   const b = S.ball;
   for (let i = 0; i < 26; i++) {
@@ -1281,13 +1282,20 @@ function runRecord() {
   return { bosses: S.bossKills, seconds: Math.round(Math.min(S.time, TIME_LIMIT)), progress: S.won ? 100 : Math.round(progress() * 100), stars: S.stars.filter(s => s.got).length };
 }
 function openSubmit(k) {
+  if (TEST_MODE) {
+    // chế độ thử: không lưu điểm để bảng xếp hạng không lẫn kết quả thử
+    $(k + 'Save').disabled = true;
+    $(k + 'Sent').hidden = false;
+    $(k + 'Sent').textContent = 'Chế độ thử (vô hạn mạng): không lưu điểm.';
+    return;
+  }
   $(k + 'Name').value = lsGet(NAME_KEY, '');
   $(k + 'Save').disabled = false;
   $(k + 'Sent').hidden = true;
   ($(k + 'Name').value ? $(k + 'Save') : $(k + 'Name')).focus();
 }
 async function submitScore(k) {
-  if (S.submitted) return;
+  if (S.submitted || TEST_MODE) return;
   const name = $(k + 'Name').value.trim().slice(0, 16) || 'Ẩn danh';
   lsSet(NAME_KEY, name);
   S.submitted = true;
@@ -1324,7 +1332,7 @@ const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2,
 let lastSec = -1, lastSkill = '';
 function hud() {
   $('stars').textContent = `${S.stars.filter(s => s.got).length}/${S.stars.length}`;
-  $('lives').textContent = '♥'.repeat(Math.max(0, S.lives)) + '♡'.repeat(Math.max(0, LIVES - S.lives));
+  $('lives').textContent = TEST_MODE ? '♥ ∞ thử' : '♥'.repeat(Math.max(0, S.lives)) + '♡'.repeat(Math.max(0, LIVES - S.lives));
   $('time').textContent = fmt(Math.ceil(TIME_LIMIT - S.time));
 }
 
@@ -2341,6 +2349,26 @@ function loop(now) {
   }
   requestAnimationFrame(loop);
 }
+
+/* ---------- Chế độ thử (chỉ trên máy đang dùng) ----------
+   Mở game với đuôi #vohan để bật: vô hạn mạng, phím B đưa tới trước đấu trường boss, không lưu điểm.
+   Mở với đuôi #thuong để tắt. Cài đặt lưu trong trình duyệt của máy đó. */
+const TEST_KEY = 'bongdo.test';
+try {
+  if (location.hash === '#vohan') localStorage.setItem(TEST_KEY, '1');
+  if (location.hash === '#thuong') localStorage.removeItem(TEST_KEY);
+} catch (e) {}
+const TEST_MODE = lsGet(TEST_KEY, '') === '1';
+function warpToBoss() {
+  if (S.won || S.lost || S.fight) return;
+  const x = CHECKPOINTS[1].x + 20;
+  Object.assign(S.ball, { x, y: f4(x) - 40, vx: 0, vy: 0 });
+  S.cp = 1; S.spawn = { x: CHECKPOINTS[1].x, y: f4(CHECKPOINTS[1].x) - 60 };
+  S.tipSeen = S.tipSeen.map(() => true);
+  S.cam.x = clamp(x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
+  S.pops.push({ x, y: S.ball.y - 60, t: 1, text: 'Tới đấu trường boss', c: '#fff27a' });
+}
+if (TEST_MODE) setTimeout(() => showTip('Chế độ thử: vô hạn mạng · phím B tới thẳng đấu trường boss · không lưu điểm. Mở link với #thuong để tắt.'), 300);
 
 fit();
 // mốc trên thanh chặng đường
