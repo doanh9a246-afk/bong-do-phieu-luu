@@ -12,11 +12,11 @@ const LEVEL_W = 7000, DEATH_Y = 900;
 const LIVES = 3;
 // Đấu trường boss ở cuối màn
 const ARENA = { l: 6220, r: 6950, gateX: 6190, floor: 420 };
-const BOSS_W = 64, BOSS_H = 112, CLOCK_R = 105, WARN = .7;
+const BOSS_W = 64, BOSS_H = 112, AURA_R = 105, WARN = .7;
 const PHASES = [null,
-  { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Nhảy giẫm lên đầu Kurumi 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
-  { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'HELL MODE', note: 'Cứ 5 giây Kurumi ngưng đọng thời gian: nhấn Shift để thoát, rồi nhảy lên né laze. Vẫn có đồng hồ và đạn.' },
-  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Kurumi nhanh hơn, bắn mỗi 3 giây và vẫn ngưng đọng thời gian mỗi 5 giây. Giẫm 3 lần cuối!' },
+  { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Nhảy giẫm lên đầu Lilith hoặc Naamah, tổng cộng 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
+  { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'HELL MODE', note: 'Hai ác quỷ thay phiên tạo vòng ma lực và bắn băng / lửa. Cứ 5 giây cả hai phong ấn bạn: nhấn Shift để thoát rồi nhảy né laze.' },
+  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Nhanh hơn, tấn công mỗi 3 giây và vẫn phong ấn mỗi 5 giây. Giẫm 3 lần cuối!' },
 ];
 
 const cv = document.getElementById('game');
@@ -85,7 +85,7 @@ function reset() {
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
     lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false,
-    boss: { x: 6750, dir: -1, hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, squash: 0, shot: 0, flash: 0, hellT: 0, ts: 0, laserShot: false },
+    boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, units: newUnits() },
     bullets: [],
   });
   $('win').hidden = true;
@@ -201,9 +201,11 @@ function respawn() {
   const B = S.boss;
   if (!B.dead && S.fight) {
     // Ngã khi đang đánh boss: hồi sinh ngay trong cổng, trận đấu tiếp tục.
-    // Kurumi lùi về cuối đấu trường, giữ số đòn đã trúng; bóng được bảo vệ 1.5 giây.
+    // Hai ác quỷ lùi về cuối đấu trường, giữ số đòn đã trúng; bóng được bảo vệ 1.5 giây.
     Object.assign(S.ball, { x: ARENA.l + 50, y: ARENA.floor - 60 });
-    Object.assign(B, { x: ARENA.r - 140, dir: -1, inv: 0, fireT: 0, fire: 0, warn: false, shot: 0, hellT: 0, ts: 0, laserShot: false });
+    Object.assign(B, { inv: 0, fireT: 0, fire: 0, warn: false, shot: 0, hellT: 0, ts: 0, laserShot: false });
+    Object.assign(B.units[0], { x: ARENA.r - 300, dir: -1 });
+    Object.assign(B.units[1], { x: ARENA.r - 120, dir: -1 });
     S.bullets = [];
     S.safe = 1.5;
   }
@@ -283,130 +285,161 @@ function update(dt) {
   if (S.boss.dead && b.x > GOAL.x - 10) win();
 }
 
-/* ---------- Boss ---------- */
+/* ---------- Boss: Lilith (băng) & Naamah (lửa) ---------- */
+// S.boss giữ trạng thái chung (giai đoạn, số đòn, hell mode); S.boss.units là hai ác quỷ
+function newUnits() {
+  return [
+    { kind: 'ice',  x: 6560, dir: -1, squash: 0, flash: 0, hurt: 0 },
+    { kind: 'fire', x: 6820, dir: -1, squash: 0, flash: 0, hurt: 0 },
+  ];
+}
 function bossBar() {
   const B = S.boss;
   $('bossbar').hidden = !(S.fight || B.dead);
-  $('bphase').textContent = B.dead ? 'Đã hạ!' : `${PHASES[B.phase].name}/3`;
+  $('bphase').textContent = B.dead ? 'Đã hạ!' : `${PHASES[B.phase].name} (${B.phase}/3)`;
   $('bnote').textContent = B.dead ? 'Lăn tới cờ đích để về đích.' : PHASES[B.phase].note;
   document.querySelectorAll('#bossbar .pips i').forEach((p, i) => p.classList.toggle('on', !B.dead && i < 3 - B.hits));
 }
-// Đồng hồ Zafkiel: to dần khi xuất hiện, thu lại khi sắp tắt
-function clockScale(B) {
+// Vòng ma lực: to dần khi xuất hiện, thu lại khi sắp tắt
+function auraScale(B) {
   const P = PHASES[B.phase];
   return Math.min(1, (P.dur - B.fire) / .25, B.fire / .15);
 }
-function shoot(B, P) {
-  S.bullets.push({ x: B.x + B.dir * (BOSS_W / 2 + 22), y: ARENA.floor - 24, vx: B.dir * P.bspeed });
-  B.flash = .08;
+function shoot(u, P) {
+  S.bullets.push({ x: u.x + u.dir * (BOSS_W / 2 + 22), y: ARENA.floor - 24, vx: u.dir * P.bspeed, kind: u.kind });
+  u.flash = .08;
 }
+const busy = (B, u) => u === B.units[B.att] && (B.fire > 0 || B.warn);
 function updateBoss(dt) {
-  const B = S.boss, b = S.ball;
-  if (!B.ts) for (const u of S.bullets) u.x += u.vx * dt;   // đạn cũng đứng yên khi ngưng đọng
+  const B = S.boss, b = S.ball, U = B.units;
+  if (!B.ts) for (const u of S.bullets) u.x += u.vx * dt;   // đạn cũng đứng yên khi bị phong ấn
   S.bullets = S.bullets.filter(u => u.x > ARENA.gateX && u.x < ARENA.r);
   if (B.dead) return;
-  B.squash = Math.max(0, B.squash - dt);
-  B.flash = Math.max(0, B.flash - dt);
+  for (const u of U) { u.squash = Math.max(0, u.squash - dt); u.flash = Math.max(0, u.flash - dt); u.hurt = Math.max(0, u.hurt - dt); }
   if (!S.fight) {
     if (!S.dead && b.x > ARENA.l + 30) { S.fight = true; S.gateClosed = true; B.fireT = 0; bossBar(); }
     return;
   }
   const P = PHASES[B.phase];
   B.inv = Math.max(0, B.inv - dt);
-  // Hell mode: ngưng đọng thời gian
+  // Hell mode: phong ấn (đóng băng bóng) rồi bắn laze
   if (B.phase >= 2) {
     if (B.ts > 0) {
       B.ts -= dt;
-      if (B.ts <= LASER_AT && !B.laserShot) { B.laserShot = true; S.shake = 1; }
+      if (B.ts <= LASER_AT && !B.laserShot) B.laserShot = true;
       if (B.ts <= 0) { B.ts = 0; B.hellT = 0; S.tsEsc = false; tsBanner(); }
     } else if (!B.fire && !B.warn && !S.dead) {
       B.hellT += dt;
       if (B.hellT >= TS_EVERY) {
         B.ts = TS_DUR; B.laserShot = false; S.tsEsc = false;
-        B.dir = Math.sign(b.x - B.x) || B.dir;          // laze bắn về phía bóng
+        for (const u of U) u.dir = Math.sign(b.x - u.x) || u.dir;   // cả hai quay về phía bóng
         Object.assign(b, { vx: 0, vy: 0 });
         tsBanner();
       }
     }
   }
   if (B.ts > 0) {
-    // trong lúc ngưng đọng chỉ còn laze; Kurumi đứng yên
     if (!S.dead) bossTouch(B, b, true);
     return;
   }
+  // Hai ác quỷ thay phiên nhau tấn công
+  const A = U[B.att];
   if (P.cycle) {
     if (B.fire > 0) {
       const el = P.dur - B.fire;
-      while (B.shot < P.shots && el >= .15 + B.shot * P.gap) { shoot(B, P); B.shot++; }
-      B.fire -= dt; if (B.fire <= 0) { B.fire = 0; B.fireT = 0; }
+      while (B.shot < P.shots && el >= .15 + B.shot * P.gap) { shoot(A, P); B.shot++; }
+      B.fire -= dt;
+      if (B.fire <= 0) { B.fire = 0; B.fireT = 0; B.att ^= 1; }
     } else { B.fireT += dt; if (B.fireT >= P.cycle) { B.fire = P.dur; B.shot = 0; } }
   }
   const wasWarn = B.warn;
   B.warn = !!P.cycle && !B.fire && B.fireT > P.cycle - WARN;
-  if (B.warn && !wasWarn && !S.dead) B.dir = Math.sign(b.x - B.x) || B.dir;   // quay về phía bóng rồi mới bắn
-  if (!B.fire && !B.warn) {
-    B.x += B.dir * P.speed * dt;
-    const lo = ARENA.l + BOSS_W / 2 + 40, hi = ARENA.r - BOSS_W / 2 - 10;
-    if (B.x > hi) { B.x = hi; B.dir = -1; }
-    if (B.x < lo) { B.x = lo; B.dir = 1; }
+  if (B.warn && !wasWarn && !S.dead) U[B.att].dir = Math.sign(b.x - U[B.att].x) || U[B.att].dir;
+  const lo = ARENA.l + BOSS_W / 2 + 40, hi = ARENA.r - BOSS_W / 2 - 10;
+  for (const u of U) {
+    if (busy(B, u)) continue;
+    u.x += u.dir * P.speed * dt;
+    if (u.x > hi) { u.x = hi; u.dir = -1; }
+    if (u.x < lo) { u.x = lo; u.dir = 1; }
+  }
+  // giữ khoảng cách để hai ác quỷ không chồng lên nhau
+  const [u0, u1] = U, GAP = 130, d = Math.abs(u0.x - u1.x);
+  if (d < GAP) {
+    const sg = Math.sign(u1.x - u0.x) || 1, push = (GAP - d) / 2;
+    if (!busy(B, u0)) { u0.x = clamp(u0.x - sg * push, lo, hi); u0.dir = -sg; }
+    if (!busy(B, u1)) { u1.x = clamp(u1.x + sg * push, lo, hi); u1.dir = sg; }
   }
   if (S.dead) return;
   bossTouch(B, b, false);
 }
 const laserOn = B => B.ts > 0 && B.ts <= LASER_AT && B.ts > LASER_AT - LASER_DUR;
-function laserSpan(B) {
-  return B.dir > 0 ? [B.x + BOSS_W / 2, ARENA.r] : [ARENA.gateX + 30, B.x - BOSS_W / 2];
+function laserSpan(u) {
+  return u.dir > 0 ? [u.x + BOSS_W / 2, ARENA.r] : [ARENA.gateX + 30, u.x - BOSS_W / 2];
 }
 function bossTouch(B, b, stopped) {
-  // Laze: phủ sát mặt đất về phía trước, chỉ né được bằng cách nhảy lên (vô địch không chặn được)
+  // Laze: mỗi ác quỷ bắn một luồng sát mặt đất về phía bóng, chỉ né được bằng cách nhảy (vô địch không chặn được)
   if (laserOn(B) && !S.safe) {
-    const [lo, hi] = laserSpan(B);
-    if (b.x + R > lo && b.x - R < hi && b.y + R * .8 > ARENA.floor - LASER_H) { die(); return; }
+    for (const u of B.units) {
+      const [lo, hi] = laserSpan(u);
+      if (b.x + R > lo && b.x - R < hi && b.y + R * .8 > ARENA.floor - LASER_H) { die(); return; }
+    }
   }
-  // Đạn
+  // Đạn băng / cầu lửa
   for (const u of S.bullets) {
     if (Math.hypot(u.x - b.x, u.y - b.y) < R + 5) {
       if (S.power || S.safe) { u.x = -1e9; continue; }
       die(); return;
     }
   }
-  // Đồng hồ quanh người
-  const gy = ARENA.floor, top = gy - BOSS_H, cx = B.x;
-  if (B.fire && !S.power && !S.safe && Math.hypot(b.x - cx, b.y - (gy - 56)) < CLOCK_R * clockScale(B) + R * .3) { die(); return; }
-  const nx = clamp(b.x, cx - BOSS_W / 2, cx + BOSS_W / 2), ny = clamp(b.y, top, gy);
-  if ((b.x - nx) ** 2 + (b.y - ny) ** 2 >= R * R) return;
-  // Giẫm từ trên xuống: cách duy nhất để gây sát thương
-  if (b.vy > 0 && b.y < top + 10) {
-    b.y = top - R; b.vy = -700; b.squash = .25;
-    b.vx = (Math.sign(b.x - cx) || -B.dir) * 280;   // văng sang bên, không giẫm liên tục được
-    if (!stopped && !B.inv && (!B.fire || S.power)) hitBoss();
-    return;
+  const gy = ARENA.floor, top = gy - BOSS_H;
+  for (let i = 0; i < B.units.length; i++) {
+    const u = B.units[i], cx = u.x;
+    const attacking = B.fire > 0 && i === B.att;
+    // Vòng ma lực quanh ác quỷ đang tấn công
+    if (attacking && !S.power && !S.safe && Math.hypot(b.x - cx, b.y - (gy - 56)) < AURA_R * auraScale(B) + R * .3) { die(); return; }
+    const nx = clamp(b.x, cx - BOSS_W / 2, cx + BOSS_W / 2), ny = clamp(b.y, top, gy);
+    if ((b.x - nx) ** 2 + (b.y - ny) ** 2 >= R * R) continue;
+    // Giẫm từ trên xuống: cách duy nhất để gây sát thương
+    if (b.vy > 0 && b.y < top + 10) {
+      b.y = top - R; b.vy = -700; b.squash = .25;
+      b.vx = (Math.sign(b.x - cx) || -u.dir) * 280;   // văng sang bên, không giẫm liên tục được
+      if (!stopped && !B.inv && (!attacking || S.power)) hitBoss(u);
+      return;
+    }
+    // Chạm phía trước hoặc phía sau
+    const side = Math.sign(b.x - cx) || 1;
+    if (S.power || S.safe || B.inv) { b.x = cx + side * (BOSS_W / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
+    die(); return;
   }
-  // Chạm phía trước hoặc phía sau
-  const side = Math.sign(b.x - cx) || 1;
-  if (S.power || S.safe || B.inv) { b.x = cx + side * (BOSS_W / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
-  die();
 }
-function hitBoss() {
+const devilColors = u => u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
+function hitBoss(u) {
   const B = S.boss;
-  B.hits++; B.inv = 1; B.squash = .3;
+  B.hits++; B.inv = 1; u.squash = .3; u.hurt = 1;
   const top = ARENA.floor - BOSS_H, cy = ARENA.floor - BOSS_H / 2;
+  const [c1, c2] = devilColors(u);
   for (let i = 0; i < 20; i++) {
     const a = -Math.PI * Math.random(), sp = 150 + Math.random() * 250;
-    S.parts.push({ x: B.x, y: top, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .7, c: i % 2 ? '#ffc21a' : '#ffffff', r: 5 + Math.random() * 4 });
+    S.parts.push({ x: u.x, y: top, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .7, c: i % 2 ? c1 : c2, r: 5 + Math.random() * 4 });
   }
   if (B.hits >= 3) {
     if (B.phase === 3) {
       B.dead = true; S.gateClosed = false; S.bullets = [];
-      for (let i = 0; i < 70; i++) {
-        const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 500;
-        S.parts.push({ x: B.x, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.2, c: ['#16101a', '#c0182b', '#ffc21a', '#ffffff'][i % 4], r: 5 + Math.random() * 8 });
+      for (const v of B.units) {
+        const [d1, d2, d3] = devilColors(v);
+        for (let i = 0; i < 50; i++) {
+          const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 500;
+          S.parts.push({ x: v.x, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.2, c: [d1, d2, d3, '#ffffff'][i % 4], r: 5 + Math.random() * 8 });
+        }
       }
     } else {
-      B.phase++; B.hits = 0; B.fireT = 0; B.fire = 0; B.shot = 0; B.inv = 1.6; B.hellT = 0;
-      for (let i = 0; i < 30; i++) {
-        const a = i / 30 * Math.PI * 2;
-        S.parts.push({ x: B.x, y: cy, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320, life: .6, c: i % 2 ? '#ffc21a' : '#5a1f6e', r: 7, g: 0 });
+      B.phase++; B.hits = 0; B.fireT = 0; B.fire = 0; B.shot = 0; B.inv = 1.6; B.hellT = 0; B.att = 0;
+      for (const v of B.units) {
+        const [d1, d2] = devilColors(v);
+        for (let i = 0; i < 24; i++) {
+          const a = i / 24 * Math.PI * 2;
+          S.parts.push({ x: v.x, y: cy, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320, life: .6, c: i % 2 ? d1 : d2, r: 7, g: 0 });
+        }
       }
     }
   }
@@ -415,7 +448,7 @@ function hitBoss() {
 function tsBanner() {
   const B = S.boss, on = B.ts > 0 && !S.dead;
   $('tsBanner').hidden = !on;
-  if (on) $('tsBanner').textContent = S.tsEsc ? 'Nhảy lên để né laze!' : 'Thời gian ngưng đọng! Nhấn Shift để thoát';
+  if (on) $('tsBanner').textContent = S.tsEsc ? 'Nhảy lên để né laze!' : 'Bị phong ấn! Nhấn Shift để thoát';
   $('tsBanner').dataset.esc = S.tsEsc ? '1' : '0';
 }
 function lose(reason) {
@@ -609,185 +642,223 @@ function drawGate() {
   ctx.fillStyle = '#8a8f98';
   for (let y = gy - 290; y < gy; y += 40) ctx.fillRect(x - 2, y, 34, 5);
 }
-function drawClock(cx, cy, r, alpha, frozen) {
-  if (r < 20) return;   // vòng trong có bán kính r - 10: arc() âm sẽ ném lỗi
-  ctx.save(); ctx.translate(cx, cy); ctx.globalAlpha = alpha;
-  ctx.fillStyle = 'rgb(30 10 40 / .45)';
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#ffc21a'; ctx.lineWidth = 8; ctx.stroke();
-  ctx.strokeStyle = '#7a4a1e'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(0, 0, r - 10, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = '#ffc21a';
-  for (let i = 0; i < 12; i++) {
-    ctx.save(); ctx.rotate(i * Math.PI / 6);
-    ctx.fillRect(-3, -r + 14, 6, i % 3 ? 10 : 18);
-    ctx.restore();
+function drawAura(u, cx, cy, r) {
+  if (r < 6) return;
+  ctx.save(); ctx.translate(cx, cy);
+  if (u.kind === 'ice') {
+    // vòng tinh thể băng
+    ctx.fillStyle = 'rgb(127 240 255 / .22)';
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgb(216 251 255 / .85)'; ctx.lineWidth = 3; ctx.stroke();
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2 + S.t * 1.5, sz = 10 + (i % 3) * 3;
+      ctx.save(); ctx.translate(Math.cos(a) * r * .82, Math.sin(a) * r * .82); ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(0, -sz); ctx.lineTo(sz * .45, 0); ctx.lineTo(0, sz); ctx.lineTo(-sz * .45, 0); ctx.closePath();
+      ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+    }
+  } else {
+    // vòng lửa
+    ctx.fillStyle = 'rgb(255 90 40 / .3)';
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 18; i++) {
+      const a = i / 18 * Math.PI * 2 + S.t * 3, fl = .75 + Math.sin(S.t * 30 + i * 2.3) * .15, rr = r * fl, k = r / AURA_R;
+      ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.arc(Math.cos(a) * rr * .85, Math.sin(a) * rr * .85, 18 * k, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff9a1f'; ctx.beginPath(); ctx.arc(Math.cos(a) * rr * .72, Math.sin(a) * rr * .72, 12 * k, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(Math.cos(a) * rr * .6, Math.sin(a) * rr * .6, 6 * k, 0, Math.PI * 2); ctx.fill();
+    }
   }
-  // kim quay ngược
-  ctx.lineCap = 'round';
-  ctx.save(); ctx.rotate(frozen ? -.6 : -S.t * 4); ctx.strokeStyle = '#ffc21a'; ctx.lineWidth = 7;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r * .5); ctx.stroke(); ctx.restore();
-  ctx.save(); ctx.rotate(frozen ? 2.2 : -S.t * 11); ctx.strokeStyle = '#ffe9a8'; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r * .75); ctx.stroke(); ctx.restore();
-  ctx.fillStyle = '#ffc21a'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
-// Chibi Kurumi (fan art vẽ bằng hình khối). Gốc toạ độ ở chân, +x là hướng mặt.
-function drawKurumi(B, x, gy) {
-  const walking = S.fight && !B.fire && !B.warn && !B.ts;
-  const bob = walking ? Math.abs(Math.sin(S.t * 8)) * 3 : 0;
-  const step = walking ? Math.sin(S.t * 8) * 4 : 0;
-  const HAIR = '#1a1020', RED = '#c0182b', BLK = '#16101a', SKIN = '#ffe3d3', GOLD = '#ffc21a';
+// Vòng phong ấn: hiện giữa đấu trường khi bóng bị phong ấn
+function drawSeal() {
+  const cx = (ARENA.l + ARENA.r) / 2, cy = ARENA.floor - 170, r = 190;
+  ctx.save(); ctx.translate(cx, cy); ctx.globalAlpha = .55; ctx.lineWidth = 4;
+  ctx.strokeStyle = '#7ff0ff'; ctx.beginPath(); ctx.arc(0, 0, r, Math.PI / 2, Math.PI * 1.5); ctx.stroke();
+  ctx.strokeStyle = '#ff2f5c'; ctx.beginPath(); ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+  ctx.strokeStyle = '#c9b6ff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, r * .8, 0, Math.PI * 2); ctx.stroke();
+  ctx.rotate(S.t * .4);
+  ctx.beginPath();
+  for (let i = 0; i <= 5; i++) {
+    const a = -Math.PI / 2 + (i * 2 % 5) * Math.PI * 2 / 5;
+    i ? ctx.lineTo(Math.cos(a) * r * .8, Math.sin(a) * r * .8) : ctx.moveTo(Math.cos(a) * r * .8, Math.sin(a) * r * .8);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function drawWing(ice, GLOW, GLOW2, BODY) {
+  if (ice) {
+    // cánh lông vũ băng
+    for (let k = 0; k < 7; k++) {
+      const a = -2.8 + k * .21, len = 62 - k * 3;   // xoè ra phía sau lưng, chếch lên
+      ctx.save(); ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(len, 0); ctx.lineTo(0, 6); ctx.closePath();
+      ctx.fillStyle = GLOW; ctx.fill(); ctx.strokeStyle = GLOW2; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.restore();
+    }
+  } else {
+    // cánh dơi lửa, mép răng cưa
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(-16, -34); ctx.lineTo(-50, -32); ctx.lineTo(-64, 0);
+    ctx.lineTo(-54, -6); ctx.lineTo(-46, 6); ctx.lineTo(-36, -2); ctx.lineTo(-26, 8); ctx.lineTo(-14, 0); ctx.closePath();
+    ctx.fillStyle = GLOW; ctx.fill();
+    ctx.strokeStyle = BODY; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-50, -32); ctx.moveTo(0, 0); ctx.lineTo(-40, -4); ctx.moveTo(0, 0); ctx.lineTo(-22, 4); ctx.stroke();
+  }
+}
+// Chibi ác quỷ (fan art vẽ bằng hình khối). Gốc toạ độ ở chân, +x là hướng mặt.
+function drawDevil(u, B, x, gy) {
+  const ice = u.kind === 'ice';
+  const [GLOW, GLOW2, BODY] = devilColors(u);
+  const SKIN = ice ? '#4a6470' : '#5a3a40', HAIR = ice ? '#c3d3da' : '#2a1216';
+  const moving = S.fight && !B.ts && !busy(B, u);
+  const aim = busy(B, u) || B.ts > 0;
+  const bob = moving ? Math.abs(Math.sin(S.t * 7 + (ice ? 0 : 1.5))) * 3 : Math.sin(S.t * 2) * 1.5;
+  const flap = Math.sin(S.t * (moving ? 9 : 4) + (ice ? 0 : 1)) * .15;
   ctx.save();
   ctx.translate(x, gy);
-  // bóng tối dưới chân
-  ctx.fillStyle = 'rgb(60 15 70 / .5)';
-  ctx.beginPath(); ctx.ellipse(0, -1, 44 + Math.sin(S.t * 3) * 4, 8, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.scale(B.dir * (1 + B.squash * .6), 1 - B.squash);
-  if (B.inv > 0 && Math.floor(S.t * 20) % 2) ctx.globalAlpha = .4;
-
-  // chân + giày đỏ
-  ctx.fillStyle = BLK;
-  ctx.fillRect(-12 + step, -20, 9, 16); ctx.fillRect(4 - step, -20, 9, 16);
-  ctx.fillStyle = RED;
-  ctx.fillRect(-14 + step, -6, 12, 6); ctx.fillRect(3 - step, -6, 13, 6);
-
+  ctx.fillStyle = ice ? 'rgb(127 240 255 / .28)' : 'rgb(255 47 92 / .28)';
+  ctx.beginPath(); ctx.ellipse(0, -1, 30, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.scale(u.dir * (1 + u.squash * .6), 1 - u.squash);
+  if (u.hurt > 0 && Math.floor(S.t * 20) % 2) ctx.globalAlpha = .4;
   ctx.translate(0, -bob);
-  // bím tóc sau (dài) và trước (ngắn hơn) — kiểu tóc lệch
-  ctx.fillStyle = HAIR;
-  ctx.save(); ctx.translate(-30, -70); ctx.rotate(.25 + Math.sin(S.t * 4) * .06);
-  ctx.beginPath(); ctx.ellipse(0, 22, 11, 32, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  ctx.save(); ctx.translate(26, -78); ctx.rotate(-.2 + Math.sin(S.t * 4 + 1) * .06);
-  ctx.beginPath(); ctx.ellipse(0, 16, 9, 22, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 
-  // váy chuông đỏ, viền đăng ten đen
-  ctx.fillStyle = RED;
-  ctx.beginPath(); ctx.moveTo(-13, -50); ctx.lineTo(13, -50);
-  ctx.quadraticCurveTo(26, -36, 31, -20); ctx.lineTo(-31, -20);
-  ctx.quadraticCurveTo(-26, -36, -13, -50); ctx.fill();
-  ctx.fillStyle = BLK;
-  for (let fx = -28; fx <= 28; fx += 9.3) { ctx.beginPath(); ctx.arc(fx, -20, 6, 0, Math.PI); ctx.fill(); }
-  ctx.fillRect(-5, -48, 10, 28);
-  ctx.fillStyle = '#ffffff';
-  for (let fx = -26; fx <= 26; fx += 9.3) ctx.fillRect(fx, -17, 2, 2);
-  // thân áo đen + nơ đỏ
-  ctx.fillStyle = BLK; ctx.fillRect(-12, -64, 24, 16);
-  ctx.fillStyle = RED;
-  ctx.beginPath(); ctx.moveTo(0, -59); ctx.lineTo(-7, -64); ctx.lineTo(-7, -54); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(0, -59); ctx.lineTo(7, -64); ctx.lineTo(7, -54); ctx.closePath(); ctx.fill();
+  // đuôi
+  ctx.strokeStyle = BODY; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-4, -34); ctx.quadraticCurveTo(-46, -30, -38, -6); ctx.quadraticCurveTo(-32, 6, -22, -2); ctx.stroke();
+  // cánh: cánh xa (mờ) rồi cánh gần
+  ctx.save(); ctx.translate(-2, -64); ctx.rotate(.35 - flap); ctx.scale(-.7, .7); ctx.globalAlpha *= .55; drawWing(ice, GLOW, GLOW2, BODY); ctx.restore();
+  ctx.save(); ctx.translate(-6, -64); ctx.rotate(-.15 + flap); drawWing(ice, GLOW, GLOW2, BODY); ctx.restore();
 
-  // tay cầm súng kíp
-  const aim = B.fire || B.warn || B.ts > 0;
-  ctx.save(); ctx.translate(9, -58); ctx.rotate(aim ? .05 : .95);
-  ctx.fillStyle = BLK; ctx.fillRect(0, -3, 15, 7);
-  ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(16, 0, 3.5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#7a4a1e'; ctx.fillRect(13, -1, 5, 10);
-  ctx.fillStyle = '#3a3f4a'; ctx.fillRect(15, -6, 24, 6);
-  ctx.fillStyle = GOLD; ctx.fillRect(20, -7, 8, 2); ctx.fillRect(36, -7, 3, 8);
-  if (B.flash > 0) {
-    ctx.fillStyle = '#ffd23f';
-    ctx.beginPath(); ctx.moveTo(40, -3); ctx.lineTo(54, -10); ctx.lineTo(50, -3); ctx.lineTo(56, 4); ctx.closePath(); ctx.fill();
+  // thân: Lilith váy dài đuôi cá, Naamah đôi chân dài
+  ctx.fillStyle = BODY;
+  if (ice) {
+    ctx.beginPath(); ctx.moveTo(-9, -62); ctx.lineTo(9, -62); ctx.lineTo(13, -26); ctx.lineTo(21, 0); ctx.lineTo(-21, 0); ctx.lineTo(-13, -26); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgb(127 240 255 / .35)'; ctx.fillRect(-18, -4, 36, 3);
+  } else {
+    ctx.fillRect(-8, -40, 7, 40); ctx.fillRect(2, -40, 7, 40);
+    ctx.beginPath(); ctx.moveTo(-10, -62); ctx.lineTo(10, -62); ctx.lineTo(9, -38); ctx.lineTo(-9, -38); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = GLOW; ctx.fillRect(3, -30, 3, 4); ctx.fillRect(4, -20, 3, 3);
   }
+  // vân phát sáng trên ngực
+  ctx.strokeStyle = GLOW2; ctx.lineWidth = 1.5; ctx.globalAlpha *= .8;
+  ctx.beginPath();
+  for (let k = 0; k < 4; k++) { ctx.moveTo(-6, -58 + k * 5); ctx.lineTo(0, -56 + k * 5); ctx.lineTo(6, -58 + k * 5); }
+  ctx.moveTo(0, -60); ctx.lineTo(0, -38); ctx.stroke();
+  ctx.globalAlpha /= .8;
+
+  // cánh tay lớn phát sáng, có móng vuốt
+  ctx.save(); ctx.translate(8, -58); ctx.rotate(aim ? -1.5 : .25);
+  ctx.fillStyle = BODY; ctx.fillRect(-4, 0, 9, 30);
+  ctx.fillStyle = GLOW;
+  for (let k = 0; k < 5; k++) ctx.fillRect(-2 + (k % 2) * 3, 3 + k * 5, 3, 3);
+  ctx.strokeStyle = GLOW2; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, 30); ctx.lineTo(-4, 37); ctx.moveTo(1, 30); ctx.lineTo(1, 38); ctx.moveTo(2, 30); ctx.lineTo(6, 37); ctx.stroke();
+  if (u.flash > 0) { ctx.fillStyle = GLOW2; ctx.beginPath(); ctx.arc(1, 42, 9, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
 
-  // đầu chibi
-  const hy = -88;
-  ctx.fillStyle = SKIN; ctx.strokeStyle = '#2a1a20'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(0, hy, 25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  // tóc: chỏm, mái răng cưa, tóc mai
+  // tóc phía sau: Lilith tóc sáng bồng bềnh, Naamah tóc xoăn sẫm
+  const hy = -80;
   ctx.fillStyle = HAIR;
-  ctx.beginPath(); ctx.arc(0, hy - 2, 27, Math.PI, 0); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(-27, hy - 2);
-  for (let i = 0; i <= 8; i++) ctx.lineTo(-27 + i * 6.75, hy + (i % 2 ? 10 : -2));
-  ctx.lineTo(27, hy - 2); ctx.fill();
-  ctx.fillRect(-27, hy - 4, 7, 26); ctx.fillRect(21, hy - 4, 6, 20);
-  ctx.fillStyle = '#3a2440'; ctx.fillRect(-14, hy - 24, 12, 3);
-  // băng đô lolita đỏ đen
-  ctx.fillStyle = RED; ctx.fillRect(-20, hy - 30, 40, 7);
-  ctx.fillStyle = BLK;
-  for (let i = -18; i <= 18; i += 9) { ctx.beginPath(); ctx.arc(i, hy - 30, 4.5, Math.PI, 0); ctx.fill(); }
-  // mắt phải đỏ, mắt trái là mặt đồng hồ vàng
-  ctx.fillStyle = '#e3262b';
-  ctx.beginPath(); ctx.ellipse(1, hy + 2, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, hy - 1, 2, 2);
-  ctx.fillStyle = GOLD;
-  ctx.beginPath(); ctx.arc(15, hy + 2, 5.5, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(15, hy + 2); ctx.lineTo(15, hy - 2);
-  ctx.moveTo(15, hy + 2); ctx.lineTo(15 + Math.cos(-S.t * 3) * 3.5, hy + 2 + Math.sin(-S.t * 3) * 3.5); ctx.stroke();
-  if (B.warn && Math.floor(S.t * 14) % 2) {
-    ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(15, hy + 2, 8, 0, Math.PI * 2); ctx.stroke();
+  if (ice) {
+    for (let k = 0; k < 7; k++) {
+      ctx.beginPath(); ctx.ellipse(-12 - k * 5, hy - 8 + k * 3 + Math.sin(S.t * 3 + k) * 3, 12, 7, .5, 0, Math.PI * 2); ctx.fill();
+    }
+  } else {
+    for (let k = 0; k < 8; k++) {
+      const a = Math.PI * (.85 + k * .17);
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 18 - 4, hy - 4 + Math.sin(a) * 16 + Math.sin(S.t * 4 + k) * 1.5, 7, 0, Math.PI * 2); ctx.fill();
+    }
   }
-  // má hồng + miệng
-  ctx.fillStyle = 'rgb(255 120 140 / .55)';
-  ctx.beginPath(); ctx.ellipse(-5, hy + 11, 4, 2.5, 0, 0, Math.PI * 2); ctx.ellipse(21, hy + 11, 3.5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#7a1a2a'; ctx.lineWidth = 2;
-  ctx.beginPath();
-  if (B.phase === 3 || aim) ctx.arc(9, hy + 11, 4, .1, Math.PI - .1);
-  else ctx.arc(9, hy + 10, 3, .3, Math.PI - .3);
-  ctx.stroke();
+  // đầu
+  ctx.fillStyle = SKIN; ctx.strokeStyle = BODY; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, hy, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = HAIR;
+  ctx.beginPath(); ctx.arc(-1, hy - 3, 18, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+  // sừng cong
+  ctx.fillStyle = BODY; ctx.strokeStyle = GLOW; ctx.lineWidth = 1.5;
+  for (const ox of [-8, 4]) {
+    ctx.beginPath(); ctx.moveTo(ox, hy - 14);
+    if (ice) ctx.quadraticCurveTo(ox - 16, hy - 26, ox - 8, hy - 42), ctx.quadraticCurveTo(ox - 8, hy - 28, ox + 6, hy - 15);
+    else ctx.quadraticCurveTo(ox - 6, hy - 26, ox + 2, hy - 32), ctx.quadraticCurveTo(ox + 2, hy - 24, ox + 7, hy - 15);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  // vết ma lực trên mặt + mắt phát sáng
+  ctx.strokeStyle = GLOW; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(4, hy - 13); ctx.lineTo(9, hy - 5); ctx.lineTo(5, hy + 3); ctx.stroke();
+  ctx.fillStyle = GLOW; ctx.beginPath(); ctx.arc(9, hy - 1, 3.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(9, hy - 1, 1.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = GLOW; ctx.globalAlpha *= .6; ctx.beginPath(); ctx.arc(-2, hy - 1, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha /= .6;
+  ctx.strokeStyle = BODY; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(5, hy + 9); ctx.quadraticCurveTo(9, hy + (aim ? 12 : 10), 13, hy + 8); ctx.stroke();
   ctx.restore();
 }
 function drawBoss() {
   const B = S.boss;
   if (B.dead) return;
-  const gy = ARENA.floor, P = PHASES[B.phase];
-  const x = B.x + (B.warn ? Math.sin(S.t * 70) * 2 : 0);
-  const cy = gy - 56;
-  if (B.warn) {
-    ctx.save();
-    ctx.setLineDash([10, 10]); ctx.lineDashOffset = -S.t * 60;
-    ctx.strokeStyle = Math.floor(S.t * 14) % 2 ? '#ffc21a' : '#ffe9a8'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(x, cy, CLOCK_R, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
-  }
-  if (B.phase >= 2) {
-    // hào quang đỏ của hell mode
-    const pr = 70 + Math.sin(S.t * 6) * 6;
-    ctx.fillStyle = 'rgb(192 24 43 / .22)';
-    ctx.beginPath(); ctx.arc(x, cy, pr, 0, Math.PI * 2); ctx.fill();
-  }
-  if (B.ts > 0) drawClock(x, cy - 40, 170, .55, true);
-  if (B.fire) drawClock(x, cy, CLOCK_R * clockScale(B), 1);
-  drawLaser(B);
-  drawKurumi(B, x, gy);
+  const gy = ARENA.floor, cy = gy - 56;
+  if (B.ts > 0) drawSeal();
+  const xs = B.units.map(u => u.x + (u === B.units[B.att] && B.warn ? Math.sin(S.t * 70) * 2 : 0));
+  B.units.forEach((u, i) => {
+    const [GLOW] = devilColors(u), x = xs[i];
+    if (B.phase >= 2) {
+      const pr = 62 + Math.sin(S.t * 6 + i) * 6;
+      ctx.fillStyle = u.kind === 'ice' ? 'rgb(127 240 255 / .18)' : 'rgb(255 47 92 / .2)';
+      ctx.beginPath(); ctx.arc(x, cy, pr, 0, Math.PI * 2); ctx.fill();
+    }
+    if (i === B.att && B.warn) {
+      ctx.save();
+      ctx.setLineDash([10, 10]); ctx.lineDashOffset = -S.t * 60;
+      ctx.strokeStyle = Math.floor(S.t * 14) % 2 ? GLOW : '#ffffff'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(x, cy, AURA_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    if (i === B.att && B.fire) drawAura(u, x, cy, AURA_R * auraScale(B));
+  });
+  drawLasers(B);
+  B.units.forEach((u, i) => drawDevil(u, B, xs[i], gy));
   // mũi tên chỉ chỗ giẫm
-  if (!B.fire && !B.inv && !B.ts && S.fight) {
-    const ay = gy - BOSS_H - 30 + Math.sin(S.t * 6) * 6;
-    ctx.fillStyle = '#ffc21a'; ctx.strokeStyle = '#14301c'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(x - 12, ay - 10); ctx.lineTo(x + 12, ay - 10); ctx.lineTo(x, ay + 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (!B.inv && !B.ts && S.fight) {
+    B.units.forEach((u, i) => {
+      if (i === B.att && B.fire) return;
+      const ay = gy - BOSS_H - 34 + Math.sin(S.t * 6 + i) * 6, x = xs[i];
+      ctx.fillStyle = '#ffc21a'; ctx.strokeStyle = '#14301c'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x - 12, ay - 10); ctx.lineTo(x + 12, ay - 10); ctx.lineTo(x, ay + 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    });
   }
 }
-function drawLaser(B) {
+function drawLasers(B) {
   if (!B.ts) return;
-  const [lo, hi] = laserSpan(B), top = ARENA.floor - LASER_H, h = LASER_H;
-  if (B.ts > LASER_AT && B.ts <= LASER_AT + LASER_CHARGE) {
-    // nạp năng lượng: vạch ngắm nhấp nháy + quả cầu sáng ở nòng súng
-    const k = 1 - (B.ts - LASER_AT) / LASER_CHARGE;
-    if (Math.floor(S.t * 16) % 2) { ctx.fillStyle = 'rgb(255 60 100 / .5)'; ctx.fillRect(lo, top + h / 2 - 2, hi - lo, 4); }
-    ctx.strokeStyle = 'rgb(255 60 100 / .7)'; ctx.lineWidth = 2;
-    ctx.strokeRect(lo, top, hi - lo, h);
-    ctx.fillStyle = '#ff3c64';
-    ctx.beginPath(); ctx.arc(B.x + B.dir * (BOSS_W / 2 + 18), top + h / 2, 6 + k * 22, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(B.x + B.dir * (BOSS_W / 2 + 18), top + h / 2, 3 + k * 10, 0, Math.PI * 2); ctx.fill();
-  }
-  if (laserOn(B)) {
-    const fl = Math.sin(S.t * 60) * 4;
-    ctx.fillStyle = 'rgb(255 40 90 / .45)'; ctx.fillRect(lo, top - 10 - fl, hi - lo, h + 10 + fl);
-    ctx.fillStyle = '#ff3c64'; ctx.fillRect(lo, top, hi - lo, h);
-    ctx.fillStyle = '#ffb3c6'; ctx.fillRect(lo, top + h * .25, hi - lo, h * .5);
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(lo, top + h * .4 + fl / 2, hi - lo, h * .2);
+  const top = ARENA.floor - LASER_H, h = LASER_H;
+  for (const u of B.units) {
+    const [lo, hi] = laserSpan(u), ice = u.kind === 'ice';
+    const [GLOW, GLOW2] = devilColors(u);
+    if (B.ts > LASER_AT && B.ts <= LASER_AT + LASER_CHARGE) {
+      // nạp năng lượng: vạch ngắm nhấp nháy + quả cầu sáng ở tay
+      const k = 1 - (B.ts - LASER_AT) / LASER_CHARGE, hx = u.x + u.dir * (BOSS_W / 2 + 18);
+      if (Math.floor(S.t * 16) % 2) { ctx.fillStyle = GLOW; ctx.globalAlpha = .5; ctx.fillRect(lo, top + h / 2 - 2, hi - lo, 4); ctx.globalAlpha = 1; }
+      ctx.strokeStyle = GLOW; ctx.lineWidth = 2; ctx.strokeRect(lo, top, hi - lo, h);
+      ctx.fillStyle = GLOW; ctx.beginPath(); ctx.arc(hx, top + h / 2, 6 + k * 22, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(hx, top + h / 2, 3 + k * 10, 0, Math.PI * 2); ctx.fill();
+    }
+    if (laserOn(B)) {
+      const fl = Math.sin(S.t * 60) * 4;
+      ctx.fillStyle = ice ? 'rgb(127 240 255 / .45)' : 'rgb(255 40 90 / .45)';
+      ctx.fillRect(lo, top - 10 - fl, hi - lo, h + 10 + fl);
+      ctx.fillStyle = GLOW; ctx.fillRect(lo, top, hi - lo, h);
+      ctx.fillStyle = GLOW2; ctx.fillRect(lo, top + h * .25, hi - lo, h * .5);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(lo, top + h * .4 + fl / 2, hi - lo, h * .2);
+    }
   }
 }
 function drawTimeStop() {
   const B = S.boss;
   if (!(B.ts > 0)) return;
-  ctx.fillStyle = 'rgb(60 30 90 / .28)';
+  ctx.fillStyle = 'rgb(30 20 60 / .3)';
   ctx.fillRect(S.cam.x - 10, S.cam.y - 10, viewW + 20, VIEW_H + 20);
   if (!S.tsEsc && !S.dead) {
-    // bóng bị đóng băng: vòng băng tím quanh bóng
+    // bóng bị phong ấn: vòng sáng tím quanh bóng
     const b = S.ball;
     ctx.strokeStyle = Math.floor(S.t * 6) % 2 ? '#c9b6ff' : '#ffffff'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(b.x, b.y, R + 8, 0, Math.PI * 2); ctx.stroke();
@@ -796,9 +867,17 @@ function drawTimeStop() {
 function drawBullets() {
   for (const u of S.bullets) {
     const d = Math.sign(u.vx);
-    ctx.fillStyle = 'rgb(255 210 63 / .35)'; ctx.fillRect(u.x - d * 40, u.y - 2, d * 30, 4);
-    ctx.fillStyle = '#2b2b33'; ctx.fillRect(u.x - 9, u.y - 4, 18, 8);
-    ctx.fillStyle = '#ffc21a'; ctx.beginPath(); ctx.arc(u.x + d * 9, u.y, 4, 0, Math.PI * 2); ctx.fill();
+    if (u.kind === 'ice') {
+      // mũi băng
+      ctx.fillStyle = 'rgb(216 251 255 / .4)'; ctx.fillRect(u.x - d * 40, u.y - 2, d * 30, 4);
+      ctx.beginPath(); ctx.moveTo(u.x + d * 14, u.y); ctx.lineTo(u.x, u.y - 6); ctx.lineTo(u.x - d * 12, u.y); ctx.lineTo(u.x, u.y + 6); ctx.closePath();
+      ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+    } else {
+      // cầu lửa
+      ctx.fillStyle = 'rgb(255 120 40 / .45)'; ctx.beginPath(); ctx.arc(u.x - d * 14, u.y, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.arc(u.x, u.y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(u.x + d * 2, u.y, 4, 0, Math.PI * 2); ctx.fill();
+    }
   }
 }
 function drawBall() {
