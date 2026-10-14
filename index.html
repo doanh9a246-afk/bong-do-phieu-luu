@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=ae021ebc">
+<link rel="stylesheet" href="css/style.css?v=31b9e55b">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -42,8 +42,8 @@
 </div>
 
 <div class="hint" id="hint">
-  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> để chạy · <kbd>↑</kbd> hoặc <kbd>Space</kbd> để nhảy · <kbd>K</kbd> hoặc <kbd>Shift</kbd>: vô địch 2 giây · về đích trong 2 phút</span>
-  <span class="tap">Giữ ◀ ▶ để chạy · ▲ để nhảy · ⚡ vô địch 2 giây · về đích trong 2 phút</span>
+  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> để chạy · <kbd>↑</kbd> hoặc <kbd>Space</kbd> để nhảy · <kbd>K</kbd> hoặc <kbd>Shift</kbd>: vô địch 2 giây · <kbd>J</kbd> hoặc <kbd>X</kbd>: tia sét · về đích trong 2 phút</span>
+  <span class="tap">Giữ ◀ ▶ để chạy · ▲ để nhảy · ⚡ vô địch 2 giây · Sét: tia sét · về đích trong 2 phút</span>
 </div>
 
 <div class="tsbanner" id="tsBanner" hidden></div>
@@ -72,6 +72,7 @@
     <button class="tbtn" type="button" data-key="right" aria-label="Lăn phải">▶</button>
   </div>
   <div class="grp">
+    <button class="tbtn bolt" type="button" data-key="bolt" aria-label="Tia sét">Sét</button>
     <button class="tbtn power" id="skillBtn" type="button" data-key="skill" aria-label="Tuyệt kĩ vô địch">⚡</button>
     <button class="tbtn" type="button" data-key="jump" aria-label="Nhảy">▲</button>
   </div>
@@ -81,10 +82,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=ae021ebc&t=' + Date.now();
+  s.src = 'js/game.js?v=31b9e55b&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=ae021ebc&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=31b9e55b&t=' + Date.now();
 })();
 </script>
 </body>

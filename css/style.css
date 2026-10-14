@@ -55,6 +55,7 @@ kbd { font: 800 14px var(--f-display); background: var(--paper); color: var(--in
 .tsbanner { position: fixed; left: 50%; top: 38%; transform: translateX(-50%); background: rgb(60 30 90 / .85); border: 3px solid #c9b6ff; color: var(--paper); font-weight: 800; font-size: 22px; padding: 8px 20px; border-radius: 14px; text-align: center; max-width: calc(100% - 32px); pointer-events: none; }
 .tsbanner[data-esc="1"] { background: rgb(150 20 50 / .85); border-color: #ff9ab0; }
 #time.low { color: #ff6b6b; }
+.tbtn.bolt { color: #fff27a; border-color: #fff27a; font-size: 18px; }
 .tbtn.power { color: var(--gold); border-color: var(--gold); }
 .tbtn:disabled { opacity: .4; }
 .chip.skill[data-state="ready"] { color: var(--gold); }

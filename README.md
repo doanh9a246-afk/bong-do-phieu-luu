@@ -21,6 +21,7 @@ python -m http.server 8000
 | Chạy trái / phải | `←` `→` hoặc `A` `D` | ◀ ▶ |
 | Nhảy (giữ lâu nhảy cao hơn) | `↑`, `W` hoặc `Space` | ▲ |
 | Tuyệt kĩ Vô địch | `K` hoặc `Shift` | ⚡ |
+| Tia sét (bắn xa) | `J` hoặc `X` | Sét |
 | Bật / tắt âm thanh | `M` | nút "Âm thanh" |
 | Chơi lại | `R` | nút "Chơi lại" |
 
@@ -37,9 +38,18 @@ python -m http.server 8000
 
 Bật trong 2 giây, hồi chiêu 10 giây. Trong lúc vô địch, Pikachu toả tia điện, không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
 
+### Tia sét
+
+Pikachu bắn tia sét thẳng về phía trước (cách nhau khoảng 0,55 giây, bay xa chừng 500 px):
+
+- Hạ quái vuông chỉ với 1 phát.
+- Triệt tiêu mũi băng và cầu lửa của boss khi bắn trúng.
+- Lilith / Naamah: **3 tia sét trúng = 1 lần giẫm**. Tia sét bị dội lại khi ác quỷ đang tạo vòng ma lực, đang phong ấn hoặc vừa bị đánh.
+- Boss hợp thể: chỉ mất máu khi đang Vô địch (1 máu mỗi tia, 2 máu nếu đang mang vết tích).
+
 ### Boss: Lilith & Naamah
 
-Vào đấu trường thì cổng đóng lại. Mỗi lần chỉ có một ác quỷ. Phải **giẫm lên đầu** để gây sát thương; chạm phía trước hay phía sau đều mất mạng.
+Vào đấu trường thì cổng đóng lại. Trong đấu trường có 3 bục nhảy lơ lửng để né đạn và laze. Mỗi lần chỉ có một ác quỷ. Phải **giẫm lên đầu** để gây sát thương; chạm phía trước hay phía sau đều mất mạng.
 
 | Giai đoạn | Ác quỷ | Tốc độ | Tấn công | Số lần giẫm |
 |---|---|---|---|---|

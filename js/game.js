@@ -10,14 +10,15 @@ const TIME_LIMIT = 120;               // phải về đích trong 2 phút
 const TS_EVERY = 5, TS_DUR = 3.5, LASER_AT = 1, LASER_DUR = .35, LASER_CHARGE = .8, LASER_H = 56;
 const LEVEL_W = 7000, DEATH_Y = 900;
 const LIVES = 3;
+const BOLT_SPEED = 720, BOLT_LIFE = .7, BOLT_CD = .55, BOLTS_PER_HIT = 3;   // tia sét của Pikachu
 // Đấu trường boss ở cuối màn
 const ARENA = { l: 6220, r: 6950, gateX: 6190, floor: 420 };
 const BOSS_W = 64, BOSS_H = 112, AURA_R = 105, WARN = .7;
 const PHASES = [null,
-  { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Lilith xuất hiện trước. Giẫm lên đầu 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
+  { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Lilith xuất hiện trước. Giẫm lên đầu 3 lần (hoặc 3 tia sét J = 1 lần giẫm). Chạm phía trước hay phía sau đều mất mạng.' },
   { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'HELL MODE', note: 'Lilith tạo vòng băng và bắn mũi băng; cứ 5 giây phong ấn bạn (Shift để thoát, nhảy né laze). Giẫm 3 lần để hạ Lilith… nhưng hãy giữ sẵn Vô địch!' },
   { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Naamah nhanh hơn: vòng lửa và cầu lửa mỗi 3 giây, vẫn phong ấn mỗi 5 giây. Giẫm 3 lần để hạ Naamah!' },
-  { speed: 70, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 420, name: 'HỢP THỂ', note: 'Chỉ gây sát thương khi đang Vô địch (Shift): lao vào thân boss. Nhặt vết tích băng / lửa rơi ra sau mỗi đợt tấn công: Vô địch + vết tích = sát thương gấp đôi.' },
+  { speed: 70, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 420, name: 'HỢP THỂ', note: 'Chỉ gây sát thương khi đang Vô địch (Shift): lao vào thân boss. Nhặt vết tích băng / lửa rơi ra sau mỗi đợt tấn công: Vô địch + vết tích = sát thương gấp đôi. Tia sét (J) cũng gây sát thương khi đang Vô địch.' },
 ];
 // Hợp thể sau khi Naamah bị hạ
 const FUSE = { ghost: .5, merge: 1.4, end: 2.2 }, FUSED_HP = 20, FUSED_K = 1.35;
@@ -57,6 +58,9 @@ addBox(3140, 430, 130, 26);
 const f3 = addGround(3330, 4420, x => x < 3900 ? 480 : x < 4200 ? 480 - (x - 3900) * .4 : 360);
 const f4 = addGround(4540, LEVEL_W, x => x >= 6140 ? 420 : 420 - 22 * Math.sin((x - 4540) / 200 * Math.PI) ** 2);
 addBox(5600, 300, 140, 26);
+addBox(6330, 290, 110, 22);                       // bục nhảy trong đấu trường để né chiêu
+addBox(6535, 200, 120, 22);
+addBox(6750, 290, 110, 22);
 addBox(ARENA.r, -800, 80, 1300);                 // tường phải của đấu trường
 addBox(ARENA.gateX, -800, 30, 1220);             // cổng trái, chỉ chặn khi đang đánh boss
 SOLIDS[SOLIDS.length - 1].gate = true;
@@ -92,7 +96,7 @@ function reset() {
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
     lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false, sky: 0,
     boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, cut: null, fuse: null, hp: FUSED_HP, hitCd: 0, marks: [], units: newUnits() },
-    traces: 0, pops: [], flash: 0,
+    traces: 0, pops: [], flash: 0, bolts: [], boltCd: 0, cast: 0,
     lastDir: 1,
     bullets: [],
   });
@@ -139,6 +143,7 @@ const SFX = {
   stomp()   { tone(420, 140, .12, 'square', .06); },
   hurt()    { tone(1100, 700, .12, 'square', .05); tone(800, 260, .35, 'square', .05, .13); },
   hit()     { tone(600, 260, .08, 'square', .06); noise(.1, .05, 4000); },
+  bolt()    { noise(.12, .05, 5000); tone(2200, 500, .12, 'sawtooth', .035); },
   zap()     { noise(.18, .05, 4500); tone(1800, 600, .15, 'sawtooth', .03); },
   win()     { [784, 988, 1175, 1568].forEach((f, i) => tone(f, f, .16, 'triangle', .07, i * .12)); tone(1250, 1750, .07, 'square', .05, .55); tone(950, 1450, .1, 'square', .05, .64); },
 };
@@ -153,6 +158,7 @@ function setMuted(m) {
 function setKey(k, on) {
   audio();
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
+  if (k === 'bolt' && on && !keys.bolt) fireBolt();
   if (k === 'skill' && on && !keys.skill) {
     if (S.boss && S.boss.ts > 0 && !S.tsEsc && !S.dead) escapeTimeStop();
     else activateSkill();
@@ -160,7 +166,7 @@ function setKey(k, on) {
   keys[k] = on;
   if (on && !S.moved) { S.moved = true; setTimeout(() => $('hint').classList.add('gone'), 1500); }
 }
-const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill' };
+const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill', KeyJ: 'bolt', KeyX: 'bolt' };
 function escapeTimeStop() {
   sfx('zap');
   S.tsEsc = true;
@@ -188,7 +194,7 @@ addEventListener('keydown', e => {
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
 });
 addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) { e.preventDefault(); setKey(k, false); } });
-addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.skill = false; });
+addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.skill = keys.bolt = false; });
 document.querySelectorAll('[data-key]').forEach(b => {
   const k = b.dataset.key;
   b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); b.classList.add('on'); setKey(k, true); });
@@ -326,6 +332,7 @@ function update(dt) {
     if (S.onGround && Math.abs(b.vx) > 60 && Math.floor(b.run / Math.PI) !== before) sfx('step');
   }
   if (Math.abs(b.vx) > 8) b.face = Math.sign(b.vx);
+  updateBolts(dt);
   b.squash = Math.max(0, b.squash - dt * 1.6);
 
   if (b.y > DEATH_Y) die();
@@ -357,6 +364,83 @@ function update(dt) {
     if (i > S.cp && b.x > c.x) { S.cp = i; S.spawn = { x: c.x, y: c.f(c.x) - 60 }; }
   });
   if (S.boss.dead && b.x > GOAL.x - 10) win();
+}
+
+/* ---------- Tia sét của Pikachu ---------- */
+function fireBolt() {
+  const B = S.boss;
+  const frozen = (B.ts > 0 && !S.tsEsc) || (B.cut && B.cut.t < CUT.strike) || !!B.fuse;
+  if (S.dead || S.won || S.lost || S.boltCd > 0 || frozen) return;
+  const b = S.ball, d = b.face || 1;
+  S.boltCd = BOLT_CD; S.cast = .2;
+  S.bolts.push({ x: b.x + d * 26, y: b.y - 10, vx: d * BOLT_SPEED, life: BOLT_LIFE, seed: Math.random() * 100 });
+  sfx('bolt');
+}
+function boltSpark(x, y, c = '#fff27a', n = 10) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 220;
+    S.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .35, c: i % 2 ? c : '#ffffff', r: 3 + Math.random() * 3, g: 0 });
+  }
+}
+function updateBolts(dt) {
+  S.boltCd = Math.max(0, S.boltCd - dt);
+  S.cast = Math.max(0, S.cast - dt);
+  for (const q of S.bolts) {
+    q.x += q.vx * dt; q.life -= dt;
+    // quái vuông
+    for (const e of S.enemies) {
+      if (!e.alive) continue;
+      const ey = e.f(e.x) - 20;
+      if (Math.abs(q.x - e.x) < 26 && Math.abs(q.y - ey) < 28) {
+        e.alive = false; e.squash = 0; q.life = 0;
+        boltSpark(e.x, ey, '#16181d', 16); sfx('stomp'); break;
+      }
+    }
+    if (q.life <= 0) continue;
+    // triệt tiêu đạn của boss
+    for (const u of S.bullets) {
+      if (Math.abs(u.x - q.x) < 22 && Math.abs(u.y - q.y) < 22) { u.x = -1e9; q.life = 0; boltSpark(q.x, q.y); break; }
+    }
+    if (q.life <= 0) continue;
+    if (boltHitsBoss(q)) q.life = 0;
+  }
+  S.bolts = S.bolts.filter(q => q.life > 0);
+}
+// Trúng boss: Lilith / Naamah cần 3 tia = 1 đòn giẫm; dạng hợp thể chỉ mất máu khi đang Vô địch
+function boltHitsBoss(q) {
+  const B = S.boss;
+  if (!S.fight || B.dead || B.cut || B.fuse) return false;
+  const gy = ARENA.floor;
+  if (B.phase === 4) {
+    const u = B.units[0];
+    if (Math.abs(q.x - u.x) > FW / 2 + 6 || q.y < gy - FH || q.y > gy) return false;
+    if (S.power > 0 && !B.hitCd) {
+      const dmg = S.traces > 0 ? 2 : 1;
+      if (S.traces > 0) S.traces--;
+      B.hp -= dmg; B.hitCd = .2; u.hurt = .3;
+      sfx('hit');
+      S.pops.push({ x: u.x, y: gy - FH - 10, t: .8, text: `-${dmg}`, c: dmg > 1 ? '#ffc21a' : '#ffffff' });
+      boltSpark(q.x, q.y, '#ffc21a', 14);
+      if (B.hp <= 0) killFused(B, u); else bossBar();
+    } else {
+      boltSpark(q.x, q.y, '#9aa3ad', 8);   // không Vô địch: tia sét bị dội lại
+      if (!S.power) S.pops.push({ x: u.x, y: gy - FH - 10, t: .6, text: 'Cần Vô địch!', c: '#c9d1db' });
+    }
+    return true;
+  }
+  for (let i = 0; i < B.units.length; i++) {
+    const u = B.units[i];
+    if (u.hidden || Math.abs(q.x - u.x) > BOSS_W / 2 + 6 || q.y < gy - BOSS_H || q.y > gy) continue;
+    const shielded = B.ts > 0 || B.inv > 0 || (B.fire > 0 && i === B.att);
+    if (shielded) { boltSpark(q.x, q.y, '#9aa3ad', 8); return true; }
+    B.zap = (B.zap || 0) + 1;
+    boltSpark(q.x, q.y, '#fff27a', 12);
+    u.hurt = .15;
+    if (B.zap >= BOLTS_PER_HIT) { B.zap = 0; hitBoss(u); }
+    else S.pops.push({ x: u.x, y: gy - BOSS_H - 10, t: .6, text: `⚡${B.zap}/${BOLTS_PER_HIT}`, c: '#fff27a' });
+    return true;
+  }
+  return false;
 }
 
 /* ---------- Boss: Lilith (băng) & Naamah (lửa) ---------- */
@@ -1263,6 +1347,21 @@ function drawHellSky() {
   ctx.beginPath(); ctx.arc(mx - 12, my - 8, 9, 0, Math.PI * 2); ctx.arc(mx + 14, my + 12, 6, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
+function drawBolts() {
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const q of S.bolts) {
+    const d = Math.sign(q.vx), len = 46, segs = 6;
+    const pts = [];
+    for (let i = 0; i <= segs; i++) {
+      const jitter = (i === 0 || i === segs) ? 0 : Math.sin(q.seed + i * 2.7 + S.t * 40) * 7;
+      pts.push([q.x - d * len * (i / segs), q.y + jitter]);
+    }
+    for (const [w, c] of [[9, 'rgb(255 242 122 / .35)'], [4.5, '#fff27a'], [2, '#ffffff']]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w;
+      ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+    }
+  }
+}
 function drawBullets() {
   for (const u of S.bullets) {
     const d = Math.sign(u.vx);
@@ -1338,7 +1437,7 @@ function drawPikachu(b, charged) {
   ctx.beginPath(); ctx.moveTo(-11, -22); ctx.lineTo(-6, -20); ctx.moveTo(-12, -15); ctx.lineTo(-7, -14); ctx.stroke();
   // tay: chạy thì vung, nhảy thì giơ lên
   ctx.fillStyle = Y; ctx.strokeStyle = DK; ctx.lineWidth = 2;
-  const armA = air ? -1.9 : running ? Math.sin(ph + Math.PI) * .8 : .3;
+  const armA = S.cast > 0 ? -1.45 : air ? -1.9 : running ? Math.sin(ph + Math.PI) * .8 : .3;
   ctx.save(); ctx.translate(8, -20); ctx.rotate(armA);
   ctx.beginPath(); ctx.ellipse(0, 5, 3.2, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.restore();
@@ -1370,6 +1469,12 @@ function drawPikachu(b, charged) {
   ctx.beginPath(); ctx.arc(11, hy + 5, 3.4, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(-6, hy + 4, 3, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#1a1a1a'; ctx.fillRect(15, hy + 1, 2, 1.6);
+  if (S.cast > 0 || charged) {
+    // má toé tia lửa điện
+    ctx.strokeStyle = Math.floor(S.t * 30) % 2 ? '#ffffff' : '#fff27a'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(14, hy + 3); ctx.lineTo(18, hy + 1); ctx.lineTo(17, hy + 5); ctx.lineTo(21, hy + 4);
+    ctx.moveTo(13, hy + 8); ctx.lineTo(17, hy + 10); ctx.lineTo(15, hy + 12); ctx.stroke();
+  }
   ctx.strokeStyle = DK; ctx.lineWidth = 1.6;
   ctx.beginPath();
   if (air || charged) ctx.arc(12, hy + 6, 2.2, 0, Math.PI);        // há miệng "Pika!"
@@ -1423,6 +1528,7 @@ function render() {
   drawEnemies();
   drawBoss();
   drawBullets();
+  drawBolts();
   drawTimeStop();
   drawBall();
   drawParts();
