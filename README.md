@@ -52,6 +52,15 @@ Vòng ma lực quanh ác quỷ đang tấn công chạm vào là mất mạng, v
 
 **Khi hạ được Lilith**: Lilith nứt ra, Naamah chui ra từ xác Lilith, biến mất rồi hiện ngay sau lưng quả bóng và đánh úp. Bóng bị giữ yên trong lúc này. Cách duy nhất để không mất mạng là bật **Vô địch** (`Shift`) trước khi bị cào; nếu Vô địch đang hồi chiêu thì chắc chắn mất 1 mạng. Hãy giữ sẵn Vô địch khi sắp hạ Lilith! Từ lúc Naamah xuất hiện, bầu trời và cảnh vật chuyển sang đỏ đen với trăng máu, cho tới khi Naamah bị hạ.
 
+**Hợp thể**: hạ Naamah xong, hồn Lilith hiện về và hai ác quỷ hợp thể thành **Lilith × Naamah** (nửa băng, nửa lửa) với **20 máu**.
+
+- Chỉ gây sát thương khi đang **Vô địch** (`Shift`): lao vào thân boss, mỗi lần chạm trừ **1 máu**. Chạm khi không Vô địch là mất mạng.
+- Cứ 5 giây cả hai nửa **đồng loạt tấn công**: vòng băng lửa quanh thân, mũi băng bắn sang trái và cầu lửa bắn sang phải cùng lúc.
+- Mỗi đợt tấn công để lại **2 vết tích** (mảnh băng và tàn lửa) trên mặt đất trong 9 giây. Lăn qua để nhặt (tối đa 5).
+- **Vô địch + vết tích = sát thương gấp đôi**: mỗi lần chạm khi đang mang vết tích trừ 2 máu và tiêu 1 vết tích.
+
+Hạ được boss hợp thể thì cổng mở, trời trở lại bình thường và cờ đích xuất hiện. Tất cả phải xong trong 2 phút!
+
 ## Ghi chú về nhân vật
 
 Hai boss là fan art dạng chibi của Lilith và Naamah, được vẽ hoàn toàn bằng code (hình khối trên canvas), không dùng hình ảnh gốc nào. Các nhân vật và *Black Clover* thuộc bản quyền của tác giả Yūki Tabata và các bên giữ bản quyền. Đây là dự án cá nhân, phi thương mại.

@@ -16,8 +16,12 @@ const BOSS_W = 64, BOSS_H = 112, AURA_R = 105, WARN = .7;
 const PHASES = [null,
   { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Lilith xuất hiện trước. Giẫm lên đầu 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
   { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'HELL MODE', note: 'Lilith tạo vòng băng và bắn mũi băng; cứ 5 giây phong ấn bạn (Shift để thoát, nhảy né laze). Giẫm 3 lần để hạ Lilith… nhưng hãy giữ sẵn Vô địch!' },
-  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Naamah nhanh hơn: vòng lửa và cầu lửa mỗi 3 giây, vẫn phong ấn mỗi 5 giây. Giẫm 3 lần cuối!' },
+  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Naamah nhanh hơn: vòng lửa và cầu lửa mỗi 3 giây, vẫn phong ấn mỗi 5 giây. Giẫm 3 lần để hạ Naamah!' },
+  { speed: 70, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 420, name: 'HỢP THỂ', note: 'Chỉ gây sát thương khi đang Vô địch (Shift): lao vào thân boss. Nhặt vết tích băng / lửa rơi ra sau mỗi đợt tấn công: Vô địch + vết tích = sát thương gấp đôi.' },
 ];
+// Hợp thể sau khi Naamah bị hạ
+const FUSE = { ghost: .5, merge: 1.4, end: 2.2 }, FUSED_HP = 20, FUSED_K = 1.35;
+const FW = BOSS_W * FUSED_K, FH = BOSS_H * FUSED_K;
 // Màn chuyển cảnh khi Lilith bị hạ: Naamah chui ra, hiện sau lưng bóng và đánh úp
 const CUT = { burst: .9, emerge: .6, vanish: 1.5, appear: 1.7, strike: 2.5, end: 2.9 };
 
@@ -87,7 +91,8 @@ function reset() {
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
     lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false, sky: 0,
-    boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, cut: null, units: newUnits() },
+    boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, cut: null, fuse: null, hp: FUSED_HP, hitCd: 0, marks: [], units: newUnits() },
+    traces: 0, pops: [], flash: 0,
     lastDir: 1,
     bullets: [],
   });
@@ -218,7 +223,10 @@ function respawn() {
 function update(dt) {
   S.t += dt;
   // Bầu trời địa ngục: chuyển dần sang đỏ đen khi Naamah xuất hiện, trở lại khi Naamah bị hạ
-  const Bo = S.boss, hellSky = !Bo.dead && (Bo.phase === 3 || !!(Bo.cut && Bo.cut.burst));
+  const Bo = S.boss, hellSky = !Bo.dead && (Bo.phase >= 3 || !!(Bo.cut && Bo.cut.burst));
+  S.flash = Math.max(0, S.flash - dt * 1.8);
+  for (const q of S.pops) { q.t -= dt; q.y -= 40 * dt; }
+  S.pops = S.pops.filter(q => q.t > 0);
   S.sky += ((hellSky ? 1 : 0) - S.sky) * Math.min(1, dt * (hellSky ? 2 : .8));
   for (const p of S.parts) { p.vy += (p.g ?? 1200) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
   S.parts = S.parts.filter(p => p.life > 0);
@@ -247,7 +255,7 @@ function update(dt) {
 
   // Thời gian ngưng đọng: bóng bị đóng băng cho tới khi nhấn Shift
   const cut = S.boss.cut;
-  const frozen = (S.boss.ts > 0 && !S.tsEsc) || (cut && cut.t < CUT.strike);
+  const frozen = (S.boss.ts > 0 && !S.tsEsc) || (cut && cut.t < CUT.strike) || !!S.boss.fuse;
   const inDir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   if (inDir) S.lastDir = inDir;
   if (!frozen) {
@@ -302,9 +310,14 @@ const devilName = B => B.units[0].kind === 'ice' ? 'LILITH' : 'NAAMAH';
 function bossBar() {
   const B = S.boss;
   $('bossbar').hidden = !(S.fight || B.dead);
-  $('bname').textContent = B.dead ? 'LILITH & NAAMAH' : devilName(B);
-  $('bphase').textContent = B.dead ? 'Đã hạ!' : `${PHASES[B.phase].name} (${B.phase}/3)`;
-  $('bnote').textContent = B.dead ? 'Lăn tới cờ đích để về đích.' : PHASES[B.phase].note;
+  const fused = B.phase === 4 || !!B.fuse;
+  $('bname').textContent = B.dead || fused ? 'LILITH × NAAMAH' : devilName(B);
+  $('bphase').textContent = B.dead ? 'Đã hạ!' : B.fuse ? 'Đang hợp thể…'
+    : B.phase === 4 ? `HỢP THỂ · ${Math.max(0, B.hp)}/${FUSED_HP} máu` : `${PHASES[B.phase].name} (${B.phase}/3)`;
+  $('bnote').textContent = B.dead ? 'Lăn tới cờ đích để về đích.' : B.fuse ? 'Lilith và Naamah đang hợp thể!' : PHASES[B.phase].note;
+  document.querySelector('#bossbar .pips').hidden = fused;
+  $('hpbar').hidden = !(B.phase === 4) || B.dead;
+  $('hpfill').style.width = (Math.max(0, B.hp) / FUSED_HP * 100) + '%';
   document.querySelectorAll('#bossbar .pips i').forEach((p, i) => p.classList.toggle('on', !B.dead && i < 3 - B.hits));
 }
 // Vòng ma lực: to dần khi xuất hiện, thu lại khi sắp tắt
@@ -328,6 +341,8 @@ function updateBoss(dt) {
     return;
   }
   if (B.cut) { updateCut(B, b, dt); return; }
+  if (B.fuse) { updateFuse(B, b, dt); return; }
+  if (B.phase === 4) { updateFused(B, b, dt); return; }
   const P = PHASES[B.phase];
   B.inv = Math.max(0, B.inv - dt);
   // Hell mode: phong ấn (đóng băng bóng) rồi bắn laze
@@ -485,6 +500,113 @@ function smoke(x, y) {
     S.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: .6, c: i % 3 ? '#3a1a24' : '#ff2f5c', r: 8 + Math.random() * 8, g: -100 });
   }
 }
+function updateFuse(B, b, dt) {
+  const F = B.fuse;
+  F.t += dt;
+  if (F.t >= FUSE.merge && !F.merged) {
+    F.merged = true;
+    for (let i = 0; i < 80; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 480;
+      S.parts.push({ x: F.mx, y: ARENA.floor - 80, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: 1.1, c: ['#7ff0ff', '#ff2f5c', '#ffffff', '#d8fbff', '#ffa0b4'][i % 5], r: 5 + Math.random() * 7 });
+    }
+    S.flash = 1;
+    B.units = [{ kind: 'fused', x: F.mx, dir: Math.sign(b.x - F.mx) || -1, squash: 0, flash: 0, hurt: 0, grow: 0 }];
+  }
+  if (F.merged) B.units[0].grow = clamp((F.t - FUSE.merge) / (FUSE.end - FUSE.merge), 0, 1);
+  if (F.t >= FUSE.end) {
+    B.fuse = null; delete B.units[0].grow;
+    Object.assign(B, { phase: 4, hp: FUSED_HP, hits: 0, inv: 0, fireT: 0, fire: 0, warn: false, shot: 0, att: 0, hitCd: 0, marks: [] });
+    S.safe = Math.max(S.safe, 1);
+    bossBar();
+  }
+}
+// Vết tích rơi ra sau mỗi đợt tấn công: một mảnh băng bên trái, một tàn lửa bên phải
+function dropMarks(B, u) {
+  const lo = ARENA.l + 50, hi = ARENA.r - 40;
+  for (const kind of ['ice', 'fire']) {
+    let x, n = 0;
+    do {
+      x = kind === 'ice' ? lo + Math.random() * (u.x - 120 - lo) : u.x + 120 + Math.random() * (hi - u.x - 120);
+    } while ((x < lo || x > hi) && n++ < 10);
+    if (x < lo || x > hi) x = lo + Math.random() * (hi - lo);
+    B.marks.push({ x, kind, life: 9 });
+  }
+}
+function updateFused(B, b, dt) {
+  const P = PHASES[4], u = B.units[0], gy = ARENA.floor;
+  B.hitCd = Math.max(0, B.hitCd - dt);
+  for (const m of B.marks) m.life -= dt;
+  B.marks = B.marks.filter(m => m.life > 0);
+  // Đồng loạt tấn công mỗi 5 giây: mũi băng sang trái, cầu lửa sang phải
+  if (B.fire > 0) {
+    const el = P.dur - B.fire;
+    while (B.shot < P.shots && el >= .15 + B.shot * P.gap) {
+      S.bullets.push({ x: u.x - FW / 2 - 20, y: gy - 24, vx: -P.bspeed, kind: 'ice' });
+      S.bullets.push({ x: u.x + FW / 2 + 20, y: gy - 24, vx: P.bspeed, kind: 'fire' });
+      B.shot++; u.flash = .08;
+    }
+    B.fire -= dt;
+    if (B.fire <= 0) { B.fire = 0; B.fireT = 0; dropMarks(B, u); }
+  } else { B.fireT += dt; if (B.fireT >= P.cycle) { B.fire = P.dur; B.shot = 0; } }
+  B.warn = !B.fire && B.fireT > P.cycle - WARN;
+  if (!B.fire && !B.warn) {
+    const lo = ARENA.l + FW / 2 + 40, hi = ARENA.r - FW / 2 - 10;
+    u.x += u.dir * P.speed * dt;
+    if (u.x > hi) { u.x = hi; u.dir = -1; }
+    if (u.x < lo) { u.x = lo; u.dir = 1; }
+  }
+  if (S.dead) return;
+  // nhặt vết tích
+  for (const m of B.marks) {
+    if (Math.hypot(m.x - b.x, (gy - 18) - b.y) < R + 16) {
+      m.life = 0; S.traces = Math.min(5, S.traces + 1);
+      for (let i = 0; i < 14; i++) {
+        const a = i / 14 * Math.PI * 2;
+        S.parts.push({ x: m.x, y: gy - 18, vx: Math.cos(a) * 200, vy: Math.sin(a) * 200, life: .4, c: m.kind === 'ice' ? '#7ff0ff' : '#ff9a1f', r: 4, g: 0 });
+      }
+    }
+  }
+  // đạn
+  for (const q of S.bullets) {
+    if (Math.hypot(q.x - b.x, q.y - b.y) < R + 5) {
+      if (S.power || S.safe) { q.x = -1e9; continue; }
+      die(); return;
+    }
+  }
+  // vòng băng lửa quanh thân
+  if (B.fire && !S.power && !S.safe && Math.hypot(b.x - u.x, b.y - (gy - 70)) < AURA_R * 1.25 * auraScale(B) + R * .3) { die(); return; }
+  // chạm thân: chỉ gây sát thương khi đang Vô địch
+  const top = gy - FH;
+  const nx = clamp(b.x, u.x - FW / 2, u.x + FW / 2), ny = clamp(b.y, top, gy);
+  if ((b.x - nx) ** 2 + (b.y - ny) ** 2 >= R * R) return;
+  const side = Math.sign(b.x - u.x) || 1;
+  if (S.power > 0) {
+    if (!B.hitCd) {
+      const dmg = S.traces > 0 ? 2 : 1;
+      if (S.traces > 0) S.traces--;
+      B.hp -= dmg; B.hitCd = .25; u.hurt = .3; u.squash = .15;
+      S.pops.push({ x: u.x, y: top - 10, t: .8, text: `-${dmg}`, c: dmg > 1 ? '#ffc21a' : '#ffffff' });
+      for (let i = 0; i < 16; i++) {
+        const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 220;
+        S.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .5, c: i % 2 ? '#ffc21a' : (dmg > 1 ? '#ff2f5c' : '#ffffff'), r: 5 });
+      }
+      if (B.hp <= 0) { killFused(B, u); return; }
+      bossBar();
+    }
+    b.x = u.x + side * (FW / 2 + R + 1); b.vx = side * 240; b.vy = -320;
+    return;
+  }
+  if (S.safe) { b.x = u.x + side * (FW / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
+  die();
+}
+function killFused(B, u) {
+  B.dead = true; S.gateClosed = false; S.bullets = []; B.marks = []; S.flash = .8;
+  for (let i = 0; i < 120; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 600;
+    S.parts.push({ x: u.x, y: ARENA.floor - 80, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.4, c: ['#7ff0ff', '#ff2f5c', '#0f2430', '#1c0c12', '#ffffff'][i % 5], r: 5 + Math.random() * 9 });
+  }
+  bossBar();
+}
 const devilColors = u => u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
 function hitBoss(u) {
   const B = S.boss;
@@ -497,14 +619,12 @@ function hitBoss(u) {
   }
   if (B.hits >= 3) {
     if (B.phase === 3) {
-      B.dead = true; S.gateClosed = false; S.bullets = [];
-      for (const v of B.units) {
-        const [d1, d2, d3] = devilColors(v);
-        for (let i = 0; i < 50; i++) {
-          const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 500;
-          S.parts.push({ x: v.x, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.2, c: [d1, d2, d3, '#ffffff'][i % 4], r: 5 + Math.random() * 8 });
-        }
-      }
+      // Naamah gục: bắt đầu hợp thể ở phía xa quả bóng
+      const center = (ARENA.l + ARENA.r) / 2;
+      const mx = S.ball.x < center ? ARENA.r - 190 : ARENA.l + 190;
+      Object.assign(B, { hits: 0, fire: 0, warn: false, ts: 0, shot: 0, fuse: { t: 0, nx: u.x, mx, merged: false } });
+      S.tsEsc = false; S.bullets = [];
+      tsBanner();
     } else if (B.phase === 2) {
       // Lilith bị hạ: bắt đầu màn Naamah chui ra
       Object.assign(B, { hits: 0, fire: 0, warn: false, shot: 0, ts: 0, hellT: 0, cut: { t: 0 } });
@@ -791,8 +911,8 @@ function drawDevil(u, B, x, gy) {
   const [GLOW, GLOW2, BODY] = devilColors(u);
   const SKIN = ice ? '#4a6470' : '#5a3a40', HAIR = ice ? '#c3d3da' : '#2a1216';
   if (u.hidden) return;
-  const moving = S.fight && !B.ts && !B.cut && !busy(B, u);
-  const aim = busy(B, u) || B.ts > 0 || (B.cut && B.cut.appear);
+  const moving = u.moving ?? (S.fight && !B.ts && !B.cut && !busy(B, u));
+  const aim = u.aim ?? (busy(B, u) || B.ts > 0 || (B.cut && B.cut.appear));
   const bob = moving ? Math.abs(Math.sin(S.t * 7 + (ice ? 0 : 1.5))) * 3 : Math.sin(S.t * 2) * 1.5;
   const flap = Math.sin(S.t * (moving ? 9 : 4) + (ice ? 0 : 1)) * .15;
   ctx.save();
@@ -874,9 +994,97 @@ function drawDevil(u, B, x, gy) {
   ctx.beginPath(); ctx.moveTo(5, hy + 9); ctx.quadraticCurveTo(9, hy + (aim ? 12 : 10), 13, hy + 8); ctx.stroke();
   ctx.restore();
 }
+// Thân hợp thể: nửa trái là Lilith, nửa phải là Naamah
+function drawFusedBody(B, u, gy, k) {
+  const x = u.x, busyNow = B.fire > 0 || B.warn;
+  for (const [kind, x0] of [['ice', -400], ['fire', 0]]) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x + x0, gy - 400, 400, 430); ctx.clip();
+    ctx.translate(x, gy); ctx.scale(k, k); ctx.translate(-x, -gy);
+    drawDevil({ ...u, kind, aim: busyNow, moving: !busyNow }, B, x, gy);
+    ctx.restore();
+  }
+  // vết nứt phát sáng ở giữa
+  ctx.strokeStyle = `rgb(255 255 255 / ${(.5 + Math.sin(S.t * 8) * .3).toFixed(2)})`; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x, gy - 125 * k); ctx.lineTo(x + 3, gy - 90 * k); ctx.lineTo(x - 3, gy - 50 * k); ctx.lineTo(x, gy - 6); ctx.stroke();
+}
+function drawMarks(B) {
+  const gy = ARENA.floor;
+  for (const m of B.marks) {
+    if (m.life < 2 && Math.floor(S.t * 8) % 2) continue;   // sắp biến mất thì nhấp nháy
+    const y = gy - 20 + Math.sin(S.t * 4 + m.x) * 4;
+    ctx.fillStyle = m.kind === 'ice' ? 'rgb(127 240 255 / .3)' : 'rgb(255 140 40 / .3)';
+    ctx.beginPath(); ctx.arc(m.x, y, 18, 0, Math.PI * 2); ctx.fill();
+    if (m.kind === 'ice') {
+      ctx.beginPath(); ctx.moveTo(m.x, y - 13); ctx.lineTo(m.x + 7, y); ctx.lineTo(m.x, y + 13); ctx.lineTo(m.x - 7, y); ctx.closePath();
+      ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+    } else {
+      ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.moveTo(m.x, y - 14); ctx.quadraticCurveTo(m.x + 10, y, m.x, y + 10); ctx.quadraticCurveTo(m.x - 10, y, m.x, y - 14); ctx.fill();
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(m.x, y + 3, 4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+function drawFuse(B) {
+  const F = B.fuse, gy = ARENA.floor;
+  if (!F.merged) {
+    const k = clamp(F.t / FUSE.merge, 0, 1), e = k * k;
+    const N = B.units[0], nx = F.nx + (F.mx - F.nx) * e + Math.sin(S.t * 60) * 2;
+    const lx = F.mx - 220 * (1 - e), ly = -150 * (1 - e);
+    // vòng xoáy năng lượng thu nhỏ dần
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#7ff0ff'; ctx.beginPath(); ctx.arc(F.mx, gy - 70, 30 + 140 * (1 - k), S.t * 6, S.t * 6 + Math.PI); ctx.stroke();
+    ctx.strokeStyle = '#ff2f5c'; ctx.beginPath(); ctx.arc(F.mx, gy - 70, 30 + 140 * (1 - k), S.t * 6 + Math.PI, S.t * 6 + Math.PI * 2); ctx.stroke();
+    // hồn Lilith hiện về từ trên cao
+    ctx.save(); ctx.globalAlpha = clamp(F.t / FUSE.ghost, 0, 1) * .8;
+    drawDevil({ kind: 'ice', x: lx, dir: 1, squash: 0, flash: 0, hurt: 0, aim: true, moving: false }, B, lx, gy + ly);
+    ctx.restore();
+    drawDevil({ ...N, x: nx, dir: -1, aim: true, moving: false }, B, nx, gy);
+  } else {
+    drawFusedBody(B, B.units[0], gy, FUSED_K * (.3 + .7 * B.units[0].grow));
+  }
+}
+function drawFused(B) {
+  const u = B.units[0], gy = ARENA.floor, cy = gy - 70;
+  drawMarks(B);
+  if (B.warn) {
+    ctx.save(); ctx.setLineDash([10, 10]); ctx.lineDashOffset = -S.t * 60; ctx.lineWidth = 4;
+    ctx.strokeStyle = '#7ff0ff'; ctx.beginPath(); ctx.arc(u.x, cy, AURA_R * 1.25, Math.PI / 2, Math.PI * 1.5); ctx.stroke();
+    ctx.strokeStyle = '#ff2f5c'; ctx.beginPath(); ctx.arc(u.x, cy, AURA_R * 1.25, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+    ctx.restore();
+  }
+  if (B.fire) {
+    const r = AURA_R * 1.25 * auraScale(B);
+    for (const [kind, x0] of [['ice', -400], ['fire', 0]]) {
+      ctx.save(); ctx.beginPath(); ctx.rect(u.x + x0, cy - 300, 400, 600); ctx.clip();
+      drawAura({ kind }, u.x, cy, r);
+      ctx.restore();
+    }
+  }
+  // hào quang vàng khi bóng đang Vô địch: báo hiệu có thể tấn công
+  if (S.power > 0) {
+    ctx.strokeStyle = Math.floor(S.t * 10) % 2 ? '#ffc21a' : '#ffffff'; ctx.lineWidth = 3;
+    ctx.strokeRect(u.x - FW / 2 - 6, gy - FH - 6, FW + 12, FH + 12);
+  }
+  drawFusedBody(B, u, gy, FUSED_K);
+}
+function drawPops() {
+  ctx.textAlign = 'center'; ctx.font = '800 30px "Baloo 2", sans-serif'; ctx.lineWidth = 5; ctx.strokeStyle = '#14141a';
+  for (const q of S.pops) {
+    ctx.globalAlpha = clamp(q.t / .4, 0, 1);
+    ctx.strokeText(q.text, q.x, q.y); ctx.fillStyle = q.c; ctx.fillText(q.text, q.x, q.y);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawFlash() {
+  if (S.flash <= 0) return;
+  ctx.fillStyle = `rgb(255 255 255 / ${Math.min(1, S.flash).toFixed(2)})`;
+  ctx.fillRect(S.cam.x - 10, S.cam.y - 10, viewW + 20, VIEW_H + 20);
+}
 function drawBoss() {
   const B = S.boss;
   if (B.dead) return;
+  if (B.fuse) { drawFuse(B); return; }
+  if (B.phase === 4) { drawFused(B); return; }
   const gy = ARENA.floor, cy = gy - 56;
   if (B.ts > 0) drawSeal();
   const C = B.cut;
@@ -1085,6 +1293,8 @@ function render() {
   drawTimeStop();
   drawBall();
   drawParts();
+  drawPops();
+  drawFlash();
 }
 
 /* ---------- Khung hình ---------- */
@@ -1110,6 +1320,9 @@ function loop(now) {
   }
   const pct = (progress() * 100).toFixed(1) + '%';
   $('progFill').style.width = pct; $('progMe').style.left = pct;
+  const showTr = S.boss.phase === 4 && !S.boss.dead;
+  $('traceChip').hidden = !showTr;
+  if (showTr) $('traces').textContent = S.traces;
   const sk = S.power > 0 ? `Vô địch ${S.power.toFixed(1)}s` : S.cd > 0 ? `Hồi ${Math.ceil(S.cd)}s` : 'Vô địch: K';
   if (sk !== lastSkill) {
     lastSkill = sk;

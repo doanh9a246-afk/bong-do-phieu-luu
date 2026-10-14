@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=49b6e344">
+<link rel="stylesheet" href="css/style.css?v=296464cb">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -17,6 +17,7 @@
   <div class="stats">
     <span class="chip"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5"/></svg><span id="stars">0/0</span></span>
     <span class="chip lives" title="Số mạng"><span id="lives">♥♥♥</span></span>
+    <span class="chip" id="traceChip" title="Vết tích: Vô địch + vết tích = sát thương gấp đôi" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3l4 9-4 9-4-9z" fill="#7ff0ff" stroke="#14301c" stroke-width="1.2"/><path d="M17 4c4 5 4 9 0 16-4-7-4-11 0-16z" fill="#ff4a1c" stroke="#14301c" stroke-width="1.2"/></svg><span id="traces">0</span></span>
     <span class="chip" id="time" title="Thời gian còn lại">2:00</span>
     <span class="chip skill" id="skillChip" data-state="ready"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="skill">Vô địch: K</span></span>
   </div>
@@ -33,6 +34,7 @@
 
 <div class="bossbar" id="bossbar" hidden>
   <div class="bhead"><b id="bname">LILITH</b> · <span id="bphase">Giai đoạn 1</span><span class="pips"><i></i><i></i><i></i></span></div>
+  <div class="hpbar" id="hpbar" hidden><i id="hpfill"></i></div>
   <div class="bnote" id="bnote"></div>
 </div>
 
@@ -76,10 +78,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=49b6e344&t=' + Date.now();
+  s.src = 'js/game.js?v=296464cb&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=49b6e344&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=296464cb&t=' + Date.now();
 })();
 </script>
 </body>
