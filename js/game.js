@@ -86,7 +86,7 @@ function reset() {
     stars: STAR_POS.map(([x, y]) => ({ x, y, got: false })),
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
-    lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false,
+    lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false, sky: 0,
     boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, cut: null, units: newUnits() },
     lastDir: 1,
     bullets: [],
@@ -217,6 +217,9 @@ function respawn() {
 
 function update(dt) {
   S.t += dt;
+  // Bầu trời địa ngục: chuyển dần sang đỏ đen khi Naamah xuất hiện, trở lại khi Naamah bị hạ
+  const Bo = S.boss, hellSky = !Bo.dead && (Bo.phase === 3 || !!(Bo.cut && Bo.cut.burst));
+  S.sky += ((hellSky ? 1 : 0) - S.sky) * Math.min(1, dt * (hellSky ? 2 : .8));
   for (const p of S.parts) { p.vy += (p.g ?? 1200) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
   S.parts = S.parts.filter(p => p.life > 0);
   for (const s of S.stars) if (s.got && s.pop > 0) s.pop -= dt;
@@ -966,6 +969,31 @@ function drawTimeStop() {
     ctx.beginPath(); ctx.arc(b.x, b.y, R + 8, 0, Math.PI * 2); ctx.stroke();
   }
 }
+// Phủ màu đỏ đen lên trời và cảnh vật (nhân vật, đạn, laze vẽ sau nên giữ màu gốc)
+function drawHellSky() {
+  const k = S.sky;
+  if (k < .01) return;
+  const x = S.cam.x - 10, y = S.cam.y - 10, w = viewW + 20, h = VIEW_H + 20;
+  ctx.save();
+  ctx.globalAlpha = k;
+  ctx.globalCompositeOperation = 'hue';          // cỏ xanh, trời xanh -> sắc đỏ
+  ctx.fillStyle = '#ff1020'; ctx.fillRect(x, y, w, h);
+  ctx.globalCompositeOperation = 'multiply';     // tối lại
+  ctx.fillStyle = '#7a3a3a'; ctx.fillRect(x, y, w, h);
+  ctx.globalCompositeOperation = 'source-over';
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, 'rgb(10 0 2 / .85)'); g.addColorStop(.55, 'rgb(20 0 4 / .35)'); g.addColorStop(1, 'rgb(0 0 0 / 0)');
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  // trăng máu
+  const mx = S.cam.x + viewW * .78, my = S.cam.y + 110;
+  ctx.fillStyle = 'rgb(255 40 40 / .18)';
+  ctx.beginPath(); ctx.arc(mx, my, 70, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c4161c';
+  ctx.beginPath(); ctx.arc(mx, my, 44, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgb(90 0 6 / .55)';
+  ctx.beginPath(); ctx.arc(mx - 12, my - 8, 9, 0, Math.PI * 2); ctx.arc(mx + 14, my + 12, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
 function drawBullets() {
   for (const u of S.bullets) {
     const d = Math.sign(u.vx);
@@ -1049,6 +1077,7 @@ function render() {
   drawSolids(x0, x1);
   drawGate();
   drawSpikes();
+  drawHellSky();
   drawStars();
   drawEnemies();
   drawBoss();

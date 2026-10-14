@@ -50,7 +50,7 @@ Vòng ma lực quanh ác quỷ đang tấn công chạm vào là mất mạng, v
 
 **Hell mode**: cứ 5 giây ác quỷ phong ấn bạn trong 3,5 giây. Bóng bị đóng băng, nhấn `Shift` (hoặc `K`, nút ⚡) để thoát. 1 giây trước khi phong ấn kết thúc, ác quỷ bắn laze sát mặt đất về phía bạn. Laze chỉ né được bằng cách nhảy lên (Vô địch không chặn được).
 
-**Khi hạ được Lilith**: Lilith nứt ra, Naamah chui ra từ xác Lilith, biến mất rồi hiện ngay sau lưng quả bóng và đánh úp. Bóng bị giữ yên trong lúc này. Cách duy nhất để không mất mạng là bật **Vô địch** (`Shift`) trước khi bị cào; nếu Vô địch đang hồi chiêu thì chắc chắn mất 1 mạng. Hãy giữ sẵn Vô địch khi sắp hạ Lilith!
+**Khi hạ được Lilith**: Lilith nứt ra, Naamah chui ra từ xác Lilith, biến mất rồi hiện ngay sau lưng quả bóng và đánh úp. Bóng bị giữ yên trong lúc này. Cách duy nhất để không mất mạng là bật **Vô địch** (`Shift`) trước khi bị cào; nếu Vô địch đang hồi chiêu thì chắc chắn mất 1 mạng. Hãy giữ sẵn Vô địch khi sắp hạ Lilith! Từ lúc Naamah xuất hiện, bầu trời và cảnh vật chuyển sang đỏ đen với trăng máu, cho tới khi Naamah bị hạ.
 
 ## Ghi chú về nhân vật
 
