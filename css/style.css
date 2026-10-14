@@ -90,9 +90,15 @@ kbd { font: 800 14px var(--f-display); background: var(--paper); color: var(--in
 .tbtn.bolt { color: #fff27a; border-color: #fff27a; font-size: 18px; }
 .tbtn.power { color: var(--gold); border-color: var(--gold); }
 .tbtn:disabled { opacity: .4; }
-.chip.skill[data-state="ready"] { color: var(--gold); }
-.chip.skill[data-state="on"] { background: var(--gold); color: var(--ink); text-shadow: none; }
-.chip.skill[data-state="cd"] { opacity: .75; }
+.chip.energy { gap: 8px; }
+.ebar { width: 90px; height: 12px; border-radius: 6px; background: rgb(255 255 255 / .2); overflow: hidden; border: 2px solid rgb(255 255 255 / .5); }
+.ebar i { display: block; height: 100%; width: 50%; background: linear-gradient(90deg, #ffc21a, #fff27a); transition: width .15s; }
+.chip.energy[data-full="1"] { color: #fff27a; box-shadow: 0 0 0 3px #fff27a; }
+.chip.energy[data-full="1"] .ebar i { background: #ffffff; }
+.touch .grp.acts { display: grid; grid-template-columns: repeat(3, 58px); gap: 8px; }
+.touch .grp.acts .tbtn { width: 58px; height: 58px; font-size: 18px; }
+.tbtn.web { color: #c9f3ff; border-color: #c9f3ff; }
+.tbtn.volt { color: #fff27a; border-color: #fff27a; font-size: 16px !important; }
 @media (pointer: coarse) { .touch { display: flex; } .hint .keys { display: none; } }
 @media (pointer: fine) { .hint .tap { display: none; } }
 @media (prefers-reduced-motion: reduce) { .hint { transition: none; } }

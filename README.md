@@ -1,6 +1,6 @@
 # Bóng Đỏ Phiêu Lưu
 
-Game đi cảnh 2D phong cách pixel: điều khiển Pikachu chạy qua đồi cỏ, nhảy qua vực và gai, nhặt sao, rồi hạ boss ở cuối màn. Có âm thanh tổng hợp ngay trong trình duyệt ("Pi-ka!" khi nhảy, "Pi-ka-chuuu" khi bật Vô địch, tiếng bước chân, nhặt sao…).
+Game đi cảnh 2D phong cách pixel: điều khiển Pikachu chạy qua đồi cỏ, nhảy qua vực và gai, nhặt sao, rồi hạ boss ở cuối màn. Pikachu có bộ chiêu theo nguyên tác (Tia sét, Quả cầu điện, Lưới điện, Lao điện, 100.000 Vôn) và âm thanh tổng hợp ngay trong trình duyệt.
 
 Chạy bằng HTML5 Canvas và JavaScript thuần, không cần cài đặt hay build.
 
@@ -20,59 +20,61 @@ python -m http.server 8000
 |---|---|---|
 | Chạy trái / phải | `←` `→` hoặc `A` `D` | ◀ ▶ |
 | Nhảy (giữ lâu nhảy cao hơn) | `↑`, `W` hoặc `Space` | ▲ |
-| Tuyệt kĩ Vô địch | `K` hoặc `Shift` | ⚡ |
-| Tia sét (bắn xa) | `J` hoặc `X`, hoặc bấm nút ⚡ Sét góc phải dưới | Sét |
+| Tia sét / Quả cầu điện | Bấm `J` (hoặc `X`) / giữ `J` rồi thả | Sét (bấm / giữ) |
+| Lưới điện | `L` (hoặc `C`) | Lưới |
+| Lao điện | `Shift` (hoặc `K`) | ⚡ |
+| 100.000 Vôn | `U` (hoặc `V`) khi đầy điện năng | 100K |
 | Bật / tắt âm thanh | `M` | nút "Âm thanh" |
 | Chơi lại | `R` | nút "Chơi lại" |
+
+## Bộ chiêu của Pikachu
+
+Mọi chiêu đều tốn **điện năng** (thanh ⚡ ở góc trên, 0–100). Điện năng tự nạp dần, nạp nhanh hơn khi chạy, và tăng thêm khi nhặt sao (+15), hạ quái (+8) hoặc đánh trúng boss (+5).
+
+| Chiêu | Tốn | Tác dụng |
+|---|---|---|
+| **Tia sét** (Thunder Shock) | 5 | Bắn thẳng, hạ quái nhỏ, phá đạn của địch, trừ 1 máu boss. |
+| **Quả cầu điện** (Electro Ball) | 20 | Giữ `J` càng lâu cầu càng to; đúng nguyên tác, Pikachu chạy càng nhanh lúc thả thì càng mạnh (1–3 sát thương). Bay vòng cung, nảy một lần, xuyên qua quái nhỏ và đạn. |
+| **Lưới điện** (Electroweb) | 30 | Quái hoặc boss dính lưới đứng yên, boss bị huỷ chiêu đang ra; lưới quét sạch đạn trên đường bay. |
+| **Lao điện** (Volt Tackle) | 25 | Lao về phía trước, không bị tổn hại trong lúc lao, xuyên qua gai, đâm trúng boss trừ 2 máu. Là cách duy nhất để chặn cú đánh úp của Naamah. |
+| **100.000 Vôn** (Thunderbolt) | 100 | Tuyệt chiêu: sét giáng khắp màn hình, xoá mọi đạn, hạ hết quái trong tầm nhìn, boss mất 5 máu và bị choáng 1,5 giây. |
 
 ## Luật chơi
 
 - Phải về đích trong **5 phút**; hết giờ là thua.
-- Có **3 mạng**. Rơi xuống vực, chạm gai, chạm quái, chạm boss, trúng đạn hoặc laze đều mất 1 mạng. Hết mạng thì chơi lại từ đầu.
+- Có **3 mạng**. Rơi xuống vực, chạm gai, chạm quái, chạm boss, trúng đạn, cột băng, lửa hoặc laze đều mất 1 mạng. Hết mạng thì chơi lại từ đầu.
 - **Cờ kiểm tra**: chạm qua thì lần ngã sau hồi sinh tại đó. Có 2 cờ, cờ thứ hai nằm ngay trước đấu trường boss.
-- **Quái vuông đen**: nhảy giẫm lên đầu để hạ, chạm ngang thì mất mạng.
-- **12 ngôi sao** rải khắp màn chơi.
-- **Thanh chặng đường** phía trên màn hình cho biết bạn đã đi được bao xa.
-- **Biển “!”** đánh dấu chỗ có mẹo; đi tới gần sẽ hiện hướng dẫn ngắn (giẫm quái, nhảy xa, đi qua gai, bắn sét, né đạn, chuẩn bị đánh boss).
-- **Tim** (2 cái trên đường): nhặt được +1 mạng, tối đa 5 mạng.
-- **Ụ băng** ngay trước đấu trường bắn mũi băng sát đất mỗi 2,4 giây, giống boss: nhảy qua, bắn sét phá đạn, hoặc phá ụ bằng 2 tia sét hay 1 cú giẫm.
+- **12 ngôi sao** rải khắp màn chơi; **2 trái tim** +1 mạng (tối đa 5).
+- **Biển “!”** đánh dấu chỗ có mẹo; đi tới gần sẽ hiện hướng dẫn ngắn.
 - Vừa hồi sinh được bảo vệ 1,2 giây (nhấp nháy) để không bị chết lại ngay.
 
-### Tuyệt kĩ Vô địch
+### Quái trên đường
 
-Bật trong 2 giây, hồi chiêu 10 giây. Trong lúc vô địch, Pikachu toả tia điện, không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
+| Quái | Hành vi | Cách hạ |
+|---|---|---|
+| Quái vuông đen | Đi qua đi lại | Giẫm, hoặc bất kỳ chiêu điện nào |
+| **Dơi bóng tối** | Bay lượn sóng, lao xuống khi Pikachu tới gần | Giẫm, hoặc tia sét |
+| **Chim băng** | Bay cao, thả cột băng nhọn; bóng đổ dưới đất báo trước chỗ rơi | Nhảy lên bắn sét, Quả cầu điện |
+| **Ma lửa** | Lững lờ bay xuyên địa hình về phía Pikachu, giẫm không được | Chỉ chiêu điện |
+| Ụ băng | Bắn mũi băng sát đất mỗi 2,4 giây | 2 tia sét, Quả cầu điện, Lao điện hoặc 1 cú giẫm |
 
-### Tia sét
+## Boss: Lilith → Naamah → Lilith × Naamah
 
-Pikachu bắn tia sét thẳng về phía trước (cách nhau khoảng 0,55 giây, bay xa chừng 500 px):
+Vào đấu trường thì cổng đóng lại. Trong đấu trường có 3 bục nhảy để né chiêu và bắn trúng boss khi boss bay. Mỗi boss có **thanh máu** riêng. Sát thương: giẫm 2 · tia sét 1 · Quả cầu điện 1–3 · Lao điện 2 · 100.000 Vôn 5.
 
-- Hạ quái vuông chỉ với 1 phát.
-- Triệt tiêu mũi băng và cầu lửa của boss khi bắn trúng.
-- Lilith / Naamah: **3 tia sét trúng = 1 lần giẫm**. Tia sét bị dội lại khi ác quỷ đang tạo vòng ma lực, đang phong ấn hoặc vừa bị đánh.
-- Boss hợp thể: chỉ mất máu khi đang Vô địch (1 máu mỗi tia, 2 máu nếu đang mang vết tích).
+**Kiệt sức**: sau mỗi chiêu, boss thở dốc khoảng 1,4 giây (có sao xoay trên đầu). Đánh lúc này **sát thương ×2**.
 
-### Boss: Lilith & Naamah
+| Boss | Máu | Di chuyển | Chiêu |
+|---|---|---|---|
+| **Lilith** (băng) | 12 | Bay lơ lửng theo hình số 8, thỉnh thoảng dịch chuyển qua gương băng; chỉ hạ xuống đất khi kiệt sức | Gai băng trồi lên dưới chân (khung xanh báo trước 0,8 giây), quạt 3 mũi băng nhắm vào Pikachu. Dưới nửa máu: **HELL MODE**, thêm vũng băng trơn trượt và phong ấn mỗi 8 giây |
+| **Naamah** (lửa) | 12 | Đi trên mặt đất | Lao ngang đấu trường để lại vệt lửa, nhảy đập đất tạo sóng chấn động (nhảy qua), ném 3 cầu lửa vòng cung, dựng 3 cột lửa. Phong ấn mỗi 9 giây; dưới nửa máu gọi dơi |
+| **Lilith × Naamah** (hợp thể) | 20 | Bay thấp, đi chậm | Đồng loạt bắn quạt mũi băng và ném cầu lửa, để lại 2 vết tích. Nửa máu sau: **laze quét dọc** cả đấu trường (lên bục cao nhất để né) và gọi dơi |
 
-Vào đấu trường thì cổng đóng lại. Trong đấu trường có 3 bục nhảy lơ lửng để né đạn và laze. Mỗi lần chỉ có một ác quỷ. Phải **giẫm lên đầu** để gây sát thương; chạm phía trước hay phía sau đều mất mạng.
+**Phong ấn**: Pikachu bị đóng băng trong 3,5 giây, nhấn `Shift` để thoát (không tốn điện). 1 giây trước khi phong ấn kết thúc, boss bắn laze sát mặt đất về phía Pikachu, chỉ né được bằng cách nhảy lên.
 
-| Giai đoạn | Ác quỷ | Tốc độ | Tấn công | Số lần giẫm |
-|---|---|---|---|---|
-| 1 | Lilith (băng) | Chậm | Không | 3 |
-| 2 (Hell mode) | Lilith (băng) | Chậm | Mỗi 5 giây: vòng tinh thể băng + 3 mũi băng; phong ấn mỗi 5 giây | 3 |
-| 3 (Hell mode) | Naamah (lửa) | Nhanh hơn | Mỗi 3 giây: vòng lửa + 4 cầu lửa; phong ấn mỗi 5 giây | 3 |
+**Cú đánh úp**: hạ Lilith xong, Lilith nứt ra, Naamah chui ra từ xác Lilith, biến mất rồi hiện ngay sau lưng Pikachu và cào. Pikachu bị giữ yên; cách duy nhất để không mất mạng là **Lao điện** (`Shift`) trước khi bị cào, nên cần giữ ít nhất **25 điện năng**. Từ lúc Naamah xuất hiện, bầu trời và cảnh vật chuyển sang đỏ đen với trăng máu.
 
-Vòng ma lực quanh ác quỷ đang tấn công chạm vào là mất mạng, và lúc đó không giẫm được. Đạn bay thẳng về phía trước: nhảy qua để tránh.
-
-**Hell mode**: cứ 5 giây ác quỷ phong ấn bạn trong 3,5 giây. Bóng bị đóng băng, nhấn `Shift` (hoặc `K`, nút ⚡) để thoát. 1 giây trước khi phong ấn kết thúc, ác quỷ bắn laze sát mặt đất về phía bạn. Laze chỉ né được bằng cách nhảy lên (Vô địch không chặn được).
-
-**Khi hạ được Lilith**: Lilith nứt ra, Naamah chui ra từ xác Lilith, biến mất rồi hiện ngay sau lưng quả bóng và đánh úp. Bóng bị giữ yên trong lúc này. Cách duy nhất để không mất mạng là bật **Vô địch** (`Shift`) trước khi bị cào; nếu Vô địch đang hồi chiêu thì chắc chắn mất 1 mạng. Hãy giữ sẵn Vô địch khi sắp hạ Lilith! Từ lúc Naamah xuất hiện, bầu trời và cảnh vật chuyển sang đỏ đen với trăng máu, cho tới khi Naamah bị hạ.
-
-**Hợp thể**: hạ Naamah xong, hồn Lilith hiện về và hai ác quỷ hợp thể thành **Lilith × Naamah** (nửa băng, nửa lửa) với **20 máu**.
-
-- Chỉ gây sát thương khi đang **Vô địch** (`Shift`): lao vào thân boss, mỗi lần chạm trừ **1 máu**. Chạm khi không Vô địch là mất mạng.
-- Cứ 5 giây cả hai nửa **đồng loạt tấn công**: vòng băng lửa quanh thân, mũi băng bắn sang trái và cầu lửa bắn sang phải cùng lúc.
-- Mỗi đợt tấn công để lại **2 vết tích** (mảnh băng và tàn lửa) trên mặt đất trong 9 giây. Lăn qua để nhặt (tối đa 5).
-- **Vô địch + vết tích = sát thương gấp đôi**: mỗi lần chạm khi đang mang vết tích trừ 2 máu và tiêu 1 vết tích.
+**Khiên của boss hợp thể**: chỉ hở khi Pikachu đang **Lao điện** hoặc boss **kiệt sức**; 100.000 Vôn luôn xuyên khiên. Nhặt **vết tích** (mảnh băng, tàn lửa) rơi ra sau mỗi đợt tấn công: mỗi vết tích làm đòn tiếp theo gây sát thương ×2.
 
 Hạ được boss hợp thể thì cổng mở, trời trở lại bình thường và cờ đích xuất hiện. Tất cả phải xong trong 5 phút!
 

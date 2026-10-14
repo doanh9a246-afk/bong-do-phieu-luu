@@ -4,26 +4,41 @@ const VIEW_H = 600;      // chiều cao khung nhìn (đơn vị thế giới)
 const PX = 0.3;          // vẽ ở độ phân giải thấp rồi phóng to → hạt pixel to
 const R = 22;            // bán kính bóng
 const G = 1900, JUMP = 760, MAXV = 320;
-const SKILL_TIME = 2, SKILL_CD = 10;  // tuyệt kĩ vô địch: 2 giây, hồi 10 giây
 const TIME_LIMIT = 300;               // phải về đích trong 5 phút
-// Hell mode (từ giai đoạn 2): ngưng đọng thời gian mỗi 5 giây, laze 1 giây trước khi kết thúc
-const TS_EVERY = 5, TS_DUR = 3.5, LASER_AT = 1, LASER_DUR = .35, LASER_CHARGE = .8, LASER_H = 56;
+// Bộ chiêu của Pikachu: mọi chiêu tốn điện năng (0–100), nạp khi chạy, nhặt sao, hạ quái, đánh trúng boss
+const ENERGY_MAX = 100, ENERGY_START = 50;
+const COST = { shock: 5, ball: 20, web: 30, tackle: 25, volt: 100 };
+const SHOCK_SPEED = 720, SHOCK_LIFE = .7, SHOCK_CD = .3;            // Tia sét: bấm J
+const BALL_HOLD = .25, BALL_FULL = .9;                             // Quả cầu điện: giữ J rồi thả
+const WEB_SPEED = 460, WEB_LIFE = .65, WEB_STUN = 2;                // Lưới điện: L
+const TACKLE_TIME = .55, TACKLE_DASH = .35, TACKLE_SPEED = 700, TACKLE_CD = 1;   // Lao điện: Shift
+// Phong ấn của boss: Pikachu bị đóng băng, laze bắn 1 giây trước khi kết thúc
+const TS_DUR = 3.5, LASER_AT = 1, LASER_DUR = .35, LASER_CHARGE = .8, LASER_H = 56;
 const LEVEL_W = 7000, DEATH_Y = 900;
 const LIVES = 3;
-const BOLT_SPEED = 720, BOLT_LIFE = .7, BOLT_CD = .55, BOLTS_PER_HIT = 3;   // tia sét của Pikachu
 // Đấu trường boss ở cuối màn
 const ARENA = { l: 6220, r: 6950, gateX: 6190, floor: 420 };
+const ARENA_MID = (ARENA.l + ARENA.r) / 2;
 const BOSS_W = 64, BOSS_H = 112, AURA_R = 105, WARN = .7;
+const EXHAUST = 1.4;                  // boss kiệt sức sau mỗi chiêu: đánh lúc này sát thương ×2
+const SWEEP_H = 200, SWEEP_SPEED = 420;
 const PHASES = [null,
-  { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Lilith xuất hiện trước. Giẫm lên đầu 3 lần (hoặc 3 tia sét J = 1 lần giẫm). Chạm phía trước hay phía sau đều mất mạng.' },
-  { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'HELL MODE', note: 'Lilith tạo vòng băng và bắn mũi băng; cứ 5 giây phong ấn bạn (Shift để thoát, nhảy né laze). Giẫm 3 lần để hạ Lilith… nhưng hãy giữ sẵn Vô địch!' },
-  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Naamah nhanh hơn: vòng lửa và cầu lửa mỗi 3 giây, vẫn phong ấn mỗi 5 giây. Giẫm 3 lần để hạ Naamah!' },
-  { speed: 70, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 420, name: 'HỢP THỂ', note: 'Chỉ gây sát thương khi đang Vô địch (Shift): lao vào thân boss. Nhặt vết tích băng / lửa rơi ra sau mỗi đợt tấn công: Vô địch + vết tích = sát thương gấp đôi. Tia sét (J) cũng gây sát thương khi đang Vô địch.' },
+  { tag: 'Giai đoạn 1', hp: 12, every: 3.6, seal: 0,
+    note: 'Lilith bay lượn, chỉ hạ xuống đất khi kiệt sức sau mỗi chiêu: lúc đó giẫm hoặc đánh để gây sát thương ×2. Né gai băng (khung xanh báo trước) và mũi băng. Lên bục để bắn trúng khi Lilith bay.' },
+  { tag: 'HELL MODE', hp: 12, every: 3, seal: 8,
+    note: 'Lilith nhanh hơn, tạo vũng băng trơn trượt và cứ 8 giây phong ấn bạn (Shift để thoát, nhảy né laze). Giữ ít nhất 25 điện năng cho cú đánh úp!' },
+  { tag: 'HELL MODE', hp: 12, every: 3.2, seal: 9,
+    note: 'Naamah lao ngang để lại vệt lửa, nhảy đập đất tạo sóng chấn động (nhảy qua), ném cầu lửa và dựng cột lửa. Phong ấn mỗi 9 giây.' },
+  { tag: 'HỢP THỂ', hp: 20, every: 4, seal: 0,
+    note: 'Khiên băng lửa chỉ hở khi bạn đang Lao điện (Shift) hoặc boss kiệt sức sau mỗi chiêu; 100.000 Vôn luôn xuyên khiên. Nhặt vết tích: sát thương ×2.',
+    note2: 'Nửa máu sau: laze quét dọc cả đấu trường (lên bục cao nhất để né) và dơi xuất hiện!' },
 ];
+// Thời lượng báo trước của từng chiêu boss
+const ACT_WARN = { fan: .5, spikes: .3, puddle: .4, dash: .6, slam: .35, lob: .4, pillar: .3, dual: .5, sweep: 1 };
 // Hợp thể sau khi Naamah bị hạ
 const FUSE = { ghost: .5, merge: 1.4, end: 2.2 }, FUSED_HP = 20, FUSED_K = 1.35;
 const FW = BOSS_W * FUSED_K, FH = BOSS_H * FUSED_K;
-// Màn chuyển cảnh khi Lilith bị hạ: Naamah chui ra, hiện sau lưng bóng và đánh úp
+// Màn chuyển cảnh khi Lilith bị hạ: Naamah chui ra, hiện sau lưng Pikachu và đánh úp
 const CUT = { burst: .9, emerge: .6, vanish: 1.5, appear: 1.7, strike: 2.5, end: 2.9 };
 
 const cv = document.getElementById('game');
@@ -86,13 +101,26 @@ const GOAL = { x: 6880, f: f4 };
 // Đường đến boss: mẹo theo từng chặng, tim hồi mạng, ụ băng để tập né đạn như khi đánh boss
 const MAX_LIVES = 5;
 const TIPS = [
+  { x: 420,  f: f1, text: 'Thanh ⚡ là điện năng. J: tia sét · giữ J rồi thả: Quả cầu điện (chạy càng nhanh càng mạnh) · L: Lưới điện · Shift: Lao điện · U khi đầy: 100.000 Vôn.' },
   { x: 960,  f: f1, text: 'Quái vuông phía trước: nhảy giẫm lên đầu để hạ nó.' },
-  { x: 2560, f: f2, text: 'Giữ ↑ lâu để nhảy cao và xa qua các bục.' },
-  { x: 3500, f: f3, text: 'Gai phía trước: nhảy qua, hoặc bật Vô địch (Shift) để đi xuyên qua.' },
-  { x: 4600, f: f4, text: 'Nhấn J để bắn tia sét, hạ quái từ xa.' },
-  { x: 5480, f: f4, text: 'Ụ băng bắn đạn sát đất: nhảy qua, hoặc bắn sét (J) để phá đạn và phá ụ.' },
-  { x: 6130, f: f4, text: 'Boss phía trước! Giữ sẵn Vô địch cho cú đánh úp của Naamah.' },
+  { x: 1760, f: f2, text: 'Dơi lao xuống khi bạn tới gần: giẫm lên đầu hoặc bắn sét.' },
+  { x: 2300, f: f2, text: 'Ma lửa bay xuyên mọi thứ và không giẫm được: chỉ chiêu điện mới hạ được nó.' },
+  { x: 2620, f: f2, text: 'Giữ ↑ lâu để nhảy cao và xa qua các bục.' },
+  { x: 3500, f: f3, text: 'Gai phía trước: nhảy qua, hoặc Lao điện (Shift) để xuyên qua.' },
+  { x: 4560, f: f4, text: 'Chim băng thả cột băng: nhìn bóng đổ dưới đất để né, nhảy lên bắn sét để hạ chim.' },
+  { x: 5480, f: f4, text: 'Ụ băng bắn đạn sát đất: nhảy qua, bắn sét phá đạn, hoặc Lao điện phá ụ.' },
+  { x: 6130, f: f4, text: 'Boss phía trước! Đánh mạnh nhất khi boss kiệt sức sau mỗi chiêu. Giữ ít nhất 25 điện năng cho cú đánh úp.' },
 ];
+// Quái bay: dơi lao xuống, chim băng thả cột băng, ma lửa chỉ hạ được bằng chiêu điện
+const FLYER_DEF = [
+  { type: 'bat', x: 1900, y: 226 }, { type: 'bat', x: 3000, y: 262 }, { type: 'bat', x: 5000, y: 272 },
+  { type: 'ghost', x: 2400, y: 330 }, { type: 'ghost', x: 4300, y: 290 },
+  { type: 'bird', x: 4800, y: 250, x0: 4620, x1: 4980 }, { type: 'bird', x: 5420, y: 250, x0: 5300, x1: 5560 },
+];
+const newFlyer = d => ({ ...d, ax: d.x, ay: d.y, t: Math.random() * 6, alive: true, stun: 0, state: 'patrol', cd: 0, dir: 1, dropT: 1.2, dieT: 0, r: d.type === 'ghost' ? 18 : 16 });
+// Mặt đất dùng cho Quả cầu điện nảy và cột băng rơi
+const GROUNDS = [[0, 1400, f1], [1540, 2640, f2], [3330, 4420, f3], [4540, LEVEL_W, f4]];
+function groundYAt(x) { for (const [a, b, f] of GROUNDS) if (x >= a && x <= b) return f(x); return null; }
 const HEARTS = [[2090, 200], [5990, 372]];
 const TURRET = { x: 5940, f: f4, every: 2.4, speed: 260, range: 760, hp: 2 };
 
@@ -107,12 +135,14 @@ function reset() {
     stars: STAR_POS.map(([x, y]) => ({ x, y, got: false })),
     hearts: HEARTS.map(([x, y]) => ({ x, y, got: false })),
     turret: { ...TURRET, t: 0, alive: true, flash: 0 }, tshots: [], tipSeen: TIPS.map(() => false),
-    enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
+    enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0, stun: 0 })),
+    flyers: FLYER_DEF.map(newFlyer), icicles: [],
     bossKills: 0, submitted: false,
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
     lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false, sky: 0,
-    boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, cut: null, fuse: null, hp: FUSED_HP, hitCd: 0, marks: [], units: newUnits() },
-    traces: 0, pops: [], flash: 0, bolts: [], boltCd: 0, cast: 0,
+    boss: newBoss(),
+    traces: 0, pops: [], flash: 0, bolts: [], cast: 0,
+    energy: ENERGY_START, shockCd: 0, webCd: 0, charging: false, chargeT: 0, orbs: [], webs: [], dash: null, voltFx: 0, voltStrikes: [], slick: false,
     lastDir: 1,
     bullets: [],
   });
@@ -160,6 +190,12 @@ const SFX = {
   hurt()    { tone(1100, 700, .12, 'square', .05); tone(800, 260, .35, 'square', .05, .13); },
   hit()     { tone(600, 260, .08, 'square', .06); noise(.1, .05, 4000); },
   bolt()    { noise(.12, .05, 5000); tone(2200, 500, .12, 'sawtooth', .035); },
+  deny()    { tone(220, 160, .1, 'square', .04); },
+  orb()     { tone(500, 1400, .25, 'sine', .06); noise(.2, .04, 3000); },
+  web()     { tone(900, 500, .15, 'triangle', .05); noise(.12, .03, 2500); },
+  volt()    { SFX.pikachu(); noise(.9, .09, 1400, .25); tone(140, 50, .9, 'sawtooth', .06, .25); },
+  screech() { tone(1800, 900, .15, 'square', .025); },
+  drop()    { tone(1600, 600, .2, 'triangle', .03); },
   zap()     { noise(.18, .05, 4500); tone(1800, 600, .15, 'sawtooth', .03); },
   win()     { [784, 988, 1175, 1568].forEach((f, i) => tone(f, f, .16, 'triangle', .07, i * .12)); tone(1250, 1750, .07, 'square', .05, .55); tone(950, 1450, .1, 'square', .05, .64); },
 };
@@ -174,7 +210,9 @@ function setMuted(m) {
 function setKey(k, on) {
   audio();
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
-  if (k === 'bolt' && on && !keys.bolt) fireBolt();
+  if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
+  if (k === 'web' && on && !keys.web) fireWeb();
+  if (k === 'volt' && on && !keys.volt) fireVolt();
   if (k === 'skill' && on && !keys.skill) {
     if (S.boss && S.boss.ts > 0 && !S.tsEsc && !S.dead) escapeTimeStop();
     else activateSkill();
@@ -182,7 +220,10 @@ function setKey(k, on) {
   keys[k] = on;
   if (on && !S.moved) { S.moved = true; setTimeout(() => $('hint').classList.add('gone'), 1500); }
 }
-const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill', KeyJ: 'bolt', KeyX: 'bolt' };
+const KEYMAP = {
+  ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump',
+  KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill', KeyJ: 'bolt', KeyX: 'bolt', KeyL: 'web', KeyC: 'web', KeyU: 'volt', KeyV: 'volt',
+};
 function escapeTimeStop() {
   sfx('zap');
   S.tsEsc = true;
@@ -193,9 +234,14 @@ function escapeTimeStop() {
   }
   tsBanner();
 }
+// Lao điện (Volt Tackle): lao về phía trước, không bị tổn hại trong lúc lao, đâm trúng thì gây sát thương
 function activateSkill() {
-  if (S.dead || S.won || S.cd > 0) return;
-  S.power = SKILL_TIME; S.cd = SKILL_CD;
+  if (S.dead || S.won || S.lost || S.cd > 0) return;
+  if (!spend(COST.tackle)) return;
+  S.power = TACKLE_TIME; S.cd = TACKLE_CD;
+  const B = S.boss;
+  if (B.cut && B.cut.appear && !B.cut.struck) B.cut.blocked = true;   // chặn cú đánh úp của Naamah
+  if (!frozenNow()) S.dash = { dir: S.ball.face || 1, t: TACKLE_DASH };
   sfx('pikachu');
   const b = S.ball;
   for (let i = 0; i < 20; i++) {
@@ -212,7 +258,7 @@ addEventListener('keydown', e => {
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
 });
 addEventListener('keyup', e => { if (typing(e)) return; const k = KEYMAP[e.code]; if (k) { e.preventDefault(); setKey(k, false); } });
-addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.skill = keys.bolt = false; });
+addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.skill = keys.bolt = keys.web = keys.volt = false; S.charging = false; });
 document.querySelectorAll('[data-key]').forEach(b => {
   const k = b.dataset.key;
   b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); b.classList.add('on'); setKey(k, true); });
@@ -248,14 +294,16 @@ function collideSolid(s, b) {
 }
 function step(h) {
   const b = S.ball;
-  const input = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-  // Khựng: đổi hướng thì phanh mạnh, nhả phím thì dừng nhanh
+  const input = S.dash ? 0 : (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  // Khựng: đổi hướng thì phanh mạnh, nhả phím thì dừng nhanh. Trên vũng băng thì trơn trượt.
+  const slick = S.slick && S.onGround;
   const turning = input && Math.sign(b.vx) === -input;
-  const accel = (S.onGround ? 1150 : 800) * (turning ? 2.6 : 1);
-  if (input) b.vx += input * accel * h;
-  else b.vx *= 1 - (S.onGround ? 10 : 2) * h;
-  if (!input && S.onGround && Math.abs(b.vx) < 12) b.vx = 0;
-  b.vx = clamp(b.vx, -MAXV, MAXV);
+  const accel = (S.onGround ? 1150 : 800) * (turning ? 2.6 : 1) * (slick ? .4 : 1);
+  if (S.dash) { b.vx = S.dash.dir * TACKLE_SPEED; b.vy = Math.min(b.vy, 0); }
+  else if (input) b.vx += input * accel * h;
+  else b.vx *= 1 - (S.onGround ? (slick ? .5 : 10) : 2) * h;
+  if (!input && !slick && S.onGround && Math.abs(b.vx) < 12) b.vx = 0;
+  b.vx = clamp(b.vx, -(S.dash ? TACKLE_SPEED : MAXV), S.dash ? TACKLE_SPEED : MAXV);
   b.vy = Math.min(b.vy + G * h, 1400);
   b.x += b.vx * h; b.y += b.vy * h;
   S.onGround = false;
@@ -280,16 +328,19 @@ function die() {
 }
 function respawn() {
   Object.assign(S.ball, { x: S.spawn.x, y: S.spawn.y, vx: 0, vy: 0, squash: 0 });
-  S.power = 0;
+  S.power = 0; S.dash = null; S.charging = false;
   S.safe = Math.max(S.safe, 1.2);   // tránh vừa hồi sinh đã chết lại
-  S.tshots = [];
+  S.tshots = []; S.icicles = [];
   const B = S.boss;
   if (!B.dead && S.fight) {
-    // Ngã khi đang đánh boss: hồi sinh ngay trong cổng, trận đấu tiếp tục.
-    // Ác quỷ lùi về cuối đấu trường, giữ số đòn đã trúng; bóng được bảo vệ 1.5 giây.
+    // Ngã khi đang đánh boss: hồi sinh ngay trong cổng, trận đấu tiếp tục, boss giữ nguyên máu
     Object.assign(S.ball, { x: ARENA.l + 50, y: ARENA.floor - 60 });
-    Object.assign(B, { inv: 0, fireT: 0, fire: 0, warn: false, shot: 0, hellT: 0, ts: 0, laserShot: false });
-    if (!B.cut) Object.assign(B.units[0], { x: ARENA.r - 160, dir: -1 });
+    Object.assign(B, { inv: 0, act: null, exhaust: 0, stun: 0, hazards: [], sweep: null, ts: 0, hellT: 0, laserShot: false, atkT: 2.5 });
+    if (!B.cut && !B.fuse) {
+      const u = B.units[0];
+      Object.assign(u, { x: ARENA.r - 160, dir: -1, vy: 0, y: u.kind === 'ice' ? ARENA.floor - 150 : u.kind === 'fused' ? ARENA.floor - 12 : ARENA.floor });
+      u.mt = Math.PI / 2;
+    }
     S.bullets = [];
     S.safe = 1.5;
   }
@@ -311,6 +362,7 @@ function update(dt) {
 
   for (const e of S.enemies) {
     if (!e.alive) { e.squash = Math.max(0, e.squash - dt); continue; }
+    if (e.stun > 0) { e.stun -= dt; continue; }    // dính Lưới điện: đứng yên
     e.x += e.dir * 70 * dt;
     if (e.x > e.max) { e.x = e.max; e.dir = -1; }
     if (e.x < e.min) { e.x = e.min; e.dir = 1; }
@@ -328,11 +380,16 @@ function update(dt) {
   S.power = Math.max(0, S.power - dt);
   S.cd = Math.max(0, S.cd - dt);
   S.safe = Math.max(0, S.safe - dt);
+  S.voltFx = Math.max(0, S.voltFx - dt);
   const b = S.ball;
+  if (S.dash) { S.dash.t -= dt; if (S.dash.t <= 0) S.dash = null; }
 
   // Thời gian ngưng đọng: bóng bị đóng băng cho tới khi nhấn Shift
   const cut = S.boss.cut;
-  const frozen = (S.boss.ts > 0 && !S.tsEsc) || (cut && cut.t < CUT.strike) || !!S.boss.fuse;
+  const frozen = frozenNow();
+  if (frozen) S.dash = null;
+  // điện năng tự nạp, chạy nhanh trên mặt đất nạp thêm
+  if (!frozen) gainEnergy((3 + (S.onGround && Math.abs(b.vx) > 150 ? 4 : 0)) * dt);
   const inDir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   if (inDir) S.lastDir = inDir;
   if (!frozen) {
@@ -352,7 +409,7 @@ function update(dt) {
     if (S.onGround && Math.abs(b.vx) > 60 && Math.floor(b.run / Math.PI) !== before) sfx('step');
   }
   if (Math.abs(b.vx) > 8) b.face = Math.sign(b.vx);
-  updateBolts(dt);
+  updatePikachuMoves(dt);
   b.squash = Math.max(0, b.squash - dt * 1.6);
 
   if (b.y > DEATH_Y) die();
@@ -367,18 +424,18 @@ function update(dt) {
     const cx = clamp(b.x, e.x - 20, e.x + 20), cy = clamp(b.y, ey - 20, ey + 20);
     if ((b.x - cx) ** 2 + (b.y - cy) ** 2 < R * R) {
       if (S.power) {
-        e.alive = false; e.squash = 0; sfx('zap');
+        e.alive = false; e.squash = 0; sfx('zap'); gainEnergy(8);
         for (let i = 0; i < 18; i++) {
           const a = Math.random() * Math.PI * 2, sp = 150 + Math.random() * 250;
           S.parts.push({ x: e.x, y: ey, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: .8, c: i % 3 ? '#16181d' : '#ffc21a', r: 5 + Math.random() * 5 });
         }
       }
-      else if (b.vy > 0 && b.y < ey - 12) { e.alive = false; e.squash = .4; b.vy = -560; sfx('stomp'); }
-      else if (!S.safe) die();
+      else if (b.vy > 0 && b.y < ey - 12) { e.alive = false; e.squash = .4; b.vy = -560; sfx('stomp'); gainEnergy(8); }
+      else if (!S.safe && !(e.stun > 0)) die();
     }
   }
   for (const s of S.stars) {
-    if (!s.got && Math.hypot(s.x - b.x, s.y - b.y) < R + 16) { s.got = true; s.pop = .3; hud(); sfx('star'); }
+    if (!s.got && Math.hypot(s.x - b.x, s.y - b.y) < R + 16) { s.got = true; s.pop = .3; hud(); sfx('star'); gainEnergy(15); }
   }
   for (const h of S.hearts) {
     if (!h.got && Math.hypot(h.x - b.x, h.y - b.y) < R + 16) {
@@ -391,6 +448,8 @@ function update(dt) {
   }
   TIPS.forEach((tp, i) => { if (!S.tipSeen[i] && b.x > tp.x - 220) { S.tipSeen[i] = true; showTip(tp.text); } });
   updateTurret(dt);
+  if (S.dead) return;
+  updateFlyers(dt);
   if (S.dead) return;
   CHECKPOINTS.forEach((c, i) => {
     if (i > S.cp && b.x > c.x) { S.cp = i; S.spawn = { x: c.x, y: c.f(c.x) - 60 }; }
@@ -445,15 +504,81 @@ function updateTurret(dt) {
   }
 }
 
-/* ---------- Tia sét của Pikachu ---------- */
-function fireBolt() {
+/* ---------- Bộ chiêu của Pikachu ---------- */
+function frozenNow() {
   const B = S.boss;
-  const frozen = (B.ts > 0 && !S.tsEsc) || (B.cut && B.cut.t < CUT.strike) || !!B.fuse;
-  if (S.dead || S.won || S.lost || S.boltCd > 0 || frozen) return;
+  return (B.ts > 0 && !S.tsEsc) || !!(B.cut && B.cut.t < CUT.strike) || !!B.fuse;
+}
+const canAct = () => !(S.dead || S.won || S.lost || frozenNow());
+function gainEnergy(n) { S.energy = Math.min(ENERGY_MAX, S.energy + n); }
+function spend(cost) {
+  if (S.energy < cost) {
+    S.pops.push({ x: S.ball.x, y: S.ball.y - 50, t: .7, text: `Thiếu điện (${Math.floor(S.energy)}/${cost})`, c: '#fff27a' });
+    sfx('deny');
+    return false;
+  }
+  S.energy -= cost;
+  return true;
+}
+function startCharge() { if (canAct()) { S.charging = true; S.chargeT = 0; } }
+function releaseCharge() {
+  if (!S.charging) return;
+  S.charging = false;
+  if (!canAct()) return;
+  if (S.chargeT < BALL_HOLD) fireShock(); else fireElectroBall(S.chargeT);
+}
+// Tia sét (Thunder Shock): bắn thẳng, rẻ, nhanh
+function fireShock() {
+  if (S.shockCd > 0 || !spend(COST.shock)) return;
   const b = S.ball, d = b.face || 1;
-  S.boltCd = BOLT_CD; S.cast = .2;
-  S.bolts.push({ x: b.x + d * 26, y: b.y - 10, vx: d * BOLT_SPEED, life: BOLT_LIFE, seed: Math.random() * 100 });
+  S.shockCd = SHOCK_CD; S.cast = .2;
+  S.bolts.push({ x: b.x + d * 26, y: b.y - 10, vx: d * SHOCK_SPEED, life: SHOCK_LIFE, seed: Math.random() * 100 });
   sfx('bolt');
+}
+// Quả cầu điện (Electro Ball): giữ càng lâu cầu càng to; đúng nguyên tác, Pikachu chạy càng nhanh thì càng mạnh
+function fireElectroBall(hold) {
+  if (!spend(COST.ball)) return;
+  const b = S.ball, d = b.face || 1, k = clamp((hold - BALL_HOLD) / (BALL_FULL - BALL_HOLD), 0, 1);
+  const fast = Math.abs(b.vx) >= 250;
+  const dmg = 1 + (k >= .99 ? 1 : 0) + (fast ? 1 : 0);
+  S.orbs.push({ x: b.x + d * 28, y: b.y - 14, vx: d * (430 + Math.abs(b.vx) * .8), vy: -260, r: 9 + k * 9, dmg, bounced: false, life: 1.8, hit: new Set() });
+  S.cast = .25;
+  sfx('orb');
+  S.pops.push({ x: b.x, y: b.y - 58, t: .6, text: `Quả cầu điện ×${dmg}`, c: '#fff27a' });
+}
+// Lưới điện (Electroweb): quái và boss dính lưới đứng yên, lưới quét sạch đạn trên đường bay
+function fireWeb() {
+  if (!canAct() || S.webCd > 0 || !spend(COST.web)) return;
+  const b = S.ball, d = b.face || 1;
+  S.webCd = .6; S.cast = .25;
+  S.webs.push({ x: b.x + d * 26, y: b.y - 10, vx: d * WEB_SPEED, life: WEB_LIFE, r: 24 });
+  sfx('web');
+}
+// 100.000 Vôn (Thunderbolt): cần đầy điện năng; sét giáng khắp màn hình
+function fireVolt() {
+  if (!canAct()) return;
+  if (S.energy < COST.volt) {
+    S.pops.push({ x: S.ball.x, y: S.ball.y - 50, t: .8, text: `100.000 Vôn cần đầy điện (${Math.floor(S.energy)}/100)`, c: '#fff27a' });
+    sfx('deny');
+    return;
+  }
+  S.energy = 0;
+  S.voltFx = .9; S.flash = .9; S.cast = .6;
+  sfx('volt');
+  const x0 = S.cam.x - 40, x1 = S.cam.x + viewW + 40;
+  S.voltStrikes = Array.from({ length: 7 }, (_, i) => x0 + (i + .5) * (x1 - x0) / 7 + (Math.random() - .5) * 60);
+  S.bullets = []; S.tshots = []; S.icicles = [];
+  const B = S.boss;
+  B.hazards = B.hazards.filter(h => h.type === 'puddle');
+  B.sweep = null;
+  for (const e of S.enemies) if (e.alive && e.x > x0 && e.x < x1) { e.alive = false; e.squash = 0; boltSpark(e.x, e.f(e.x) - 20, '#16181d', 12); }
+  for (const f of S.flyers) if (f.alive && f.x > x0 && f.x < x1) killFlyer(f);
+  const T = S.turret;
+  if (T.alive && T.x > x0 && T.x < x1) breakTurret();
+  if (S.fight && !B.dead && !B.cut && !B.fuse) {
+    const u = B.units[0];
+    if (u.x > x0 && u.x < x1) { damageBoss(u, 5, 'volt'); if (!B.dead && !B.cut && !B.fuse) { B.stun = Math.max(B.stun, 1.5); B.act = null; } }
+  }
 }
 function boltSpark(x, y, c = '#fff27a', n = 10) {
   for (let i = 0; i < n; i++) {
@@ -461,210 +586,495 @@ function boltSpark(x, y, c = '#fff27a', n = 10) {
     S.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .35, c: i % 2 ? c : '#ffffff', r: 3 + Math.random() * 3, g: 0 });
   }
 }
-function updateBolts(dt) {
-  S.boltCd = Math.max(0, S.boltCd - dt);
+// Tìm thứ bị trúng tại (x, y) với bán kính r
+function enemyAt(x, y, r) {
+  return S.enemies.find(e => e.alive && Math.abs(x - e.x) < 20 + r && Math.abs(y - (e.f(e.x) - 20)) < 20 + r);
+}
+function flyerAt(x, y, r) { return S.flyers.find(f => f.alive && Math.hypot(f.x - x, f.y - y) < f.r + r); }
+function bossUnitAt(x, y, r) {
+  const B = S.boss;
+  if (!S.fight || B.dead || B.cut || B.fuse) return null;
+  return B.units.find(u => {
+    const w = u.kind === 'fused' ? FW : BOSS_W, h = u.kind === 'fused' ? FH : BOSS_H;
+    return !u.hidden && Math.abs(x - u.x) < w / 2 + r && y > u.y - h - r && y < u.y + r;
+  }) || null;
+}
+function turretAt(x, y, r) {
+  const T = S.turret;
+  return T.alive && Math.abs(x - T.x) < 24 + r && y > T.f(T.x) - 52 - r && y < T.f(T.x) + r;
+}
+function killEnemy(e, c = '#16181d') { e.alive = false; e.squash = 0; boltSpark(e.x, e.f(e.x) - 20, c, 16); sfx('stomp'); gainEnergy(8); }
+function updatePikachuMoves(dt) {
+  S.shockCd = Math.max(0, S.shockCd - dt);
+  S.webCd = Math.max(0, S.webCd - dt);
   S.cast = Math.max(0, S.cast - dt);
+  if (S.charging) S.chargeT += dt;
+  // Tia sét
   for (const q of S.bolts) {
     q.x += q.vx * dt; q.life -= dt;
-    // quái vuông
-    for (const e of S.enemies) {
-      if (!e.alive) continue;
-      const ey = e.f(e.x) - 20;
-      if (Math.abs(q.x - e.x) < 26 && Math.abs(q.y - ey) < 28) {
-        e.alive = false; e.squash = 0; q.life = 0;
-        boltSpark(e.x, ey, '#16181d', 16); sfx('stomp'); break;
-      }
-    }
-    if (q.life <= 0) continue;
-    for (const sh of S.tshots) {
-      if (sh.alive !== false && Math.abs(sh.x - q.x) < 22 && Math.abs(sh.y - q.y) < 22) { sh.alive = false; q.life = 0; boltSpark(q.x, q.y, '#7ff0ff'); break; }
-    }
-    if (q.life <= 0) continue;
-    const T = S.turret;
-    if (T.alive && Math.abs(q.x - T.x) < 26 && q.y > T.f(T.x) - 52 && q.y < T.f(T.x)) {
-      q.life = 0; T.hp--; T.flash = .15; boltSpark(q.x, q.y, '#7ff0ff', 12);
-      if (T.hp <= 0) breakTurret();
-      continue;
-    }
-    // triệt tiêu đạn của boss
-    for (const u of S.bullets) {
-      if (Math.abs(u.x - q.x) < 22 && Math.abs(u.y - q.y) < 22) { u.x = -1e9; q.life = 0; boltSpark(q.x, q.y); break; }
-    }
-    if (q.life <= 0) continue;
-    if (boltHitsBoss(q)) q.life = 0;
+    let e, f, u;
+    if ((e = enemyAt(q.x, q.y, 6))) { killEnemy(e); q.life = 0; continue; }
+    if ((f = flyerAt(q.x, q.y, 10))) { killFlyer(f); q.life = 0; continue; }
+    const sh = S.tshots.find(t => t.alive !== false && Math.abs(t.x - q.x) < 22 && Math.abs(t.y - q.y) < 22);
+    if (sh) { sh.alive = false; q.life = 0; boltSpark(q.x, q.y, '#7ff0ff'); continue; }
+    if (turretAt(q.x, q.y, 0)) { const T = S.turret; q.life = 0; T.hp--; T.flash = .15; boltSpark(q.x, q.y, '#7ff0ff', 12); if (T.hp <= 0) breakTurret(); continue; }
+    const bu = S.bullets.find(t => Math.abs(t.x - q.x) < 22 && Math.abs(t.y - q.y) < 22);
+    if (bu) { bu.dead = true; q.life = 0; boltSpark(q.x, q.y); continue; }
+    if ((u = bossUnitAt(q.x, q.y, 4))) { damageBoss(u, 1, 'shock'); boltSpark(q.x, q.y); q.life = 0; }
   }
   S.bolts = S.bolts.filter(q => q.life > 0);
-}
-// Trúng boss: Lilith / Naamah cần 3 tia = 1 đòn giẫm; dạng hợp thể chỉ mất máu khi đang Vô địch
-function boltHitsBoss(q) {
-  const B = S.boss;
-  if (!S.fight || B.dead || B.cut || B.fuse) return false;
-  const gy = ARENA.floor;
-  if (B.phase === 4) {
-    const u = B.units[0];
-    if (Math.abs(q.x - u.x) > FW / 2 + 6 || q.y < gy - FH || q.y > gy) return false;
-    if (S.power > 0 && !B.hitCd) {
-      const dmg = S.traces > 0 ? 2 : 1;
-      if (S.traces > 0) S.traces--;
-      B.hp -= dmg; B.hitCd = .2; u.hurt = .3;
-      sfx('hit');
-      S.pops.push({ x: u.x, y: gy - FH - 10, t: .8, text: `-${dmg}`, c: dmg > 1 ? '#ffc21a' : '#ffffff' });
-      boltSpark(q.x, q.y, '#ffc21a', 14);
-      if (B.hp <= 0) killFused(B, u); else bossBar();
-    } else {
-      boltSpark(q.x, q.y, '#9aa3ad', 8);   // không Vô địch: tia sét bị dội lại
-      if (!S.power) S.pops.push({ x: u.x, y: gy - FH - 10, t: .6, text: 'Cần Vô địch!', c: '#c9d1db' });
+  // Quả cầu điện: bay vòng cung, nảy một lần, xuyên qua quái nhỏ và đạn
+  for (const o of S.orbs) {
+    o.vy += 900 * dt; o.x += o.vx * dt; o.y += o.vy * dt; o.life -= dt;
+    const gy = groundYAt(o.x);
+    if (gy != null && o.y + o.r >= gy && o.vy > 0) {
+      if (!o.bounced) { o.y = gy - o.r; o.vy = -Math.abs(o.vy) * .55; o.bounced = true; boltSpark(o.x, gy, '#fff27a', 6); }
+      else o.life = 0;
     }
-    return true;
+    if (o.y > DEATH_Y) o.life = 0;
+    for (const e of S.enemies) if (e.alive && !o.hit.has(e) && Math.abs(o.x - e.x) < 20 + o.r && Math.abs(o.y - (e.f(e.x) - 20)) < 20 + o.r) { o.hit.add(e); killEnemy(e); }
+    for (const f of S.flyers) if (f.alive && Math.hypot(f.x - o.x, f.y - o.y) < f.r + o.r) killFlyer(f);
+    for (const t of S.tshots) if (Math.hypot(t.x - o.x, t.y - o.y) < o.r + 8) t.alive = false;
+    for (const t of S.bullets) if (Math.hypot(t.x - o.x, t.y - o.y) < o.r + 8) t.dead = true;
+    if (turretAt(o.x, o.y, o.r)) { const T = S.turret; T.hp -= o.dmg; T.flash = .15; if (T.hp <= 0) breakTurret(); o.life = 0; boltSpark(o.x, o.y, '#7ff0ff', 12); continue; }
+    const u = bossUnitAt(o.x, o.y, o.r);
+    if (u) { damageBoss(u, o.dmg, 'ball'); boltSpark(o.x, o.y, '#fff27a', 16); o.life = 0; }
   }
-  for (let i = 0; i < B.units.length; i++) {
-    const u = B.units[i];
-    if (u.hidden || Math.abs(q.x - u.x) > BOSS_W / 2 + 6 || q.y < gy - BOSS_H || q.y > gy) continue;
-    const shielded = B.ts > 0 || B.inv > 0 || (B.fire > 0 && i === B.att);
-    if (shielded) { boltSpark(q.x, q.y, '#9aa3ad', 8); return true; }
-    B.zap = (B.zap || 0) + 1;
-    boltSpark(q.x, q.y, '#fff27a', 12);
-    u.hurt = .15;
-    if (B.zap >= BOLTS_PER_HIT) { B.zap = 0; hitBoss(u); }
-    else S.pops.push({ x: u.x, y: gy - BOSS_H - 10, t: .6, text: `⚡${B.zap}/${BOLTS_PER_HIT}`, c: '#fff27a' });
-    return true;
+  S.orbs = S.orbs.filter(o => o.life > 0);
+  // Lưới điện
+  for (const w of S.webs) {
+    w.x += w.vx * dt; w.life -= dt;
+    for (const t of S.bullets) if (Math.hypot(t.x - w.x, t.y - w.y) < w.r + 8) { t.dead = true; boltSpark(t.x, t.y, '#fff27a', 4); }
+    for (const t of S.tshots) if (Math.hypot(t.x - w.x, t.y - w.y) < w.r + 8) t.alive = false;
+    let e, f, u;
+    if ((e = enemyAt(w.x, w.y, w.r - 6))) { e.stun = WEB_STUN * 1.5; w.life = 0; sfx('web'); continue; }
+    if ((f = flyerAt(w.x, w.y, w.r - 6))) { f.stun = WEB_STUN * 1.5; f.state = 'patrol'; w.life = 0; sfx('web'); continue; }
+    if ((u = bossUnitAt(w.x, w.y, w.r - 6))) {
+      const B = S.boss;
+      if (B.ts > 0) { boltSpark(w.x, w.y, '#9aa3ad', 8); w.life = 0; continue; }
+      B.stun = WEB_STUN; B.act = null; B.sweep = null; w.life = 0; sfx('web');
+      S.pops.push({ x: u.x, y: u.y - BOSS_H - 20, t: .8, text: 'Dính lưới!', c: '#fff27a' });
+    }
   }
-  return false;
+  S.webs = S.webs.filter(w => w.life > 0);
 }
 
-/* ---------- Boss: Lilith (băng) & Naamah (lửa) ---------- */
-// S.boss giữ trạng thái chung (giai đoạn, số đòn, hell mode); S.boss.units là hai ác quỷ
+/* ---------- Quái bay ---------- */
+function killFlyer(f) {
+  f.alive = false; f.dieT = .5;
+  boltSpark(f.x, f.y, f.type === 'bat' ? '#2a1636' : f.type === 'bird' ? '#7ff0ff' : '#ff6a2a', 14);
+  sfx('stomp'); gainEnergy(8);
+}
+function summonBats() {
+  for (const x of [ARENA.l + 130, ARENA.r - 130]) S.flyers.push(newFlyer({ type: 'bat', x, y: 230 }));
+  S.pops.push({ x: ARENA_MID, y: 200, t: 1, text: 'Dơi xuất hiện!', c: '#c9b6ff' });
+  sfx('screech');
+}
+function updateFlyers(dt) {
+  const b = S.ball;
+  for (const f of S.flyers) {
+    if (!f.alive) { f.dieT = Math.max(0, f.dieT - dt); continue; }
+    if (f.stun > 0) { f.stun -= dt; continue; }
+    f.t += dt;
+    const dx = b.x - f.x, dy = b.y - f.y;
+    if (f.type === 'bat') {
+      f.cd = Math.max(0, f.cd - dt);
+      if (f.state === 'patrol') {
+        f.x = f.ax + Math.sin(f.t * 1.6) * 90; f.y = f.ay + Math.sin(f.t * 3.2) * 14;
+        if (!S.dead && f.cd === 0 && Math.abs(dx) < 210 && dy > 20 && dy < 260) {
+          const d = Math.hypot(dx, dy);
+          f.state = 'dive'; f.dive = .9; f.vx = dx / d * 340; f.vy = dy / d * 340;
+          sfx('screech');
+        }
+      } else if (f.state === 'dive') {
+        f.x += f.vx * dt; f.y += f.vy * dt; f.dive -= dt;
+        if (f.dive <= 0 || f.y > b.y + 30) f.state = 'back';
+      } else {
+        const ex = f.ax + Math.sin(f.t * 1.6) * 90 - f.x, ey = f.ay - f.y, d = Math.hypot(ex, ey);
+        if (d < 8) { f.state = 'patrol'; f.cd = 1.6; } else { f.x += ex / d * 200 * dt; f.y += ey / d * 200 * dt; }
+      }
+    } else if (f.type === 'bird') {
+      f.x += f.dir * 90 * dt;
+      if (f.x > f.x1) { f.x = f.x1; f.dir = -1; }
+      if (f.x < f.x0) { f.x = f.x0; f.dir = 1; }
+      f.y = f.ay + Math.sin(f.t * 2.5) * 8;
+      if (!S.dead && Math.abs(dx) < 280) {
+        f.dropT -= dt;
+        if (f.dropT <= 0) { f.dropT = 2; S.icicles.push({ x: f.x, y: f.y + 16, vy: 60 }); sfx('drop'); }
+      }
+    } else {
+      // ma lửa: lững lờ bay về phía Pikachu, xuyên qua địa hình
+      if (!S.dead && Math.abs(dx) < 520) { const d = Math.hypot(dx, dy) || 1; f.x += dx / d * 55 * dt; f.y += dy / d * 55 * dt; }
+      f.y += Math.sin(f.t * 3) * 10 * dt;
+      f.dir = Math.sign(dx) || 1;
+    }
+  }
+  // cột băng rơi
+  for (const c of S.icicles) {
+    c.vy += 1400 * dt; c.y += c.vy * dt;
+    const gy = groundYAt(c.x);
+    if (gy != null && c.y >= gy - 4) { c.dead = true; boltSpark(c.x, gy - 6, '#7ff0ff', 8); }
+    if (c.y > DEATH_Y) c.dead = true;
+  }
+  S.icicles = S.icicles.filter(c => !c.dead);
+  if (S.dead) return;
+  for (const c of S.icicles) {
+    if (Math.abs(c.x - b.x) < R && c.y + 14 > b.y - R && c.y - 14 < b.y + R) {
+      if (S.power || S.safe) { c.dead = true; continue; }
+      die(); return;
+    }
+  }
+  for (const f of S.flyers) {
+    if (!f.alive || Math.hypot(f.x - b.x, f.y - b.y) >= f.r + R) continue;
+    if (S.power) { killFlyer(f); continue; }
+    if (f.stun > 0) continue;
+    if (f.type !== 'ghost' && b.vy > 0 && b.y < f.y - 6) { killFlyer(f); b.vy = -560; continue; }
+    if (!S.safe) { die(); return; }
+  }
+}
+
+/* ---------- Boss: Lilith (băng) → Naamah (lửa) → Hợp thể ---------- */
 function newUnits() {
-  return [{ kind: 'ice', x: 6720, dir: -1, squash: 0, flash: 0, hurt: 0 }];
+  return [{ kind: 'ice', x: ARENA_MID + 140, y: ARENA.floor - 150, dir: -1, squash: 0, flash: 0, hurt: 0, mt: Math.PI / 2, vy: 0 }];
 }
-const devilName = B => B.units[0].kind === 'ice' ? 'LILITH' : 'NAAMAH';
+function newBoss() {
+  return {
+    phase: 1, hp: PHASES[1].hp, maxHp: PHASES[1].hp, dead: false, inv: 0, stun: 0, exhaust: 0, atkT: 2.5, act: null, actN: 0,
+    ts: 0, hellT: 0, laserShot: false, cut: null, fuse: null, marks: [], hazards: [], sweep: null, half: false, summoned: false, blinkT: 9,
+    units: newUnits(),
+  };
+}
+const devilName = B => B.phase === 4 || B.fuse ? 'LILITH × NAAMAH' : B.units[0].kind === 'ice' ? 'LILITH' : 'NAAMAH';
 function bossBar() {
-  const B = S.boss;
+  const B = S.boss, P = PHASES[B.phase];
   $('bossbar').hidden = !(S.fight || B.dead);
-  const fused = B.phase === 4 || !!B.fuse;
-  $('bname').textContent = B.dead || fused ? 'LILITH × NAAMAH' : devilName(B);
-  $('bphase').textContent = B.dead ? 'Đã hạ!' : B.fuse ? 'Đang hợp thể…'
-    : B.phase === 4 ? `HỢP THỂ · ${Math.max(0, B.hp)}/${FUSED_HP} máu` : `${PHASES[B.phase].name} (${B.phase}/3)`;
-  $('bnote').textContent = B.dead ? 'Lăn tới cờ đích để về đích.' : B.fuse ? 'Lilith và Naamah đang hợp thể!' : PHASES[B.phase].note;
-  document.querySelector('#bossbar .pips').hidden = fused;
-  $('hpbar').hidden = !(B.phase === 4) || B.dead;
-  $('hpfill').style.width = (Math.max(0, B.hp) / FUSED_HP * 100) + '%';
-  document.querySelectorAll('#bossbar .pips i').forEach((p, i) => p.classList.toggle('on', !B.dead && i < 3 - B.hits));
+  $('bname').textContent = B.dead ? 'LILITH × NAAMAH' : devilName(B);
+  $('bphase').textContent = B.dead ? 'Đã hạ!' : B.fuse ? 'Đang hợp thể…' : B.cut ? 'Lilith gục…' : `${P.tag} · ${Math.max(0, B.hp)}/${B.maxHp} máu`;
+  $('bnote').textContent = B.dead ? 'Lăn tới cờ đích để về đích.' : B.fuse ? 'Lilith và Naamah đang hợp thể!'
+    : B.cut ? 'Coi chừng sau lưng!' : (B.phase === 4 && B.half ? P.note2 : P.note);
+  document.querySelector('#bossbar .pips').hidden = true;
+  $('hpbar').hidden = B.dead || !!B.fuse || !!B.cut;
+  $('hpfill').style.width = (Math.max(0, B.hp) / B.maxHp * 100) + '%';
 }
-// Vòng ma lực: to dần khi xuất hiện, thu lại khi sắp tắt
-function auraScale(B) {
-  const P = PHASES[B.phase];
-  return Math.min(1, (P.dur - B.fire) / .25, B.fire / .15);
-}
-function shoot(u, P) {
-  S.bullets.push({ x: u.x + u.dir * (BOSS_W / 2 + 22), y: ARENA.floor - 24, vx: u.dir * P.bspeed, kind: u.kind });
-  u.flash = .08;
-}
-const busy = (B, u) => u === B.units[B.att] && (B.fire > 0 || B.warn);
+const devilColors = u => u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
+const arenaLo = w => ARENA.l + w / 2 + 40, arenaHi = w => ARENA.r - w / 2 - 10;
+const unitW = u => u.kind === 'fused' ? FW : BOSS_W;
+
 function updateBoss(dt) {
-  const B = S.boss, b = S.ball, U = B.units;
-  if (!B.ts) for (const u of S.bullets) u.x += u.vx * dt;   // đạn cũng đứng yên khi bị phong ấn
-  S.bullets = S.bullets.filter(u => u.x > ARENA.gateX && u.x < ARENA.r);
+  const B = S.boss, b = S.ball;
+  updateBullets(dt, B.ts > 0);
   if (B.dead) return;
-  for (const u of U) { u.squash = Math.max(0, u.squash - dt); u.flash = Math.max(0, u.flash - dt); u.hurt = Math.max(0, u.hurt - dt); }
+  for (const u of B.units) { u.squash = Math.max(0, u.squash - dt); u.flash = Math.max(0, u.flash - dt); u.hurt = Math.max(0, u.hurt - dt); }
   if (!S.fight) {
-    if (!S.dead && b.x > ARENA.l + 30) { S.fight = true; S.gateClosed = true; B.fireT = 0; bossBar(); }
+    if (!S.dead && b.x > ARENA.l + 30) { S.fight = true; S.gateClosed = true; B.atkT = 2.5; bossBar(); }
     return;
   }
   if (B.cut) { updateCut(B, b, dt); return; }
   if (B.fuse) { updateFuse(B, b, dt); return; }
-  if (B.phase === 4) { updateFused(B, b, dt); return; }
-  const P = PHASES[B.phase];
   B.inv = Math.max(0, B.inv - dt);
-  // Hell mode: phong ấn (đóng băng bóng) rồi bắn laze
-  if (B.phase >= 2) {
+  updateHazards(B, b, dt);
+  if (B.phase === 4) updateMarks(B, b, dt);
+  const P = PHASES[B.phase];
+  if (B.stun > 0) {
+    B.stun -= dt; settleUnits(B, dt);
+    if (!S.dead) bossContact(B, b, false);
+    return;
+  }
+  // phong ấn (hell mode)
+  if (P.seal) {
     if (B.ts > 0) {
       B.ts -= dt;
       if (B.ts <= LASER_AT && !B.laserShot) B.laserShot = true;
       if (B.ts <= 0) { B.ts = 0; B.hellT = 0; S.tsEsc = false; tsBanner(); }
-    } else if (!B.fire && !B.warn && !S.dead) {
+    } else if (!B.act && !B.exhaust && !S.dead) {
       B.hellT += dt;
-      if (B.hellT >= TS_EVERY) {
-        B.ts = TS_DUR; B.laserShot = false; S.tsEsc = false;
-        for (const u of U) u.dir = Math.sign(b.x - u.x) || u.dir;   // cả hai quay về phía bóng
-        Object.assign(b, { vx: 0, vy: 0 });
-        tsBanner();
-      }
+      if (B.hellT >= P.seal) startSeal(B, b);
     }
   }
-  if (B.ts > 0) {
-    if (!S.dead) bossTouch(B, b, true);
-    return;
-  }
-  // Hai ác quỷ thay phiên nhau tấn công
-  const A = U[B.att];
-  if (P.cycle) {
-    if (B.fire > 0) {
-      const el = P.dur - B.fire;
-      while (B.shot < P.shots && el >= .15 + B.shot * P.gap) { shoot(A, P); B.shot++; }
-      B.fire -= dt;
-      if (B.fire <= 0) { B.fire = 0; B.fireT = 0; B.att = (B.att + 1) % U.length; }
-    } else { B.fireT += dt; if (B.fireT >= P.cycle) { B.fire = P.dur; B.shot = 0; } }
-  }
-  const wasWarn = B.warn;
-  B.warn = !!P.cycle && !B.fire && B.fireT > P.cycle - WARN;
-  if (B.warn && !wasWarn && !S.dead) U[B.att].dir = Math.sign(b.x - U[B.att].x) || U[B.att].dir;
-  const lo = ARENA.l + BOSS_W / 2 + 40, hi = ARENA.r - BOSS_W / 2 - 10;
-  for (const u of U) {
-    if (busy(B, u)) continue;
-    u.x += u.dir * P.speed * dt;
-    if (u.x > hi) { u.x = hi; u.dir = -1; }
-    if (u.x < lo) { u.x = lo; u.dir = 1; }
-  }
-  // giữ khoảng cách để hai ác quỷ không chồng lên nhau
-  const [u0, u1] = U, GAP = 130, d = u1 ? Math.abs(u0.x - u1.x) : Infinity;
-  if (d < GAP) {
-    const sg = Math.sign(u1.x - u0.x) || 1, push = (GAP - d) / 2;
-    if (!busy(B, u0)) { u0.x = clamp(u0.x - sg * push, lo, hi); u0.dir = -sg; }
-    if (!busy(B, u1)) { u1.x = clamp(u1.x + sg * push, lo, hi); u1.dir = sg; }
+  if (B.ts > 0) { settleUnits(B, dt); if (!S.dead) bossContact(B, b, true); return; }
+  if (B.exhaust > 0) { B.exhaust = Math.max(0, B.exhaust - dt); settleUnits(B, dt); }
+  else if (B.act) runAction(B, b, dt);
+  else {
+    moveUnits(B, b, dt);
+    B.atkT -= dt;
+    if (B.atkT <= 0 && !S.dead) startAction(B, b);
   }
   if (S.dead) return;
-  bossTouch(B, b, false);
+  bossContact(B, b, false);
+}
+function startSeal(B, b) {
+  B.ts = TS_DUR; B.laserShot = false; S.tsEsc = false;
+  for (const u of B.units) u.dir = Math.sign(b.x - u.x) || u.dir;
+  Object.assign(b, { vx: 0, vy: 0 });
+  S.dash = null;
+  tsBanner();
+}
+// Đứng yên (kiệt sức, choáng, phong ấn): Lilith hạ xuống đất, Naamah rơi về mặt đất
+function settleUnits(B, dt) {
+  for (const u of B.units) {
+    if (u.kind === 'ice') u.y = Math.min(ARENA.floor, u.y + 420 * dt);
+    else if (u.kind === 'fire') { if (u.y < ARENA.floor) { u.vy += 1900 * dt; u.y = Math.min(ARENA.floor, u.y + u.vy * dt); } else u.vy = 0; }
+    else u.y = ARENA.floor - 12 + Math.sin(S.t * 2) * 6;
+  }
+}
+function moveUnits(B, b, dt) {
+  for (const u of B.units) {
+    const lo = arenaLo(unitW(u)), hi = arenaHi(unitW(u));
+    if (u.kind === 'ice') {
+      // Lilith bay theo hình số 8; thỉnh thoảng dịch chuyển qua gương băng sang phía bên kia
+      u.mt += dt * .55;
+      const tx = ARENA_MID + 230 * Math.sin(u.mt), ty = ARENA.floor - 150 + 36 * Math.sin(u.mt * 2);
+      u.x += (tx - u.x) * Math.min(1, dt * 4); u.y += (ty - u.y) * Math.min(1, dt * 3);
+      u.dir = Math.cos(u.mt) >= 0 ? 1 : -1;
+      B.blinkT -= dt;
+      if (B.blinkT <= 0) {
+        B.blinkT = 9;
+        boltSpark(u.x, u.y - 60, '#7ff0ff', 16);
+        u.mt += Math.PI; u.x = ARENA_MID + 230 * Math.sin(u.mt);
+        boltSpark(u.x, u.y - 60, '#d8fbff', 16);
+      }
+    } else if (u.kind === 'fire') {
+      settleUnits(B, dt);
+      u.x += u.dir * 80 * dt;
+      if (u.x > hi) { u.x = hi; u.dir = -1; }
+      if (u.x < lo) { u.x = lo; u.dir = 1; }
+    } else {
+      u.x += u.dir * 60 * dt;
+      if (u.x > hi) { u.x = hi; u.dir = -1; }
+      if (u.x < lo) { u.x = lo; u.dir = 1; }
+      u.y = ARENA.floor - 12 + Math.sin(S.t * 2) * 6;
+    }
+  }
+}
+const ACT_LIST = [null, ['fan', 'spikes'], ['spikes', 'fan', 'puddle', 'fan'], ['dash', 'lob', 'slam', 'pillar'], ['dual']];
+function startAction(B, b) {
+  const list = B.phase === 4 && B.half ? ['dual', 'sweep'] : ACT_LIST[B.phase];
+  const type = list[B.actN++ % list.length];
+  const u = B.units[0];
+  u.dir = Math.sign(b.x - u.x) || u.dir;
+  B.act = { type, t: 0 };
+  if (type === 'dash') B.act.dir = u.dir;
+  B.atkT = PHASES[B.phase].every;
+}
+function endAction(B) {
+  const a = B.act;
+  B.act = null; B.sweep = null;
+  if (a && a.type === 'dual') dropMarks(B, B.units[0]);
+  B.exhaust = EXHAUST;
+}
+function aimedFan(sx, sy, kind, speed = 360) {
+  const b = S.ball, ang = Math.atan2(b.y - sy, b.x - sx);
+  for (const k of [-1, 0, 1]) {
+    const a = ang + k * .22;
+    S.bullets.push({ x: sx, y: sy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, kind, r: 7 });
+  }
+}
+function lobFire(sx, sy, tx, T = .9) {
+  const g = 1200, ty = ARENA.floor - 8;
+  S.bullets.push({ x: sx, y: sy, vx: (tx - sx) / T, vy: (ty - sy - .5 * g * T * T) / T, g, kind: 'fireball', r: 9 });
+}
+function addHazard(type, x, extra) {
+  const base = { spike: { w: 56, h: 74, warn: .8, t: .5 }, pillar: { w: 50, h: 150, warn: .8, t: .55 }, puddle: { w: 190, h: 0, warn: 0, t: 5 },
+    trail: { w: 40, h: 24, warn: 0, t: 2 }, fire: { w: 44, h: 26, warn: 0, t: 1 }, wave: { w: 26, h: 32, warn: 0, t: 2.2 } }[type];
+  S.boss.hazards.push({ type, x: clamp(x, ARENA.l + 30, ARENA.r - 20), ...base, ...extra });
+}
+function runAction(B, b, dt) {
+  const a = B.act, u = B.units[0], prevT = a.t;
+  a.t += dt;
+  const at = t => prevT < t && a.t >= t;   // đúng mốc thời gian t trong khung này
+  const lo = arenaLo(unitW(u)), hi = arenaHi(unitW(u));
+  const W = ACT_WARN[a.type];
+  if (u.kind === 'ice') settleHover(u, dt);
+  switch (a.type) {
+    case 'fan':
+      if (at(W) || at(W + .55)) { aimedFan(u.x + u.dir * 20, u.y - 70, 'ice'); u.flash = .1; }
+      if (a.t >= W + .8) endAction(B);
+      break;
+    case 'spikes':
+      for (const t of [W, W + .35, W + .7]) if (at(t)) addHazard('spike', b.x);
+      if (a.t >= W + 1) endAction(B);
+      break;
+    case 'puddle':
+      if (at(W)) addHazard('puddle', b.x);
+      if (a.t >= W + .4) endAction(B);
+      break;
+    case 'dash':
+      if (a.t >= W) {
+        u.x += a.dir * 720 * dt;
+        if (a.lastTrail === undefined || Math.abs(u.x - a.lastTrail) >= 36) { addHazard('trail', u.x); a.lastTrail = u.x; }
+        if (u.x <= lo || u.x >= hi) { u.x = clamp(u.x, lo, hi); u.dir = -a.dir; endAction(B); }
+      }
+      break;
+    case 'slam':
+      if (a.t >= W && !a.jumped) { a.jumped = true; u.vy = -950; a.tx = clamp(b.x, lo, hi); }
+      if (a.jumped && !a.landed) {
+        u.x += Math.sign(a.tx - u.x) * Math.min(Math.abs(a.tx - u.x), 320 * dt);
+        u.vy += 1900 * dt; u.y += u.vy * dt;
+        if (u.y >= ARENA.floor && u.vy > 0) {
+          u.y = ARENA.floor; u.vy = 0; a.landed = a.t;
+          addHazard('wave', u.x - 40, { vx: -400 }); addHazard('wave', u.x + 40, { vx: 400 });
+          sfx('stomp');
+        }
+      }
+      if (a.landed && a.t >= a.landed + .25) endAction(B);
+      break;
+    case 'lob':
+      [W, W + .25, W + .5].forEach((t, i) => { if (at(t)) { lobFire(u.x + u.dir * 20, u.y - 80, b.x + (i - 1) * 70); u.flash = .1; } });
+      if (a.t >= W + .8) endAction(B);
+      break;
+    case 'pillar':
+      if (at(W)) for (const o of [-130, 0, 130]) addHazard('pillar', b.x + o);
+      if (a.t >= W + 1.1) endAction(B);
+      break;
+    case 'dual':
+      // nửa băng bắn quạt mũi băng, nửa lửa ném cầu lửa cùng lúc
+      if (at(W) || at(W + .4)) {
+        aimedFan(u.x - 30, u.y - 100, 'ice', 340);
+        lobFire(u.x + 30, u.y - 110, b.x - 50); lobFire(u.x + 30, u.y - 110, b.x + 50);
+        u.flash = .1;
+      }
+      if (a.t >= W + .9) endAction(B);
+      break;
+    case 'sweep':
+      if (!a.started) {
+        a.started = true;
+        const dir = b.x < ARENA_MID ? -1 : 1;     // bắt đầu từ phía xa Pikachu rồi quét về phía Pikachu
+        B.sweep = { x: dir < 0 ? ARENA.r - 20 : ARENA.l + 20, dir, warn: W };
+      }
+      if (!B.sweep || B.sweep.x < ARENA.l - 10 || B.sweep.x > ARENA.r + 10) endAction(B);
+      break;
+  }
+}
+// Lilith đứng yên tại chỗ khi ra chiêu (vẫn lơ lửng)
+function settleHover(u, dt) { u.y += Math.sin(S.t * 3) * 8 * dt; }
+function updateBullets(dt, frozen) {
+  if (!frozen) for (const q of S.bullets) {
+    if (q.g) q.vy += q.g * dt;
+    q.x += q.vx * dt; q.y += (q.vy || 0) * dt;
+    if (q.g && q.y >= ARENA.floor - 6) { q.dead = true; addHazard('fire', q.x); }
+  }
+  S.bullets = S.bullets.filter(q => !q.dead && q.x > ARENA.gateX && q.x < ARENA.r && q.y > -400 && q.y < ARENA.floor + 4);
+}
+function updateHazards(B, b, dt) {
+  for (const h of B.hazards) {
+    if (h.warn > 0) { h.warn -= dt; continue; }
+    h.t -= dt;
+    if (h.vx) h.x += h.vx * dt;
+  }
+  B.hazards = B.hazards.filter(h => h.t > 0 && h.x > ARENA.gateX && h.x < ARENA.r);
+  S.slick = false;
+  const W = B.sweep;
+  if (W) { if (W.warn > 0) W.warn -= dt; else W.x += W.dir * SWEEP_SPEED * dt; }
+  if (S.dead) return;
+  for (const h of B.hazards) {
+    if (h.warn > 0) continue;
+    const inX = Math.abs(b.x - h.x) < h.w / 2 + R * .6;
+    if (h.type === 'puddle') { if (inX && b.y > ARENA.floor - 70) S.slick = true; continue; }
+    if (inX && b.y + R * .8 > ARENA.floor - h.h) { if (S.power || S.safe) continue; die(); return; }
+  }
+  if (W && W.warn <= 0 && !S.power && !S.safe && Math.abs(b.x - W.x) < 20 + R * .6 && b.y + R * .8 > ARENA.floor - SWEEP_H) die();
 }
 const laserOn = B => B.ts > 0 && B.ts <= LASER_AT && B.ts > LASER_AT - LASER_DUR;
 function laserSpan(u) {
   return u.dir > 0 ? [u.x + BOSS_W / 2, ARENA.r] : [ARENA.gateX + 30, u.x - BOSS_W / 2];
 }
-function bossTouch(B, b, stopped) {
-  // Laze: mỗi ác quỷ bắn một luồng sát mặt đất về phía bóng, chỉ né được bằng cách nhảy (vô địch không chặn được)
+function bossContact(B, b, stopped) {
+  // Laze khi phong ấn: chỉ né được bằng cách nhảy (Lao điện không chặn được)
   if (laserOn(B) && !S.safe) {
     for (const u of B.units) {
       const [lo, hi] = laserSpan(u);
       if (b.x + R > lo && b.x - R < hi && b.y + R * .8 > ARENA.floor - LASER_H) { die(); return; }
     }
   }
-  // Đạn băng / cầu lửa
-  for (const u of S.bullets) {
-    if (Math.hypot(u.x - b.x, u.y - b.y) < R + 5) {
-      if (S.power || S.safe) { u.x = -1e9; continue; }
+  for (const q of S.bullets) {
+    if (Math.hypot(q.x - b.x, q.y - b.y) < R + (q.r || 6)) {
+      if (S.power || S.safe) { q.dead = true; continue; }
       die(); return;
     }
   }
-  const gy = ARENA.floor, top = gy - BOSS_H;
-  for (let i = 0; i < B.units.length; i++) {
-    const u = B.units[i], cx = u.x;
-    const attacking = B.fire > 0 && i === B.att;
-    // Vòng ma lực quanh ác quỷ đang tấn công
-    if (attacking && !S.power && !S.safe && Math.hypot(b.x - cx, b.y - (gy - 56)) < AURA_R * auraScale(B) + R * .3) { die(); return; }
-    const nx = clamp(b.x, cx - BOSS_W / 2, cx + BOSS_W / 2), ny = clamp(b.y, top, gy);
+  for (const u of B.units) {
+    if (u.hidden) continue;
+    const fused = u.kind === 'fused', w = fused ? FW : BOSS_W, h = fused ? FH : BOSS_H, top = u.y - h;
+    const nx = clamp(b.x, u.x - w / 2, u.x + w / 2), ny = clamp(b.y, top, u.y);
     if ((b.x - nx) ** 2 + (b.y - ny) ** 2 >= R * R) continue;
-    // Giẫm từ trên xuống: cách duy nhất để gây sát thương
-    if (b.vy > 0 && b.y < top + 10) {
-      b.y = top - R; b.vy = -700; b.squash = .25;
-      b.vx = (Math.sign(b.x - cx) || -u.dir) * 280;   // văng sang bên, không giẫm liên tục được
-      if (!stopped && !B.inv && (!attacking || S.power)) hitBoss(u);
+    const side = Math.sign(b.x - u.x) || 1;
+    if (S.power > 0) {
+      // Lao điện đâm trúng
+      if (!stopped) damageBoss(u, 2, 'tackle');
+      b.x = u.x + side * (w / 2 + R + 1); b.vx = side * 300; b.vy = -340; S.dash = null;
       return;
     }
-    // Chạm phía trước hoặc phía sau
-    const side = Math.sign(b.x - cx) || 1;
-    if (S.power || S.safe || B.inv) { b.x = cx + side * (BOSS_W / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
+    if (b.vy > 0 && b.y < top + 10 && (!fused || B.exhaust > 0)) {
+      // giẫm từ trên xuống
+      b.y = top - R; b.vy = -700; b.squash = .25; b.vx = side * 280;
+      if (!stopped) damageBoss(u, 2, 'stomp');
+      return;
+    }
+    if (B.stun > 0 || S.safe || B.inv > .2) { b.x = u.x + side * (w / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
     die(); return;
   }
+}
+function bossVulnerable(B, kind) {
+  if (B.dead || B.cut || B.fuse || B.ts > 0) return false;
+  if (B.phase === 4) return kind === 'volt' || S.power > 0 || B.exhaust > 0;
+  return true;
+}
+function damageBoss(u, base, kind) {
+  const B = S.boss;
+  if (B.inv > 0 && kind !== 'volt') return false;
+  const h = u.kind === 'fused' ? FH : BOSS_H;
+  if (!bossVulnerable(B, kind)) {
+    boltSpark(u.x, u.y - h / 2, '#c9b6ff', 8);
+    if (B.phase === 4) S.pops.push({ x: u.x, y: u.y - h - 10, t: .6, text: 'Khiên! Cần Lao điện', c: '#c9d1db' });
+    return false;
+  }
+  const tired = B.exhaust > 0;
+  let dmg = base * (tired ? 2 : 1);
+  if (B.phase === 4 && S.traces > 0 && kind !== 'volt') { dmg *= 2; S.traces--; }
+  B.hp -= dmg;
+  B.inv = kind === 'stomp' || kind === 'tackle' ? .45 : .1;
+  u.hurt = .3; u.squash = .15;
+  gainEnergy(5);
+  sfx(kind === 'stomp' ? 'stomp' : 'hit');
+  S.pops.push({ x: u.x, y: u.y - h - 10, t: .8, text: `-${dmg}${tired ? ' kiệt sức!' : ''}`, c: dmg > 2 ? '#ffc21a' : '#ffffff' });
+  const [c1, c2] = devilColors(u.kind === 'fused' ? { kind: Math.random() < .5 ? 'ice' : 'fire' } : u);
+  for (let i = 0; i < 14; i++) {
+    const a = -Math.PI * Math.random(), sp = 150 + Math.random() * 250;
+    S.parts.push({ x: u.x, y: u.y - h, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .6, c: i % 2 ? c1 : c2, r: 4 + Math.random() * 4 });
+  }
+  if (B.hp <= 0) bossDown(B, u);
+  else {
+    if (B.phase === 1 && B.hp <= PHASES[1].hp / 2) enterHell(B, u);
+    if (B.phase === 3 && B.hp <= 6 && !B.summoned) { B.summoned = true; summonBats(); }
+    if (B.phase === 4 && B.hp <= FUSED_HP / 2 && !B.half) { B.half = true; B.actN = 1; summonBats(); }
+    bossBar();
+  }
+  return true;
+}
+function enterHell(B, u) {
+  Object.assign(B, { phase: 2, inv: 1, hellT: 0, act: null, exhaust: 0, atkT: 1.2, sweep: null });
+  for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2;
+    S.parts.push({ x: u.x, y: u.y - 56, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320, life: .6, c: i % 2 ? '#7ff0ff' : '#5a1f6e', r: 7, g: 0 });
+  }
+  S.pops.push({ x: u.x, y: u.y - BOSS_H - 30, t: 1, text: 'HELL MODE!', c: '#ff4d55' });
+}
+function bossDown(B, u) {
+  Object.assign(B, { act: null, sweep: null, hazards: [], exhaust: 0, stun: 0, ts: 0, hellT: 0 });
+  S.bullets = []; S.tsEsc = false;
+  if (B.phase <= 2) {
+    // Lilith gục: rơi xuống đất, bắt đầu màn Naamah chui ra
+    S.bossKills = Math.max(S.bossKills, 1);
+    u.y = ARENA.floor;
+    B.cut = { t: 0 };
+  } else if (B.phase === 3) {
+    // Naamah gục: hợp thể ở phía xa Pikachu
+    S.bossKills = Math.max(S.bossKills, 2);
+    const mx = S.ball.x < ARENA_MID ? ARENA.r - 190 : ARENA.l + 190;
+    B.fuse = { t: 0, nx: u.x, mx, merged: false };
+  } else killFused(B, u);
+  tsBanner();
+  bossBar();
 }
 function cutBanner(text, warn) {
   const el = $('tsBanner');
@@ -674,7 +1084,7 @@ function cutBanner(text, warn) {
 function updateCut(B, b, dt) {
   const C = B.cut;
   C.t += dt;
-  const lo = ARENA.l + BOSS_W / 2 + 40, hi = ARENA.r - BOSS_W / 2 - 10;
+  const lo = arenaLo(BOSS_W), hi = arenaHi(BOSS_W);
   if (C.t >= CUT.burst && !C.burst) {
     // Lilith vỡ tung, Naamah chui ra từ chính chỗ đó
     C.burst = true;
@@ -683,8 +1093,7 @@ function updateCut(B, b, dt) {
       const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 420;
       S.parts.push({ x: L.x, y: ARENA.floor - 60, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 200, life: 1, c: ['#7ff0ff', '#d8fbff', '#0f2430', '#ff2f5c'][i % 4], r: 4 + Math.random() * 6 });
     }
-    B.units = [{ kind: 'fire', x: L.x, dir: L.dir, squash: 0, flash: 0, hurt: 0, emerge: 0 }];
-    B.att = 0;
+    B.units = [{ kind: 'fire', x: L.x, y: ARENA.floor, vy: 0, dir: L.dir, squash: 0, flash: 0, hurt: 0, emerge: 0 }];
     bossBar();
   }
   const N = B.units[0];
@@ -694,7 +1103,7 @@ function updateCut(B, b, dt) {
     smoke(N.x, ARENA.floor - 50);
   }
   if (C.t >= CUT.appear && !C.appear) {
-    // hiện ra sau lưng bóng (phía ngược hướng bóng đang lăn)
+    // hiện ra sau lưng Pikachu (phía ngược hướng đang chạy)
     C.appear = true; N.hidden = false;
     let x = b.x - S.lastDir * 90;
     if (x < lo || x > hi) x = b.x + S.lastDir * 90;
@@ -703,15 +1112,16 @@ function updateCut(B, b, dt) {
     smoke(N.x, ARENA.floor - 50);
   }
   if (C.appear && !C.struck) {
-    cutBanner(S.power > 0 ? 'Đang vô địch: sẽ chặn được đòn!'
-      : S.cd > 0 ? `Vô địch còn hồi ${Math.ceil(S.cd)} giây: không thể chặn!`
-      : 'Naamah sau lưng! Nhấn Shift để chặn!', S.power <= 0);
+    const safeNow = S.power > 0 || C.blocked;
+    cutBanner(safeNow ? 'Đã Lao điện: sẽ chặn được đòn!'
+      : S.energy < COST.tackle ? `Không đủ điện năng (${Math.floor(S.energy)}/${COST.tackle}): không thể chặn!`
+      : S.cd > 0 ? 'Lao điện đang hồi…'
+      : 'Naamah sau lưng! Nhấn Shift (Lao điện) để chặn!', !safeNow);
   }
   if (C.t >= CUT.strike && !C.struck) {
     C.struck = true;
     cutBanner('');
-    if (S.power > 0) {
-      // chặn được: bóng văng ra, không mất mạng
+    if (S.power > 0 || C.blocked) {
       for (let i = 0; i < 20; i++) {
         const a = Math.random() * Math.PI * 2;
         S.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, life: .5, c: i % 2 ? '#ffc21a' : '#ffffff', r: 5, g: 0 });
@@ -721,7 +1131,7 @@ function updateCut(B, b, dt) {
   }
   if (C.t >= CUT.end) {
     B.cut = null; delete N.emerge;
-    Object.assign(B, { phase: 3, hits: 0, inv: 1.2, fireT: 0, hellT: 0, att: 0 });
+    Object.assign(B, { phase: 3, hp: PHASES[3].hp, maxHp: PHASES[3].hp, inv: 1.2, atkT: 2, hellT: 0, act: null, exhaust: 0, actN: 0, summoned: false });
     bossBar();
   }
 }
@@ -741,17 +1151,17 @@ function updateFuse(B, b, dt) {
       S.parts.push({ x: F.mx, y: ARENA.floor - 80, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: 1.1, c: ['#7ff0ff', '#ff2f5c', '#ffffff', '#d8fbff', '#ffa0b4'][i % 5], r: 5 + Math.random() * 7 });
     }
     S.flash = 1;
-    B.units = [{ kind: 'fused', x: F.mx, dir: Math.sign(b.x - F.mx) || -1, squash: 0, flash: 0, hurt: 0, grow: 0 }];
+    B.units = [{ kind: 'fused', x: F.mx, y: ARENA.floor - 12, vy: 0, dir: Math.sign(b.x - F.mx) || -1, squash: 0, flash: 0, hurt: 0, grow: 0 }];
   }
   if (F.merged) B.units[0].grow = clamp((F.t - FUSE.merge) / (FUSE.end - FUSE.merge), 0, 1);
   if (F.t >= FUSE.end) {
     B.fuse = null; delete B.units[0].grow;
-    Object.assign(B, { phase: 4, hp: FUSED_HP, hits: 0, inv: 0, fireT: 0, fire: 0, warn: false, shot: 0, att: 0, hitCd: 0, marks: [] });
+    Object.assign(B, { phase: 4, hp: FUSED_HP, maxHp: FUSED_HP, inv: 0, atkT: 2.5, act: null, exhaust: 0, actN: 0, half: false, marks: [] });
     S.safe = Math.max(S.safe, 1);
     bossBar();
   }
 }
-// Vết tích rơi ra sau mỗi đợt tấn công: một mảnh băng bên trái, một tàn lửa bên phải
+// Vết tích rơi ra sau mỗi đợt tấn công của boss hợp thể: một mảnh băng, một tàn lửa
 function dropMarks(B, u) {
   const lo = ARENA.l + 50, hi = ARENA.r - 40;
   for (const kind of ['ice', 'fire']) {
@@ -763,31 +1173,11 @@ function dropMarks(B, u) {
     B.marks.push({ x, kind, life: 9 });
   }
 }
-function updateFused(B, b, dt) {
-  const P = PHASES[4], u = B.units[0], gy = ARENA.floor;
-  B.hitCd = Math.max(0, B.hitCd - dt);
+function updateMarks(B, b, dt) {
   for (const m of B.marks) m.life -= dt;
   B.marks = B.marks.filter(m => m.life > 0);
-  // Đồng loạt tấn công mỗi 5 giây: mũi băng sang trái, cầu lửa sang phải
-  if (B.fire > 0) {
-    const el = P.dur - B.fire;
-    while (B.shot < P.shots && el >= .15 + B.shot * P.gap) {
-      S.bullets.push({ x: u.x - FW / 2 - 20, y: gy - 24, vx: -P.bspeed, kind: 'ice' });
-      S.bullets.push({ x: u.x + FW / 2 + 20, y: gy - 24, vx: P.bspeed, kind: 'fire' });
-      B.shot++; u.flash = .08;
-    }
-    B.fire -= dt;
-    if (B.fire <= 0) { B.fire = 0; B.fireT = 0; dropMarks(B, u); }
-  } else { B.fireT += dt; if (B.fireT >= P.cycle) { B.fire = P.dur; B.shot = 0; } }
-  B.warn = !B.fire && B.fireT > P.cycle - WARN;
-  if (!B.fire && !B.warn) {
-    const lo = ARENA.l + FW / 2 + 40, hi = ARENA.r - FW / 2 - 10;
-    u.x += u.dir * P.speed * dt;
-    if (u.x > hi) { u.x = hi; u.dir = -1; }
-    if (u.x < lo) { u.x = lo; u.dir = 1; }
-  }
   if (S.dead) return;
-  // nhặt vết tích
+  const gy = ARENA.floor;
   for (const m of B.marks) {
     if (Math.hypot(m.x - b.x, (gy - 18) - b.y) < R + 16) {
       m.life = 0; S.traces = Math.min(5, S.traces + 1);
@@ -797,85 +1187,13 @@ function updateFused(B, b, dt) {
       }
     }
   }
-  // đạn
-  for (const q of S.bullets) {
-    if (Math.hypot(q.x - b.x, q.y - b.y) < R + 5) {
-      if (S.power || S.safe) { q.x = -1e9; continue; }
-      die(); return;
-    }
-  }
-  // vòng băng lửa quanh thân
-  if (B.fire && !S.power && !S.safe && Math.hypot(b.x - u.x, b.y - (gy - 70)) < AURA_R * 1.25 * auraScale(B) + R * .3) { die(); return; }
-  // chạm thân: chỉ gây sát thương khi đang Vô địch
-  const top = gy - FH;
-  const nx = clamp(b.x, u.x - FW / 2, u.x + FW / 2), ny = clamp(b.y, top, gy);
-  if ((b.x - nx) ** 2 + (b.y - ny) ** 2 >= R * R) return;
-  const side = Math.sign(b.x - u.x) || 1;
-  if (S.power > 0) {
-    if (!B.hitCd) {
-      const dmg = S.traces > 0 ? 2 : 1;
-      if (S.traces > 0) S.traces--;
-      B.hp -= dmg; B.hitCd = .25; u.hurt = .3; u.squash = .15;
-      sfx('hit');
-      S.pops.push({ x: u.x, y: top - 10, t: .8, text: `-${dmg}`, c: dmg > 1 ? '#ffc21a' : '#ffffff' });
-      for (let i = 0; i < 16; i++) {
-        const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 220;
-        S.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .5, c: i % 2 ? '#ffc21a' : (dmg > 1 ? '#ff2f5c' : '#ffffff'), r: 5 });
-      }
-      if (B.hp <= 0) { killFused(B, u); return; }
-      bossBar();
-    }
-    b.x = u.x + side * (FW / 2 + R + 1); b.vx = side * 240; b.vy = -320;
-    return;
-  }
-  if (S.safe) { b.x = u.x + side * (FW / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
-  die();
 }
 function killFused(B, u) {
-  B.dead = true; S.gateClosed = false; S.bullets = []; B.marks = []; S.flash = .8;
+  B.dead = true; S.gateClosed = false; S.bullets = []; B.marks = []; B.hazards = []; B.sweep = null; S.flash = .8;
   S.bossKills = 3;
   for (let i = 0; i < 120; i++) {
     const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 600;
     S.parts.push({ x: u.x, y: ARENA.floor - 80, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.4, c: ['#7ff0ff', '#ff2f5c', '#0f2430', '#1c0c12', '#ffffff'][i % 5], r: 5 + Math.random() * 9 });
-  }
-  bossBar();
-}
-const devilColors = u => u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
-function hitBoss(u) {
-  const B = S.boss;
-  B.hits++; B.inv = 1; u.squash = .3; u.hurt = 1;
-  sfx('stomp');
-  const top = ARENA.floor - BOSS_H, cy = ARENA.floor - BOSS_H / 2;
-  const [c1, c2] = devilColors(u);
-  for (let i = 0; i < 20; i++) {
-    const a = -Math.PI * Math.random(), sp = 150 + Math.random() * 250;
-    S.parts.push({ x: u.x, y: top, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .7, c: i % 2 ? c1 : c2, r: 5 + Math.random() * 4 });
-  }
-  if (B.hits >= 3) {
-    if (B.phase === 3) {
-      // Naamah gục: bắt đầu hợp thể ở phía xa quả bóng
-      S.bossKills = Math.max(S.bossKills, 2);
-      const center = (ARENA.l + ARENA.r) / 2;
-      const mx = S.ball.x < center ? ARENA.r - 190 : ARENA.l + 190;
-      Object.assign(B, { hits: 0, fire: 0, warn: false, ts: 0, shot: 0, fuse: { t: 0, nx: u.x, mx, merged: false } });
-      S.tsEsc = false; S.bullets = [];
-      tsBanner();
-    } else if (B.phase === 2) {
-      // Lilith bị hạ: bắt đầu màn Naamah chui ra
-      S.bossKills = Math.max(S.bossKills, 1);
-      Object.assign(B, { hits: 0, fire: 0, warn: false, shot: 0, ts: 0, hellT: 0, cut: { t: 0 } });
-      S.tsEsc = false; S.bullets = [];
-      tsBanner();
-    } else {
-      B.phase++; B.hits = 0; B.fireT = 0; B.fire = 0; B.shot = 0; B.inv = 1.6; B.hellT = 0; B.att = 0;
-      for (const v of B.units) {
-        const [d1, d2] = devilColors(v);
-        for (let i = 0; i < 24; i++) {
-          const a = i / 24 * Math.PI * 2;
-          S.parts.push({ x: v.x, y: cy, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320, life: .6, c: i % 2 ? d1 : d2, r: 7, g: 0 });
-        }
-      }
-    }
   }
   bossBar();
 }
@@ -1164,6 +1482,7 @@ function drawEnemies() {
     ctx.fillRect(e.x - 10 + ex + e.dir * 2, gy - 27, 5, 6); ctx.fillRect(e.x + 6 + ex + e.dir * 2, gy - 27, 5, 6);
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(e.x - 15 + ex, gy - 36); ctx.lineTo(e.x - 4 + ex, gy - 32); ctx.moveTo(e.x + 15 + ex, gy - 36); ctx.lineTo(e.x + 4 + ex, gy - 32); ctx.stroke();
+    if (e.stun > 0) drawNet(e.x, gy - 20, 28);   // dính Lưới điện
   }
 }
 function drawGate() {
@@ -1246,8 +1565,8 @@ function drawDevil(u, B, x, gy) {
   const [GLOW, GLOW2, BODY] = devilColors(u);
   const SKIN = ice ? '#4a6470' : '#5a3a40', HAIR = ice ? '#c3d3da' : '#2a1216';
   if (u.hidden) return;
-  const moving = u.moving ?? (S.fight && !B.ts && !B.cut && !busy(B, u));
-  const aim = u.aim ?? (busy(B, u) || B.ts > 0 || (B.cut && B.cut.appear));
+  const moving = u.moving ?? (S.fight && !B.ts && !B.cut && !B.act && !B.exhaust && !B.stun);
+  const aim = u.aim ?? (!!B.act || B.ts > 0 || !!(B.cut && B.cut.appear));
   const bob = moving ? Math.abs(Math.sin(S.t * 7 + (ice ? 0 : 1.5))) * 3 : Math.sin(S.t * 2) * 1.5;
   const flap = Math.sin(S.t * (moving ? 9 : 4) + (ice ? 0 : 1)) * .15;
   ctx.save();
@@ -1331,7 +1650,7 @@ function drawDevil(u, B, x, gy) {
 }
 // Thân hợp thể: nửa trái là Lilith, nửa phải là Naamah
 function drawFusedBody(B, u, gy, k) {
-  const x = u.x, busyNow = B.fire > 0 || B.warn;
+  const x = u.x, busyNow = !!B.act;
   for (const [kind, x0] of [['ice', -400], ['fire', 0]]) {
     ctx.save();
     ctx.beginPath(); ctx.rect(x + x0, gy - 400, 400, 430); ctx.clip();
@@ -1379,28 +1698,28 @@ function drawFuse(B) {
   }
 }
 function drawFused(B) {
-  const u = B.units[0], gy = ARENA.floor, cy = gy - 70;
+  const u = B.units[0], gy = u.y, cy = gy - 70;
   drawMarks(B);
-  if (B.warn) {
-    ctx.save(); ctx.setLineDash([10, 10]); ctx.lineDashOffset = -S.t * 60; ctx.lineWidth = 4;
-    ctx.strokeStyle = '#7ff0ff'; ctx.beginPath(); ctx.arc(u.x, cy, AURA_R * 1.25, Math.PI / 2, Math.PI * 1.5); ctx.stroke();
-    ctx.strokeStyle = '#ff2f5c'; ctx.beginPath(); ctx.arc(u.x, cy, AURA_R * 1.25, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+  const open = S.power > 0 || B.exhaust > 0 || B.stun > 0;
+  if (!open) {
+    // khiên băng lửa: chỉ hở khi Lao điện hoặc boss kiệt sức
+    ctx.save(); ctx.globalAlpha = .35 + Math.sin(S.t * 5) * .1; ctx.lineWidth = 4;
+    ctx.strokeStyle = '#7ff0ff'; ctx.beginPath(); ctx.arc(u.x, cy, FH * .62, Math.PI / 2, Math.PI * 1.5); ctx.stroke();
+    ctx.strokeStyle = '#ff2f5c'; ctx.beginPath(); ctx.arc(u.x, cy, FH * .62, -Math.PI / 2, Math.PI / 2); ctx.stroke();
     ctx.restore();
-  }
-  if (B.fire) {
-    const r = AURA_R * 1.25 * auraScale(B);
-    for (const [kind, x0] of [['ice', -400], ['fire', 0]]) {
-      ctx.save(); ctx.beginPath(); ctx.rect(u.x + x0, cy - 300, 400, 600); ctx.clip();
-      drawAura({ kind }, u.x, cy, r);
-      ctx.restore();
-    }
-  }
-  // hào quang vàng khi bóng đang Vô địch: báo hiệu có thể tấn công
-  if (S.power > 0) {
+  } else if (S.power > 0) {
     ctx.strokeStyle = Math.floor(S.t * 10) % 2 ? '#ffc21a' : '#ffffff'; ctx.lineWidth = 3;
     ctx.strokeRect(u.x - FW / 2 - 6, gy - FH - 6, FW + 12, FH + 12);
   }
+  if (B.act && B.act.t < ACT_WARN[B.act.type]) {
+    ctx.save(); ctx.setLineDash([10, 10]); ctx.lineDashOffset = -S.t * 60; ctx.lineWidth = 4;
+    ctx.strokeStyle = Math.floor(S.t * 14) % 2 ? '#ffc21a' : '#ffffff';
+    ctx.strokeRect(u.x - FW / 2 - 12, gy - FH - 12, FW + 24, FH + 24);
+    ctx.restore();
+  }
   drawFusedBody(B, u, gy, FUSED_K);
+  if (B.exhaust > 0) drawDizzy(u.x, gy - FH - 18);
+  if (B.stun > 0) drawNet(u.x, cy, 70);
 }
 function drawPops() {
   ctx.textAlign = 'center'; ctx.font = '800 30px "Baloo 2", sans-serif'; ctx.lineWidth = 5; ctx.strokeStyle = '#14141a';
@@ -1415,37 +1734,73 @@ function drawFlash() {
   ctx.fillStyle = `rgb(255 255 255 / ${Math.min(1, S.flash).toFixed(2)})`;
   ctx.fillRect(S.cam.x - 10, S.cam.y - 10, viewW + 20, VIEW_H + 20);
 }
+// Sao xoay trên đầu: boss đang kiệt sức, đánh lúc này sát thương ×2
+function drawDizzy(x, y) {
+  for (let i = 0; i < 3; i++) {
+    const a = S.t * 5 + i * Math.PI * 2 / 3;
+    starPath(x + Math.cos(a) * 22, y + Math.sin(a) * 6, 7);
+    ctx.fillStyle = '#ffc21a'; ctx.fill(); ctx.strokeStyle = '#a86a00'; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+// Lưới điện quấn quanh mục tiêu
+function drawNet(x, y, r) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(S.t * .5);
+  ctx.strokeStyle = Math.floor(S.t * 12) % 2 ? '#fff27a' : '#ffffff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.arc(0, 0, r * .55, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+  ctx.stroke();
+  ctx.restore();
+}
 function drawBoss() {
   const B = S.boss;
+  drawHazards(B);
   if (B.dead) return;
   if (B.fuse) { drawFuse(B); return; }
   if (B.phase === 4) { drawFused(B); return; }
-  const gy = ARENA.floor, cy = gy - 56;
+  const gy = ARENA.floor;
   if (B.ts > 0) drawSeal();
-  const C = B.cut;
+  const C = B.cut, u = B.units[0];
+  const tele = B.act && B.act.t < ACT_WARN[B.act.type];
   const shake = C && !C.burst ? Math.sin(S.t * 80) * (2 + C.t * 4) : 0;
-  const xs = B.units.map(u => u.x + shake + (u === B.units[B.att] && B.warn ? Math.sin(S.t * 70) * 2 : 0));
-  B.units.forEach((u, i) => {
-    const [GLOW] = devilColors(u), x = xs[i];
-    if (B.phase >= 2) {
-      const pr = 62 + Math.sin(S.t * 6 + i) * 6;
-      ctx.fillStyle = u.kind === 'ice' ? 'rgb(127 240 255 / .18)' : 'rgb(255 47 92 / .2)';
-      ctx.beginPath(); ctx.arc(x, cy, pr, 0, Math.PI * 2); ctx.fill();
+  const x = u.x + shake + (tele ? Math.sin(S.t * 70) * 2 : 0), fy = u.y, cy = fy - 56;
+  const [GLOW] = devilColors(u);
+  // bóng đổ dưới đất khi đang bay
+  if (fy < gy - 4 && !u.hidden) {
+    const k = clamp(1 - (gy - fy) / 300, .3, 1);
+    ctx.fillStyle = 'rgb(0 0 0 / .25)';
+    ctx.beginPath(); ctx.ellipse(x, gy - 2, 34 * k, 7 * k, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  if (B.phase >= 2 && !C) {
+    const pr = 62 + Math.sin(S.t * 6) * 6;
+    ctx.fillStyle = u.kind === 'ice' ? 'rgb(127 240 255 / .18)' : 'rgb(255 47 92 / .2)';
+    ctx.beginPath(); ctx.arc(x, cy, pr, 0, Math.PI * 2); ctx.fill();
+  }
+  if (tele) {
+    // báo trước chiêu: vòng nét đứt quanh boss
+    ctx.save(); ctx.setLineDash([10, 10]); ctx.lineDashOffset = -S.t * 60;
+    ctx.strokeStyle = Math.floor(S.t * 14) % 2 ? GLOW : '#ffffff'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(x, cy, 70, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    if (B.act.type === 'dash') {
+      // đường lao sắp tới
+      ctx.fillStyle = Math.floor(S.t * 16) % 2 ? 'rgb(255 47 92 / .45)' : 'rgb(255 255 255 / .3)';
+      const d = B.act.dir, x0 = d > 0 ? x : ARENA.l, x1 = d > 0 ? ARENA.r : x;
+      ctx.fillRect(x0, gy - 30, x1 - x0, 8);
     }
-    if (i === B.att && B.warn) {
-      ctx.save();
-      ctx.setLineDash([10, 10]); ctx.lineDashOffset = -S.t * 60;
-      ctx.strokeStyle = Math.floor(S.t * 14) % 2 ? GLOW : '#ffffff'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(x, cy, AURA_R, 0, Math.PI * 2); ctx.stroke();
-      ctx.restore();
-    }
-    if (i === B.att && B.fire) drawAura(u, x, cy, AURA_R * auraScale(B));
-  });
+  }
+  if (B.act && B.act.type === 'slam' && B.act.jumped && !B.act.landed) {
+    // điểm rơi của cú đập đất
+    ctx.strokeStyle = Math.floor(S.t * 16) % 2 ? '#ff7b39' : '#ffffff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(B.act.tx, gy - 3, 40, 8, 0, 0, Math.PI * 2); ctx.stroke();
+  }
   drawLasers(B);
-  B.units.forEach((u, i) => drawDevil(u, B, xs[i], gy));
+  drawDevil(u, B, x, fy);
+  if (B.exhaust > 0) drawDizzy(x, fy - BOSS_H - 16);
+  if (B.stun > 0) drawNet(x, cy, 48);
   if (C && !C.burst) {
     // Lilith nứt ra, ánh đỏ bên trong lan dần
-    const k = C.t / CUT.burst, x = xs[0];
+    const k = C.t / CUT.burst;
     ctx.fillStyle = `rgb(255 47 92 / ${(.15 + k * .45).toFixed(2)})`;
     ctx.beginPath(); ctx.arc(x, cy - 10, 30 + k * 40, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#ff2f5c'; ctx.lineWidth = 3;
@@ -1455,25 +1810,89 @@ function drawBoss() {
     ctx.stroke();
   }
   if (C && C.appear && !C.struck) {
-    // Naamah vung vuốt: vòng đỏ thu hẹp quanh bóng báo hiệu đòn đánh
+    // Naamah vung vuốt: vòng đỏ thu hẹp quanh Pikachu báo hiệu đòn đánh
     const k = (C.t - CUT.appear) / (CUT.strike - CUT.appear), b = S.ball;
     ctx.strokeStyle = Math.floor(S.t * 16) % 2 ? '#ff2f5c' : '#ffffff'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(b.x, b.y, R + 60 * (1 - k) + 6, 0, Math.PI * 2); ctx.stroke();
   }
   if (C && C.struck && C.t < CUT.strike + .3) {
-    // vết cào
     const b = S.ball, k = (C.t - CUT.strike) / .3;
     ctx.strokeStyle = `rgb(255 47 92 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 5;
     for (const o of [-14, 0, 14]) { ctx.beginPath(); ctx.moveTo(b.x - 30, b.y - 30 + o); ctx.lineTo(b.x + 30, b.y + 20 + o); ctx.stroke(); }
   }
-  // mũi tên chỉ chỗ giẫm
-  if (!B.inv && !B.ts && !B.cut && S.fight) {
-    B.units.forEach((u, i) => {
-      if (i === B.att && B.fire) return;
-      const ay = gy - BOSS_H - 34 + Math.sin(S.t * 6 + i) * 6, x = xs[i];
-      ctx.fillStyle = '#ffc21a'; ctx.strokeStyle = '#14301c'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(x - 12, ay - 10); ctx.lineTo(x + 12, ay - 10); ctx.lineTo(x, ay + 6); ctx.closePath(); ctx.fill(); ctx.stroke();
-    });
+  // mũi tên chỉ chỗ giẫm: chỉ hiện khi boss đang ở mặt đất và có thể giẫm
+  if (!B.inv && !B.ts && !C && S.fight && fy >= gy - 4 && (B.exhaust > 0 || B.stun > 0 || u.kind === 'fire')) {
+    const ay = fy - BOSS_H - (B.exhaust > 0 ? 50 : 34) + Math.sin(S.t * 6) * 6;
+    ctx.fillStyle = '#ffc21a'; ctx.strokeStyle = '#14301c'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x - 12, ay - 10); ctx.lineTo(x + 12, ay - 10); ctx.lineTo(x, ay + 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+}
+function drawHazards(B) {
+  const gy = ARENA.floor, blink = Math.floor(S.t * 14) % 2;
+  for (const h of B.hazards) {
+    const x0 = h.x - h.w / 2;
+    if (h.type === 'puddle') {
+      // vũng băng trơn
+      ctx.fillStyle = 'rgb(160 230 255 / .55)';
+      ctx.beginPath(); ctx.ellipse(h.x, gy - 3, h.w / 2, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgb(255 255 255 / .8)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(h.x - 50, gy - 5); ctx.lineTo(h.x - 20, gy - 5); ctx.moveTo(h.x + 10, gy - 3); ctx.lineTo(h.x + 50, gy - 3); ctx.stroke();
+      continue;
+    }
+    if (h.warn > 0) {
+      // khung báo trước chỗ sắp trồi lên
+      ctx.save(); ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = blink ? (h.type === 'spike' ? '#7ff0ff' : '#ff7b39') : '#ffffff'; ctx.lineWidth = 3;
+      ctx.strokeRect(x0, gy - h.h, h.w, h.h);
+      ctx.restore();
+      ctx.fillStyle = h.type === 'spike' ? 'rgb(127 240 255 / .25)' : 'rgb(255 123 57 / .25)';
+      ctx.fillRect(x0, gy - 6, h.w, 6);
+      continue;
+    }
+    if (h.type === 'spike') {
+      for (let k = 0; k < 4; k++) {
+        const bx = x0 + k * h.w / 4, tip = h.h * (.75 + .25 * ((k * 7) % 3) / 2);
+        ctx.beginPath(); ctx.moveTo(bx, gy); ctx.lineTo(bx + h.w / 8, gy - tip); ctx.lineTo(bx + h.w / 4, gy); ctx.closePath();
+        ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+      }
+    } else if (h.type === 'pillar') {
+      ctx.fillStyle = 'rgb(255 74 28 / .55)'; ctx.fillRect(x0 - 6, gy - h.h - 10, h.w + 12, h.h + 10);
+      for (let y = gy; y > gy - h.h; y -= 18) {
+        const wob = Math.sin(S.t * 30 + y) * 4;
+        ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.arc(h.x + wob, y - 9, h.w / 2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(h.x + wob, y - 9, h.w / 4, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (h.type === 'trail' || h.type === 'fire') {
+      const fade = clamp(h.t / .4, 0, 1);
+      ctx.globalAlpha = fade;
+      for (let k = 0; k < 3; k++) {
+        const fx = x0 + 6 + k * (h.w - 12) / 2, fh = h.h * (.7 + .3 * Math.sin(S.t * 20 + k * 2 + h.x));
+        ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.moveTo(fx - 7, gy); ctx.quadraticCurveTo(fx, gy - fh * 1.4, fx + 7, gy); ctx.fill();
+        ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.moveTo(fx - 3, gy); ctx.quadraticCurveTo(fx, gy - fh * .8, fx + 3, gy); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    } else if (h.type === 'wave') {
+      // sóng chấn động lan trên mặt đất
+      ctx.fillStyle = 'rgb(255 123 57 / .5)';
+      ctx.beginPath(); ctx.ellipse(h.x, gy, h.w * .9, h.h, 0, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(h.x, gy, h.w * .6, h.h * .8, 0, Math.PI, 0); ctx.stroke();
+    }
+  }
+  const W = B.sweep;
+  if (W) {
+    if (W.warn > 0) {
+      ctx.save(); ctx.setLineDash([10, 8]);
+      ctx.strokeStyle = blink ? '#ff2f5c' : '#7ff0ff'; ctx.lineWidth = 4;
+      ctx.strokeRect(W.x - 20, gy - SWEEP_H, 40, SWEEP_H);
+      ctx.restore();
+    } else {
+      const fl = Math.sin(S.t * 50) * 3;
+      ctx.fillStyle = 'rgb(201 182 255 / .4)'; ctx.fillRect(W.x - 30 - fl, gy - SWEEP_H - 10, 60 + fl * 2, SWEEP_H + 10);
+      ctx.fillStyle = '#ff2f5c'; ctx.fillRect(W.x - 20, gy - SWEEP_H, 20, SWEEP_H);
+      ctx.fillStyle = '#7ff0ff'; ctx.fillRect(W.x, gy - SWEEP_H, 20, SWEEP_H);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(W.x - 5, gy - SWEEP_H, 10, SWEEP_H);
+    }
   }
 }
 function drawLasers(B) {
@@ -1483,7 +1902,6 @@ function drawLasers(B) {
     const [lo, hi] = laserSpan(u), ice = u.kind === 'ice';
     const [GLOW, GLOW2] = devilColors(u);
     if (B.ts > LASER_AT && B.ts <= LASER_AT + LASER_CHARGE) {
-      // nạp năng lượng: vạch ngắm nhấp nháy + quả cầu sáng ở tay
       const k = 1 - (B.ts - LASER_AT) / LASER_CHARGE, hx = u.x + u.dir * (BOSS_W / 2 + 18);
       if (Math.floor(S.t * 16) % 2) { ctx.fillStyle = GLOW; ctx.globalAlpha = .5; ctx.fillRect(lo, top + h / 2 - 2, hi - lo, 4); ctx.globalAlpha = 1; }
       ctx.strokeStyle = GLOW; ctx.lineWidth = 2; ctx.strokeRect(lo, top, hi - lo, h);
@@ -1499,6 +1917,126 @@ function drawLasers(B) {
       ctx.fillStyle = '#ffffff'; ctx.fillRect(lo, top + h * .4 + fl / 2, hi - lo, h * .2);
     }
   }
+}
+function drawBullets() {
+  for (const u of S.bullets) {
+    if (u.kind === 'ice') {
+      // mũi băng, xoay theo hướng bay
+      ctx.save(); ctx.translate(u.x, u.y); ctx.rotate(Math.atan2(u.vy || 0, u.vx));
+      ctx.fillStyle = 'rgb(216 251 255 / .4)'; ctx.fillRect(-40, -2, 30, 4);
+      ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(0, -6); ctx.lineTo(-12, 0); ctx.lineTo(0, 6); ctx.closePath();
+      ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+    } else {
+      // cầu lửa (ném vòng cung hoặc bắn thẳng)
+      const d = Math.atan2(u.vy || 0, u.vx);
+      ctx.fillStyle = 'rgb(255 120 40 / .45)';
+      ctx.beginPath(); ctx.arc(u.x - Math.cos(d) * 14, u.y - Math.sin(d) * 14, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.arc(u.x, u.y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(u.x, u.y, 4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+function drawFlyers() {
+  for (const f of S.flyers) {
+    if (!f.alive) continue;
+    const st = f.stun > 0;
+    ctx.save(); ctx.translate(f.x, f.y);
+    if (f.type === 'bat') {
+      const flap = st ? .2 : Math.sin(S.t * 18 + f.ax) * .6;
+      ctx.fillStyle = '#2a1636'; ctx.strokeStyle = '#120818'; ctx.lineWidth = 2;
+      for (const sd of [-1, 1]) {
+        ctx.save(); ctx.scale(sd, 1); ctx.rotate(flap);
+        ctx.beginPath(); ctx.moveTo(4, -2); ctx.lineTo(26, -14); ctx.lineTo(30, 0); ctx.lineTo(22, -3); ctx.lineTo(16, 4); ctx.lineTo(9, 0); ctx.lineTo(4, 6); ctx.closePath();
+        ctx.fill(); ctx.stroke(); ctx.restore();
+      }
+      ctx.beginPath(); ctx.ellipse(0, 0, 9, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-7, -7); ctx.lineTo(-4, -16); ctx.lineTo(-1, -9); ctx.moveTo(7, -7); ctx.lineTo(4, -16); ctx.lineTo(1, -9); ctx.fill();
+      ctx.fillStyle = '#ff2f5c'; ctx.fillRect(-5, -3, 3, 3); ctx.fillRect(2, -3, 3, 3);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(-3, 4, 2, 3); ctx.fillRect(1, 4, 2, 3);
+    } else if (f.type === 'bird') {
+      ctx.scale(f.dir, 1);
+      const flap = st ? 0 : Math.sin(S.t * 10 + f.ax) * .5;
+      ctx.fillStyle = '#bfefff'; ctx.strokeStyle = '#2a6f8a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(0, 0, 16, 10, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.save(); ctx.rotate(-flap); ctx.beginPath(); ctx.moveTo(-4, -4); ctx.lineTo(-18, -22); ctx.lineTo(6, -6); ctx.closePath(); ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = '#ffc21a'; ctx.beginPath(); ctx.moveTo(15, -2); ctx.lineTo(24, 1); ctx.lineTo(15, 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#14141a'; ctx.fillRect(8, -5, 3, 3);
+      ctx.fillStyle = '#7ff0ff'; ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-26, -6); ctx.lineTo(-24, 6); ctx.closePath(); ctx.fill();
+    } else {
+      // ma lửa bán trong suốt
+      ctx.globalAlpha = .75 + Math.sin(S.t * 8 + f.ax) * .15;
+      ctx.scale(f.dir || 1, 1);
+      ctx.fillStyle = '#ff6a2a';
+      ctx.beginPath(); ctx.moveTo(-16, 10);
+      ctx.quadraticCurveTo(-20, -14, 0, -24); ctx.quadraticCurveTo(20, -14, 16, 10);
+      for (let k = 0; k < 4; k++) ctx.lineTo(16 - (k + .5) * 8, 10 + (k % 2 ? 0 : 8) + Math.sin(S.t * 10 + k) * 2);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.ellipse(0, -2, 9, 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#14141a'; ctx.beginPath(); ctx.ellipse(-4, -4, 2.5, 4, 0, 0, Math.PI * 2); ctx.ellipse(5, -4, 2.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    if (st) drawNet(f.x, f.y, f.r + 8);
+    // chim sắp thả cột băng: bóng đổ báo trước dưới đất
+    if (f.type === 'bird' && !st && f.dropT < .6) {
+      const gy = groundYAt(f.x);
+      if (gy != null) { ctx.fillStyle = 'rgb(0 0 0 / .3)'; ctx.beginPath(); ctx.ellipse(f.x, gy - 2, 14, 4, 0, 0, Math.PI * 2); ctx.fill(); }
+    }
+  }
+}
+function drawIcicles() {
+  for (const c of S.icicles) {
+    const gy = groundYAt(c.x);
+    if (gy != null) {
+      const k = clamp(1 - (gy - c.y) / 300, .3, 1);
+      ctx.fillStyle = 'rgb(0 0 0 / .35)'; ctx.beginPath(); ctx.ellipse(c.x, gy - 2, 16 * k, 4, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.beginPath(); ctx.moveTo(c.x - 7, c.y - 14); ctx.lineTo(c.x + 7, c.y - 14); ctx.lineTo(c.x, c.y + 14); ctx.closePath();
+    ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+function drawOrb(x, y, r) {
+  ctx.fillStyle = 'rgb(255 242 122 / .3)'; ctx.beginPath(); ctx.arc(x, y, r * 1.8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff27a'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x - r * .25, y - r * .25, r * .45, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = Math.floor(S.t * 30) % 2 ? '#ffffff' : '#ffc21a'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const a = S.t * 12 + i * Math.PI / 2;
+    ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    ctx.lineTo(x + Math.cos(a + .3) * (r + 8), y + Math.sin(a + .3) * (r + 8));
+  }
+  ctx.stroke();
+}
+function drawOrbs() {
+  for (const o of S.orbs) drawOrb(o.x, o.y, o.r);
+  for (const w of S.webs) drawNet(w.x, w.y, w.r);
+}
+// Quả cầu điện đang nạp trên tay Pikachu
+function drawCharge() {
+  if (!S.charging || S.chargeT < BALL_HOLD || S.dead) return;
+  const b = S.ball, k = clamp((S.chargeT - BALL_HOLD) / (BALL_FULL - BALL_HOLD), 0, 1);
+  drawOrb(b.x + (b.face || 1) * 26, b.y - 16, 6 + k * 12);
+  if (k >= 1 && Math.floor(S.t * 10) % 2) {
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(b.x + (b.face || 1) * 26, b.y - 16, 26, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+// 100.000 Vôn: các tia sét giáng từ trời xuống
+function drawVolt() {
+  if (S.voltFx <= 0) return;
+  ctx.globalAlpha = clamp(S.voltFx / .5, 0, 1);
+  for (const [i, x] of S.voltStrikes.entries()) {
+    const gy = groundYAt(x) ?? S.cam.y + VIEW_H;
+    const pts = [];
+    for (let y = S.cam.y - 20, k = 0; y < gy; y += 40, k++) pts.push([x + Math.sin(i * 3.1 + k * 1.7 + S.t * 30) * 18, y]);
+    pts.push([x, gy]);
+    for (const [w, c] of [[16, 'rgb(255 242 122 / .35)'], [7, '#fff27a'], [3, '#ffffff']]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineJoin = 'round';
+      ctx.beginPath(); pts.forEach(([px, py], j) => j ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 function drawTimeStop() {
   const B = S.boss;
@@ -1593,22 +2131,6 @@ function drawBolts() {
     }
   }
 }
-function drawBullets() {
-  for (const u of S.bullets) {
-    const d = Math.sign(u.vx);
-    if (u.kind === 'ice') {
-      // mũi băng
-      ctx.fillStyle = 'rgb(216 251 255 / .4)'; ctx.fillRect(u.x - d * 40, u.y - 2, d * 30, 4);
-      ctx.beginPath(); ctx.moveTo(u.x + d * 14, u.y); ctx.lineTo(u.x, u.y - 6); ctx.lineTo(u.x - d * 12, u.y); ctx.lineTo(u.x, u.y + 6); ctx.closePath();
-      ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
-    } else {
-      // cầu lửa
-      ctx.fillStyle = 'rgb(255 120 40 / .45)'; ctx.beginPath(); ctx.arc(u.x - d * 14, u.y, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.arc(u.x, u.y, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(u.x + d * 2, u.y, 4, 0, Math.PI * 2); ctx.fill();
-    }
-  }
-}
 function drawBall() {
   if (S.dead) return;
   if (S.safe && Math.floor(S.t * 12) % 2) return;   // nhấp nháy khi vừa hồi sinh
@@ -1627,6 +2149,13 @@ function drawBall() {
       ctx.fillStyle = i % 2 ? '#ffffff' : '#ffc21a';
       ctx.fillRect(b.x + Math.cos(a) * R * 1.7 - 3, b.y + Math.sin(a) * R * 1.7 - 3, 6, 6);
     }
+  }
+  if (S.dash) {
+    for (let i = 1; i <= 3; i++) {
+      ctx.globalAlpha = .3 / i; ctx.fillStyle = '#fff27a';
+      ctx.beginPath(); ctx.arc(b.x - S.dash.dir * i * 16, b.y - 10, R, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
   drawPikachu(b, pw && !blink);
 }
@@ -1758,13 +2287,18 @@ function render() {
   drawHellSky();
   drawStars();
   drawEnemies();
+  drawFlyers();
+  drawIcicles();
   drawTurret();
   drawHearts();
   drawBoss();
   drawBullets();
   drawBolts();
+  drawOrbs();
   drawTimeStop();
   drawBall();
+  drawCharge();
+  drawVolt();
   drawParts();
   drawPops();
   drawFlash();
@@ -1796,12 +2330,14 @@ function loop(now) {
   const showTr = S.boss.phase === 4 && !S.boss.dead;
   $('traceChip').hidden = !showTr;
   if (showTr) $('traces').textContent = S.traces;
-  const sk = S.power > 0 ? `Vô địch ${S.power.toFixed(1)}s` : S.cd > 0 ? `Hồi ${Math.ceil(S.cd)}s` : 'Vô địch: K';
-  if (sk !== lastSkill) {
-    lastSkill = sk;
-    $('skill').textContent = sk;
-    $('skillChip').dataset.state = S.power > 0 ? 'on' : S.cd > 0 ? 'cd' : 'ready';
-    $('skillBtn').disabled = S.cd > 0 && !S.power;
+  const en = Math.floor(S.energy);
+  if (en !== lastSkill) {
+    lastSkill = en;
+    $('energy').textContent = en;
+    $('efill').style.width = en + '%';
+    $('energyChip').dataset.full = en >= ENERGY_MAX ? '1' : '0';
+    $('skillBtn').disabled = en < COST.tackle;
+    $('voltBtn').disabled = en < COST.volt;
   }
   requestAnimationFrame(loop);
 }

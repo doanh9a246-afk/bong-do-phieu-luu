@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=892487ca">
+<link rel="stylesheet" href="css/style.css?v=0b65c916">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -19,7 +19,7 @@
     <span class="chip lives" title="Số mạng"><span id="lives">♥♥♥</span></span>
     <span class="chip" id="traceChip" title="Vết tích: Vô địch + vết tích = sát thương gấp đôi" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3l4 9-4 9-4-9z" fill="#7ff0ff" stroke="#14301c" stroke-width="1.2"/><path d="M17 4c4 5 4 9 0 16-4-7-4-11 0-16z" fill="#ff4a1c" stroke="#14301c" stroke-width="1.2"/></svg><span id="traces">0</span></span>
     <span class="chip" id="time" title="Thời gian còn lại">5:00</span>
-    <span class="chip skill" id="skillChip" data-state="ready"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="skill">Vô địch: K</span></span>
+    <span class="chip energy" id="energyChip" data-full="0" title="Điện năng: J tia sét 5 · Quả cầu điện 20 · L Lưới điện 30 · Shift Lao điện 25 · U 100.000 Vôn cần đầy"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="ebar"><i id="efill"></i></span><span id="energy">50</span></span>
   </div>
   <div class="btns">
     <button class="restart" id="mute" type="button" aria-pressed="true">Âm thanh: Bật (M)</button>
@@ -38,7 +38,7 @@
   </div>
 </aside>
 
-<button class="boltfab" type="button" data-key="bolt" aria-label="Bắn tia sét">⚡ Sét <kbd>J</kbd></button>
+<button class="boltfab" type="button" data-key="bolt" aria-label="Bắn tia sét, giữ để bắn Quả cầu điện">⚡ Sét <kbd>J</kbd></button>
 
 <div class="prog" aria-label="Chặng đường">
   <div class="track" id="progTrack">
@@ -55,8 +55,8 @@
 </div>
 
 <div class="hint" id="hint">
-  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> để chạy · <kbd>↑</kbd> hoặc <kbd>Space</kbd> để nhảy · <kbd>K</kbd> hoặc <kbd>Shift</kbd>: vô địch 2 giây · <kbd>J</kbd> hoặc <kbd>X</kbd>: tia sét · về đích trong 5 phút</span>
-  <span class="tap">Giữ ◀ ▶ để chạy · ▲ để nhảy · ⚡ vô địch 2 giây · Sét: tia sét · về đích trong 5 phút</span>
+  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> chạy · <kbd>↑</kbd>/<kbd>Space</kbd> nhảy · <kbd>J</kbd> tia sét (giữ rồi thả: Quả cầu điện) · <kbd>L</kbd> Lưới điện · <kbd>Shift</kbd> Lao điện · <kbd>U</kbd> 100.000 Vôn · về đích trong 5 phút</span>
+  <span class="tap">◀ ▶ chạy · ▲ nhảy · Sét (giữ: Quả cầu điện) · Lưới · ⚡ Lao điện · 100K khi đầy điện · về đích trong 5 phút</span>
 </div>
 
 <div class="tsbanner" id="tsBanner" hidden></div>
@@ -101,9 +101,12 @@
     <button class="tbtn" type="button" data-key="left" aria-label="Lăn trái">◀</button>
     <button class="tbtn" type="button" data-key="right" aria-label="Lăn phải">▶</button>
   </div>
-  <div class="grp">
-    <button class="tbtn bolt" type="button" data-key="bolt" aria-label="Tia sét">Sét</button>
-    <button class="tbtn power" id="skillBtn" type="button" data-key="skill" aria-label="Tuyệt kĩ vô địch">⚡</button>
+  <div class="grp acts">
+    <button class="tbtn web" type="button" data-key="web" aria-label="Lưới điện">Lưới</button>
+    <button class="tbtn volt" id="voltBtn" type="button" data-key="volt" aria-label="100.000 Vôn">100K</button>
+    <button class="tbtn power" id="skillBtn" type="button" data-key="skill" aria-label="Lao điện">⚡</button>
+    <button class="tbtn bolt" type="button" data-key="bolt" aria-label="Tia sét, giữ để bắn Quả cầu điện">Sét</button>
+    <span></span>
     <button class="tbtn" type="button" data-key="jump" aria-label="Nhảy">▲</button>
   </div>
 </div>
@@ -112,10 +115,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=892487ca&t=' + Date.now();
+  s.src = 'js/game.js?v=0b65c916&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=892487ca&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=0b65c916&t=' + Date.now();
 })();
 </script>
 </body>
