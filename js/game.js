@@ -81,7 +81,7 @@ function reset() {
     stars: STAR_POS.map(([x, y]) => ({ x, y, got: false })),
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
-    lives: LIVES, fight: false, gateClosed: false,
+    lives: LIVES, fight: false, gateClosed: false, safe: 0,
     boss: { x: 6750, dir: -1, hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, squash: 0, shot: 0, flash: 0 },
     bullets: [],
   });
@@ -184,13 +184,15 @@ function respawn() {
   S.power = 0;
   const B = S.boss;
   if (!B.dead && S.fight) {
-    // ra ngoài cổng, boss về vị trí cũ nhưng giữ số đòn đã trúng
-    S.fight = false; S.gateClosed = false;
-    Object.assign(B, { x: 6750, dir: -1, inv: 0, fireT: 0, fire: 0, warn: false, shot: 0 });
+    // Ngã khi đang đánh boss: hồi sinh ngay trong cổng, trận đấu tiếp tục.
+    // Kurumi lùi về cuối đấu trường, giữ số đòn đã trúng; bóng được bảo vệ 1.5 giây.
+    Object.assign(S.ball, { x: ARENA.l + 50, y: ARENA.floor - 60 });
+    Object.assign(B, { x: ARENA.r - 140, dir: -1, inv: 0, fireT: 0, fire: 0, warn: false, shot: 0 });
     S.bullets = [];
+    S.safe = 1.5;
   }
   bossBar();
-  S.cam.x = clamp(S.spawn.x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
+  S.cam.x = clamp(S.ball.x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
 }
 
 function update(dt) {
@@ -216,6 +218,7 @@ function update(dt) {
   S.time += dt;
   S.power = Math.max(0, S.power - dt);
   S.cd = Math.max(0, S.cd - dt);
+  S.safe = Math.max(0, S.safe - dt);
   const b = S.ball;
 
   S.lastGround += dt;
@@ -310,13 +313,13 @@ function updateBoss(dt) {
   // Đạn
   for (const u of S.bullets) {
     if (Math.hypot(u.x - b.x, u.y - b.y) < R + 5) {
-      if (S.power) { u.x = -1e9; continue; }
+      if (S.power || S.safe) { u.x = -1e9; continue; }
       die(); return;
     }
   }
   // Đồng hồ quanh người
   const gy = ARENA.floor, top = gy - BOSS_H, cx = B.x;
-  if (B.fire && !S.power && Math.hypot(b.x - cx, b.y - (gy - 56)) < CLOCK_R * clockScale(B) + R * .3) { die(); return; }
+  if (B.fire && !S.power && !S.safe && Math.hypot(b.x - cx, b.y - (gy - 56)) < CLOCK_R * clockScale(B) + R * .3) { die(); return; }
   const nx = clamp(b.x, cx - BOSS_W / 2, cx + BOSS_W / 2), ny = clamp(b.y, top, gy);
   if ((b.x - nx) ** 2 + (b.y - ny) ** 2 >= R * R) return;
   // Giẫm từ trên xuống: cách duy nhất để gây sát thương
@@ -328,7 +331,7 @@ function updateBoss(dt) {
   }
   // Chạm phía trước hoặc phía sau
   const side = Math.sign(b.x - cx) || 1;
-  if (S.power || B.inv) { b.x = cx + side * (BOSS_W / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
+  if (S.power || S.safe || B.inv) { b.x = cx + side * (BOSS_W / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
   die();
 }
 function hitBoss() {
@@ -414,7 +417,7 @@ function tracePts(p) {
 }
 function drawSolids(x0, x1) {
   for (const s of SOLIDS) {
-    if (s.maxX < x0 || s.minX > x1) continue;
+    if (s.gate || s.maxX < x0 || s.minX > x1) continue;   // cổng có hình riêng (drawGate)
     tracePts(s.pts); ctx.closePath();
     ctx.fillStyle = '#1d5e2a'; ctx.fill();
     ctx.save(); ctx.clip();
@@ -697,6 +700,7 @@ function drawBullets() {
 }
 function drawBall() {
   if (S.dead) return;
+  if (S.safe && Math.floor(S.t * 12) % 2) return;   // nhấp nháy khi vừa hồi sinh
   const b = S.ball, sq = b.squash;
   // Vô địch: hào quang vàng nhấp nháy, nháy nhanh khi sắp hết
   const pw = S.power > 0;
