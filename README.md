@@ -26,7 +26,7 @@ python -m http.server 8000
 ## Luật chơi
 
 - Phải về đích trong **2 phút**; hết giờ là thua.
-- Có **3 mạng**. Rơi xuống vực, chạm gai, chạm quái hoặc trúng lửa boss đều mất 1 mạng. Hết mạng thì chơi lại từ đầu.
+- Có **3 mạng**. Rơi xuống vực, chạm gai, chạm quái, chạm boss, trúng đạn hoặc laze đều mất 1 mạng. Hết mạng thì chơi lại từ đầu.
 - **Cờ kiểm tra**: chạm qua thì lần ngã sau hồi sinh tại đó. Có 2 cờ, cờ thứ hai nằm ngay trước đấu trường boss.
 - **Quái vuông đen**: nhảy giẫm lên đầu để hạ, chạm ngang thì mất mạng.
 - **12 ngôi sao** rải khắp màn chơi.
