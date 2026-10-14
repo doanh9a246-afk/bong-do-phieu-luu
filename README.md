@@ -1,6 +1,6 @@
 # Bóng Đỏ Phiêu Lưu
 
-Game đi cảnh 2D phong cách pixel: điều khiển quả bóng đỏ lăn qua đồi cỏ, nhảy qua vực và gai, nhặt sao, rồi hạ boss ở cuối màn.
+Game đi cảnh 2D phong cách pixel: điều khiển Pikachu chạy qua đồi cỏ, nhảy qua vực và gai, nhặt sao, rồi hạ boss ở cuối màn. Có âm thanh tổng hợp ngay trong trình duyệt ("Pi-ka!" khi nhảy, "Pi-ka-chuuu" khi bật Vô địch, tiếng bước chân, nhặt sao…).
 
 Chạy bằng HTML5 Canvas và JavaScript thuần, không cần cài đặt hay build.
 
@@ -18,9 +18,10 @@ python -m http.server 8000
 
 | Hành động | Bàn phím | Điện thoại |
 |---|---|---|
-| Lăn trái / phải | `←` `→` hoặc `A` `D` | ◀ ▶ |
+| Chạy trái / phải | `←` `→` hoặc `A` `D` | ◀ ▶ |
 | Nhảy (giữ lâu nhảy cao hơn) | `↑`, `W` hoặc `Space` | ▲ |
 | Tuyệt kĩ Vô địch | `K` hoặc `Shift` | ⚡ |
+| Bật / tắt âm thanh | `M` | nút "Âm thanh" |
 | Chơi lại | `R` | nút "Chơi lại" |
 
 ## Luật chơi
@@ -34,7 +35,7 @@ python -m http.server 8000
 
 ### Tuyệt kĩ Vô địch
 
-Bật trong 2 giây, hồi chiêu 10 giây. Trong lúc vô địch, bóng không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
+Bật trong 2 giây, hồi chiêu 10 giây. Trong lúc vô địch, Pikachu toả tia điện, không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
 
 ### Boss: Lilith & Naamah
 
@@ -63,7 +64,7 @@ Hạ được boss hợp thể thì cổng mở, trời trở lại bình thư�
 
 ## Ghi chú về nhân vật
 
-Hai boss là fan art dạng chibi của Lilith và Naamah, được vẽ hoàn toàn bằng code (hình khối trên canvas), không dùng hình ảnh gốc nào. Các nhân vật và *Black Clover* thuộc bản quyền của tác giả Yūki Tabata và các bên giữ bản quyền. Đây là dự án cá nhân, phi thương mại.
+Nhân vật chính và các boss là fan art dạng chibi, được vẽ hoàn toàn bằng code (hình khối trên canvas); âm thanh được tổng hợp bằng Web Audio. Không dùng hình ảnh hay âm thanh gốc nào. Pikachu thuộc bản quyền của Nintendo, Creatures Inc., GAME FREAK inc. và The Pokémon Company. Lilith, Naamah và *Black Clover* thuộc bản quyền của tác giả Yūki Tabata và các bên giữ bản quyền. Đây là dự án cá nhân, phi thương mại.
 
 ## Cấu trúc thư mục
 

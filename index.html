@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=296464cb">
+<link rel="stylesheet" href="css/style.css?v=ae021ebc">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -21,7 +21,10 @@
     <span class="chip" id="time" title="Thời gian còn lại">2:00</span>
     <span class="chip skill" id="skillChip" data-state="ready"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="skill">Vô địch: K</span></span>
   </div>
-  <button class="restart" id="restart" type="button">Chơi lại (R)</button>
+  <div class="btns">
+    <button class="restart" id="mute" type="button" aria-pressed="true">Âm thanh: Bật (M)</button>
+    <button class="restart" id="restart" type="button">Chơi lại (R)</button>
+  </div>
 </div>
 
 <div class="prog" aria-label="Chặng đường">
@@ -39,8 +42,8 @@
 </div>
 
 <div class="hint" id="hint">
-  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> để lăn · <kbd>↑</kbd> hoặc <kbd>Space</kbd> để nhảy · <kbd>K</kbd> hoặc <kbd>Shift</kbd>: vô địch 2 giây · về đích trong 2 phút</span>
-  <span class="tap">Giữ ◀ ▶ để lăn · ▲ để nhảy · ⚡ vô địch 2 giây · về đích trong 2 phút</span>
+  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> để chạy · <kbd>↑</kbd> hoặc <kbd>Space</kbd> để nhảy · <kbd>K</kbd> hoặc <kbd>Shift</kbd>: vô địch 2 giây · về đích trong 2 phút</span>
+  <span class="tap">Giữ ◀ ▶ để chạy · ▲ để nhảy · ⚡ vô địch 2 giây · về đích trong 2 phút</span>
 </div>
 
 <div class="tsbanner" id="tsBanner" hidden></div>
@@ -78,10 +81,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=296464cb&t=' + Date.now();
+  s.src = 'js/game.js?v=ae021ebc&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=296464cb&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=ae021ebc&t=' + Date.now();
 })();
 </script>
 </body>

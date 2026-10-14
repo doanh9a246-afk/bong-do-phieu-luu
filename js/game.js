@@ -83,7 +83,7 @@ const GOAL = { x: 6880, f: f4 };
 const S = {};
 function reset() {
   Object.assign(S, {
-    ball: { x: 120, y: 440, vx: 0, vy: 0, rot: 0, squash: 0 },
+    ball: { x: 120, y: 440, vx: 0, vy: 0, rot: 0, squash: 0, run: 0, face: 1 },
     spawn: { x: 120, y: 440 },
     cam: { x: 0, y: 0 },
     onGround: false, lastGround: 0, jumpBuf: 0, jumpHeld: false,
@@ -106,7 +106,52 @@ function reset() {
 
 /* ---------- Điều khiển ---------- */
 const keys = { left: false, right: false, jump: false };
+/* ---------- Âm thanh (tổng hợp bằng Web Audio) ---------- */
+let AC = null, muted = false;
+try { muted = localStorage.getItem('bongdo.muted') === '1'; } catch (e) {}
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (AC.state === 'suspended') AC.resume().catch(() => {});
+  return AC;
+}
+function tone(f0, f1, dur, type = 'square', vol = .06, delay = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0005, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + .02);
+}
+function noise(dur, vol = .04, freq = 2000, delay = 0) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, n = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  f.type = 'bandpass'; f.frequency.value = freq; g.gain.value = vol;
+  src.buffer = buf; src.connect(f).connect(g).connect(a.destination); src.start(t);
+}
+// "Pi-ka": hai tiếng chíp cao vút nhanh; "chuuu": tiếng kéo dài trượt xuống
+const SFX = {
+  pika()    { tone(1250, 1750, .07, 'square', .05); tone(950, 1450, .1, 'square', .05, .085); },
+  pikachu() { tone(1250, 1750, .07, 'square', .05); tone(950, 1450, .09, 'square', .05, .085);
+              tone(1500, 900, .32, 'square', .05, .19); noise(.35, .05, 3500, .19); noise(.2, .04, 5000, .45); },
+  step()    { noise(.025, .025, 1600); },
+  star()    { tone(1320, 1320, .06, 'triangle', .07); tone(1760, 1760, .12, 'triangle', .07, .06); },
+  stomp()   { tone(420, 140, .12, 'square', .06); },
+  hurt()    { tone(1100, 700, .12, 'square', .05); tone(800, 260, .35, 'square', .05, .13); },
+  hit()     { tone(600, 260, .08, 'square', .06); noise(.1, .05, 4000); },
+  zap()     { noise(.18, .05, 4500); tone(1800, 600, .15, 'sawtooth', .03); },
+  win()     { [784, 988, 1175, 1568].forEach((f, i) => tone(f, f, .16, 'triangle', .07, i * .12)); tone(1250, 1750, .07, 'square', .05, .55); tone(950, 1450, .1, 'square', .05, .64); },
+};
+function sfx(name) { if (!muted && audio()) SFX[name](); }
+function setMuted(m) {
+  muted = m;
+  try { localStorage.setItem('bongdo.muted', m ? '1' : '0'); } catch (e) {}
+  $('mute').setAttribute('aria-pressed', String(!m));
+  $('mute').textContent = m ? 'Âm thanh: Tắt (M)' : 'Âm thanh: Bật (M)';
+}
+
 function setKey(k, on) {
+  audio();
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'skill' && on && !keys.skill) {
     if (S.boss && S.boss.ts > 0 && !S.tsEsc && !S.dead) escapeTimeStop();
@@ -117,6 +162,7 @@ function setKey(k, on) {
 }
 const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill' };
 function escapeTimeStop() {
+  sfx('zap');
   S.tsEsc = true;
   const b = S.ball;
   for (let i = 0; i < 24; i++) {
@@ -128,6 +174,7 @@ function escapeTimeStop() {
 function activateSkill() {
   if (S.dead || S.won || S.cd > 0) return;
   S.power = SKILL_TIME; S.cd = SKILL_CD;
+  sfx('pikachu');
   const b = S.ball;
   for (let i = 0; i < 20; i++) {
     const a = i / 20 * Math.PI * 2;
@@ -136,6 +183,7 @@ function activateSkill() {
 }
 addEventListener('keydown', e => {
   if (e.code === 'KeyR') { reset(); return; }
+  if (e.code === 'KeyM') { setMuted(!muted); return; }
   const k = KEYMAP[e.code];
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
 });
@@ -149,6 +197,8 @@ document.querySelectorAll('[data-key]').forEach(b => {
 });
 $('restart').addEventListener('click', e => { reset(); e.currentTarget.blur(); });
 $('again').addEventListener('click', reset);
+$('mute').addEventListener('click', e => { setMuted(!muted); e.currentTarget.blur(); });
+setMuted(muted);
 $('again2').addEventListener('click', reset);
 
 /* ---------- Vật lý ---------- */
@@ -196,10 +246,11 @@ function step(h) {
 function die() {
   if (S.dead) return;
   S.dead = .9; S.deaths++; S.lives--;
+  sfx('hurt');
   const b = S.ball;
   for (let i = 0; i < 26; i++) {
     const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 320;
-    S.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 200, life: .9, c: i % 3 ? '#e3262b' : '#ffffff', r: 4 + Math.random() * 5 });
+    S.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 200, life: .9, c: i % 3 ? '#ffd21f' : (i % 2 ? '#e8402c' : '#ffffff'), r: 4 + Math.random() * 5 });
   }
   hud();
 }
@@ -261,13 +312,20 @@ function update(dt) {
   if (!frozen) {
     S.lastGround += dt;
     S.jumpBuf -= dt;
-    if (S.jumpBuf > 0 && S.lastGround < .1) { b.vy = -JUMP; S.jumpBuf = 0; S.lastGround = 1; }
+    if (S.jumpBuf > 0 && S.lastGround < .1) { b.vy = -JUMP; S.jumpBuf = 0; S.lastGround = 1; sfx('pika'); }
     if (!keys.jump && b.vy < -320) b.vy = -320;   // nhả sớm → nhảy thấp
 
     const steps = 4;
     for (let i = 0; i < steps; i++) step(dt / steps);
   } else S.jumpBuf = 0;
   b.rot += frozen ? 0 : b.vx * dt / R;
+  // nhịp chân chạy theo quãng đường đã đi; mỗi nửa vòng là một bước
+  if (!frozen) {
+    const before = Math.floor(b.run / Math.PI);
+    b.run += Math.abs(b.vx) * dt / 14;
+    if (S.onGround && Math.abs(b.vx) > 60 && Math.floor(b.run / Math.PI) !== before) sfx('step');
+  }
+  if (Math.abs(b.vx) > 8) b.face = Math.sign(b.vx);
   b.squash = Math.max(0, b.squash - dt * 1.6);
 
   if (b.y > DEATH_Y) die();
@@ -282,18 +340,18 @@ function update(dt) {
     const cx = clamp(b.x, e.x - 20, e.x + 20), cy = clamp(b.y, ey - 20, ey + 20);
     if ((b.x - cx) ** 2 + (b.y - cy) ** 2 < R * R) {
       if (S.power) {
-        e.alive = false; e.squash = 0;
+        e.alive = false; e.squash = 0; sfx('zap');
         for (let i = 0; i < 18; i++) {
           const a = Math.random() * Math.PI * 2, sp = 150 + Math.random() * 250;
           S.parts.push({ x: e.x, y: ey, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: .8, c: i % 3 ? '#16181d' : '#ffc21a', r: 5 + Math.random() * 5 });
         }
       }
-      else if (b.vy > 0 && b.y < ey - 12) { e.alive = false; e.squash = .4; b.vy = -560; }
+      else if (b.vy > 0 && b.y < ey - 12) { e.alive = false; e.squash = .4; b.vy = -560; sfx('stomp'); }
       else die();
     }
   }
   for (const s of S.stars) {
-    if (!s.got && Math.hypot(s.x - b.x, s.y - b.y) < R + 16) { s.got = true; s.pop = .3; hud(); }
+    if (!s.got && Math.hypot(s.x - b.x, s.y - b.y) < R + 16) { s.got = true; s.pop = .3; hud(); sfx('star'); }
   }
   CHECKPOINTS.forEach((c, i) => {
     if (i > S.cp && b.x > c.x) { S.cp = i; S.spawn = { x: c.x, y: c.f(c.x) - 60 }; }
@@ -585,6 +643,7 @@ function updateFused(B, b, dt) {
       const dmg = S.traces > 0 ? 2 : 1;
       if (S.traces > 0) S.traces--;
       B.hp -= dmg; B.hitCd = .25; u.hurt = .3; u.squash = .15;
+      sfx('hit');
       S.pops.push({ x: u.x, y: top - 10, t: .8, text: `-${dmg}`, c: dmg > 1 ? '#ffc21a' : '#ffffff' });
       for (let i = 0; i < 16; i++) {
         const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 220;
@@ -611,6 +670,7 @@ const devilColors = u => u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : 
 function hitBoss(u) {
   const B = S.boss;
   B.hits++; B.inv = 1; u.squash = .3; u.hurt = 1;
+  sfx('stomp');
   const top = ARENA.floor - BOSS_H, cy = ARENA.floor - BOSS_H / 2;
   const [c1, c2] = devilColors(u);
   for (let i = 0; i < 20; i++) {
@@ -659,6 +719,7 @@ function lose(reason) {
 }
 const progress = () => clamp(S.ball.x / GOAL.x, 0, 1);
 function win() {
+  sfx('win');
   S.won = true;
   const got = S.stars.filter(s => s.got).length;
   $('winStars').textContent = `Sao: ${got}/${S.stars.length}`;
@@ -1237,26 +1298,98 @@ function drawBall() {
       ctx.fillRect(b.x + Math.cos(a) * R * 1.7 - 3, b.y + Math.sin(a) * R * 1.7 - 3, 6, 6);
     }
   }
+  drawPikachu(b, pw && !blink);
+}
+// Pikachu chibi (fan art vẽ bằng hình khối). Gốc toạ độ ở tâm hitbox, +x là hướng mặt.
+function drawPikachu(b, charged) {
+  const sq = b.squash, air = !S.onGround, speed = Math.abs(b.vx);
+  const running = !air && speed > 30;
+  const ph = b.run;                                   // pha chân chạy
+  const bob = running ? Math.abs(Math.sin(ph)) * 3 : 0;
+  const Y = charged ? '#fff27a' : '#ffd21f', DK = '#3a2a10', BR = '#a8641e';
   ctx.save();
-  ctx.translate(b.x, b.y + R * sq * .6);
-  ctx.scale(1 + sq * .5, 1 - sq * .6);
-  ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2);
-  ctx.fillStyle = pw && !blink ? '#ffb000' : '#e3262b'; ctx.fill();
-  ctx.save(); ctx.clip();
-  ctx.fillStyle = pw && !blink ? '#e07800' : '#b5161b';
-  ctx.beginPath(); ctx.arc(6, 8, R, 0, Math.PI * 2); ctx.arc(-4, -4, R, 0, Math.PI * 2, true); ctx.fill('evenodd');
-  // vệt xoay để thấy bóng lăn
-  ctx.rotate(b.rot);
-  ctx.fillStyle = 'rgb(255 255 255 / .12)';
-  ctx.fillRect(-R, -3, R * 2, 6);
+  ctx.translate(b.x, b.y + R - 2 + R * sq * .3);      // đặt gốc ở chân
+  ctx.scale((b.face || 1) * (1 + sq * .4), 1 - sq * .5);
+  ctx.translate(0, -bob);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  // đuôi tia sét
+  ctx.save(); ctx.translate(-14, -18); ctx.rotate(-.35 + Math.sin(S.t * 6) * .12 + (running ? Math.sin(ph) * .1 : 0));
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(-6, -8); ctx.lineTo(-2, -10); ctx.lineTo(-10, -20); ctx.lineTo(-4, -22); ctx.lineTo(-14, -36);
+  ctx.lineTo(6, -24); ctx.lineTo(0, -22); ctx.lineTo(6, -12); ctx.lineTo(2, -10); ctx.lineTo(6, -2); ctx.closePath();
+  ctx.fillStyle = Y; ctx.fill(); ctx.strokeStyle = DK; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = BR; ctx.fillRect(-1, -6, 6, 5);
   ctx.restore();
-  ctx.lineWidth = 3.5; ctx.strokeStyle = '#14141a';
-  ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.ellipse(-8, -10, 6, 4, -.6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgb(255 255 255 / .5)';
-  ctx.beginPath(); ctx.arc(-14, -2, 2, 0, Math.PI * 2); ctx.fill();
+
+  // chân sau / chân trước: chạy thì đánh qua lại, trên không thì co lại
+  const legs = air ? [[-7, -5, -.6], [6, -5, .6]] : [[-6, 0, Math.sin(ph) * .9], [6, 0, Math.sin(ph + Math.PI) * .9]];
+  for (const [lx, ly, ang] of legs) {
+    ctx.save(); ctx.translate(lx, -8 + ly); ctx.rotate(ang);
+    ctx.fillStyle = Y; ctx.strokeStyle = DK; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(0, 5, 4.5, 6.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  // thân
+  ctx.fillStyle = Y; ctx.strokeStyle = DK; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.ellipse(0, -16, 13, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // sọc nâu trên lưng
+  ctx.strokeStyle = BR; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-11, -22); ctx.lineTo(-6, -20); ctx.moveTo(-12, -15); ctx.lineTo(-7, -14); ctx.stroke();
+  // tay: chạy thì vung, nhảy thì giơ lên
+  ctx.fillStyle = Y; ctx.strokeStyle = DK; ctx.lineWidth = 2;
+  const armA = air ? -1.9 : running ? Math.sin(ph + Math.PI) * .8 : .3;
+  ctx.save(); ctx.translate(8, -20); ctx.rotate(armA);
+  ctx.beginPath(); ctx.ellipse(0, 5, 3.2, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.restore();
+
+  // đầu
+  const hy = -34;
+  // tai dài, chóp đen; nảy theo nhịp chạy
+  const earSwing = running ? Math.sin(ph * 2) * .12 : Math.sin(S.t * 2) * .05;
+  for (const [ex, base] of [[-5, -.55], [5, .15]]) {
+    ctx.save(); ctx.translate(ex, hy - 9); ctx.rotate(base + earSwing - (air ? .2 : 0));
+    ctx.beginPath(); ctx.moveTo(-4.5, 0); ctx.quadraticCurveTo(-5, -14, 0, -24); ctx.quadraticCurveTo(5, -14, 4.5, 0); ctx.closePath();
+    ctx.fillStyle = Y; ctx.fill(); ctx.strokeStyle = DK; ctx.lineWidth = 2; ctx.stroke();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-6, -26, 12, 9);
+    ctx.restore();
+    ctx.restore();
+  }
+  ctx.fillStyle = Y; ctx.strokeStyle = DK; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.ellipse(2, hy, 14, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // mắt (chớp mắt định kì), má đỏ, mũi, miệng
+  const blinkEye = Math.floor(S.t * 10) % 37 === 0;
+  ctx.fillStyle = '#1a1a1a';
+  if (blinkEye) ctx.fillRect(6, hy - 2, 6, 1.8);
+  else {
+    ctx.beginPath(); ctx.arc(9, hy - 2, 2.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(9.8, hy - 3, 1, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#e8402c';
+  ctx.beginPath(); ctx.arc(11, hy + 5, 3.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-6, hy + 4, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(15, hy + 1, 2, 1.6);
+  ctx.strokeStyle = DK; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  if (air || charged) ctx.arc(12, hy + 6, 2.2, 0, Math.PI);        // há miệng "Pika!"
+  else ctx.arc(12, hy + 5, 1.6, .2, Math.PI - .2);
+  ctx.stroke();
+  ctx.restore();
+
+  // tia điện quanh người khi Vô địch
+  if (charged) {
+    ctx.strokeStyle = Math.floor(S.t * 20) % 2 ? '#ffffff' : '#fff27a'; ctx.lineWidth = 2.5;
+    for (let i = 0; i < 4; i++) {
+      const a0 = S.t * 9 + i * Math.PI / 2, r0 = R + 6;
+      ctx.beginPath();
+      ctx.moveTo(b.x + Math.cos(a0) * r0, b.y + Math.sin(a0) * r0);
+      ctx.lineTo(b.x + Math.cos(a0 + .25) * (r0 + 10), b.y + Math.sin(a0 + .25) * (r0 + 10) - 4);
+      ctx.lineTo(b.x + Math.cos(a0 + .4) * (r0 + 4), b.y + Math.sin(a0 + .4) * (r0 + 4));
+      ctx.lineTo(b.x + Math.cos(a0 + .6) * (r0 + 14), b.y + Math.sin(a0 + .6) * (r0 + 14));
+      ctx.stroke();
+    }
+  }
 }
 function drawParts() {
   for (const p of S.parts) {
