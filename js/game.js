@@ -546,6 +546,7 @@ function drawGate() {
   for (let y = gy - 290; y < gy; y += 40) ctx.fillRect(x - 2, y, 34, 5);
 }
 function drawClock(cx, cy, r, alpha) {
+  if (r < 20) return;   // vòng trong có bán kính r - 10: arc() âm sẽ ném lỗi
   ctx.save(); ctx.translate(cx, cy); ctx.globalAlpha = alpha;
   ctx.fillStyle = 'rgb(30 10 40 / .45)';
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
@@ -781,7 +782,7 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(.033, (now - last) / 1000); last = now;
   update(dt);
-  render();
+  try { render(); } catch (e) { console.error(e); ctx.restore(); }
   const sec = Math.floor(S.time);
   if (sec !== lastSec) { lastSec = sec; $('time').textContent = fmt(S.time); }
   const pct = (progress() * 100).toFixed(1) + '%';
