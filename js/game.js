@@ -5,7 +5,7 @@ const PX = 0.3;          // vẽ ở độ phân giải thấp rồi phóng to �
 const R = 22;            // bán kính bóng
 const G = 1900, JUMP = 760, MAXV = 320;
 const SKILL_TIME = 2, SKILL_CD = 10;  // tuyệt kĩ vô địch: 2 giây, hồi 10 giây
-const TIME_LIMIT = 120;               // phải về đích trong 2 phút
+const TIME_LIMIT = 300;               // phải về đích trong 5 phút
 // Hell mode (từ giai đoạn 2): ngưng đọng thời gian mỗi 5 giây, laze 1 giây trước khi kết thúc
 const TS_EVERY = 5, TS_DUR = 3.5, LASER_AT = 1, LASER_DUR = .35, LASER_CHARGE = .8, LASER_H = 56;
 const LEVEL_W = 7000, DEATH_Y = 900;

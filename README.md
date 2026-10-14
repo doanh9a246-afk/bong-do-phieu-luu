@@ -27,7 +27,7 @@ python -m http.server 8000
 
 ## Luật chơi
 
-- Phải về đích trong **2 phút**; hết giờ là thua.
+- Phải về đích trong **5 phút**; hết giờ là thua.
 - Có **3 mạng**. Rơi xuống vực, chạm gai, chạm quái, chạm boss, trúng đạn hoặc laze đều mất 1 mạng. Hết mạng thì chơi lại từ đầu.
 - **Cờ kiểm tra**: chạm qua thì lần ngã sau hồi sinh tại đó. Có 2 cờ, cờ thứ hai nằm ngay trước đấu trường boss.
 - **Quái vuông đen**: nhảy giẫm lên đầu để hạ, chạm ngang thì mất mạng.
@@ -70,7 +70,7 @@ Vòng ma lực quanh ác quỷ đang tấn công chạm vào là mất mạng, v
 - Mỗi đợt tấn công để lại **2 vết tích** (mảnh băng và tàn lửa) trên mặt đất trong 9 giây. Lăn qua để nhặt (tối đa 5).
 - **Vô địch + vết tích = sát thương gấp đôi**: mỗi lần chạm khi đang mang vết tích trừ 2 máu và tiêu 1 vết tích.
 
-Hạ được boss hợp thể thì cổng mở, trời trở lại bình thường và cờ đích xuất hiện. Tất cả phải xong trong 2 phút!
+Hạ được boss hợp thể thì cổng mở, trời trở lại bình thường và cờ đích xuất hiện. Tất cả phải xong trong 5 phút!
 
 ## Bảng xếp hạng
 

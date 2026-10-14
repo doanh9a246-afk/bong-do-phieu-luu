@@ -13,7 +13,7 @@
  * Xếp hạng: nhiều boss hơn > đi xa hơn > nhanh hơn. Mỗi tên chỉ giữ thành tích tốt nhất.
  */
 const SHEET_NAME = 'Diem';
-const TIME_LIMIT = 120;
+const TIME_LIMIT = 300;
 
 function sheet_() {
   const ss = SpreadsheetApp.getActive();
