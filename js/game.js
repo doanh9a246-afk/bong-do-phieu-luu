@@ -4,7 +4,10 @@ const VIEW_H = 600;      // chiều cao khung nhìn (đơn vị thế giới)
 const PX = 0.3;          // vẽ ở độ phân giải thấp rồi phóng to → hạt pixel to
 const R = 22;            // bán kính bóng
 const G = 1900, JUMP = 760, MAXV = 320;
-const SKILL_TIME = 2, SKILL_CD = 8;   // tuyệt kĩ vô địch: 2 giây, hồi 8 giây
+const SKILL_TIME = 2, SKILL_CD = 30;  // tuyệt kĩ vô địch: 2 giây, hồi 30 giây
+const TIME_LIMIT = 120;               // phải về đích trong 2 phút
+// Hell mode (từ giai đoạn 2): ngưng đọng thời gian mỗi 5 giây, laze 1 giây trước khi kết thúc
+const TS_EVERY = 5, TS_DUR = 3.5, LASER_AT = 1, LASER_DUR = .35, LASER_CHARGE = .8, LASER_H = 56;
 const LEVEL_W = 7000, DEATH_Y = 900;
 const LIVES = 3;
 // Đấu trường boss ở cuối màn
@@ -12,8 +15,8 @@ const ARENA = { l: 6220, r: 6950, gateX: 6190, floor: 420 };
 const BOSS_W = 64, BOSS_H = 112, CLOCK_R = 105, WARN = .7;
 const PHASES = [null,
   { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Nhảy giẫm lên đầu Kurumi 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
-  { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'Giai đoạn 2', note: 'Cứ 5 giây Kurumi triệu hồi đồng hồ quanh người và bắn đạn thẳng: tránh xa đồng hồ, nhảy qua đạn.' },
-  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'Giai đoạn 3', note: 'Kurumi chạy nhanh hơn, triệu hồi đồng hồ và bắn mỗi 3 giây. Giẫm thêm 3 lần nữa!' },
+  { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'HELL MODE', note: 'Cứ 5 giây Kurumi ngưng đọng thời gian: nhấn Shift để thoát, rồi nhảy lên né laze. Vẫn có đồng hồ và đạn.' },
+  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Kurumi nhanh hơn, bắn mỗi 3 giây và vẫn ngưng đọng thời gian mỗi 5 giây. Giẫm 3 lần cuối!' },
 ];
 
 const cv = document.getElementById('game');
@@ -81,13 +84,14 @@ function reset() {
     stars: STAR_POS.map(([x, y]) => ({ x, y, got: false })),
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
-    lives: LIVES, fight: false, gateClosed: false, safe: 0,
-    boss: { x: 6750, dir: -1, hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, squash: 0, shot: 0, flash: 0 },
+    lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false,
+    boss: { x: 6750, dir: -1, hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, squash: 0, shot: 0, flash: 0, hellT: 0, ts: 0, laserShot: false },
     bullets: [],
   });
   $('win').hidden = true;
   $('lose').hidden = true;
   $('bossbar').hidden = true;
+  $('tsBanner').hidden = true;
   $('hint').classList.remove('gone');
   hud();
 }
@@ -96,11 +100,23 @@ function reset() {
 const keys = { left: false, right: false, jump: false };
 function setKey(k, on) {
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
-  if (k === 'skill' && on && !keys.skill) activateSkill();
+  if (k === 'skill' && on && !keys.skill) {
+    if (S.boss && S.boss.ts > 0 && !S.tsEsc && !S.dead) escapeTimeStop();
+    else activateSkill();
+  }
   keys[k] = on;
   if (on && !S.moved) { S.moved = true; setTimeout(() => $('hint').classList.add('gone'), 1500); }
 }
 const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill' };
+function escapeTimeStop() {
+  S.tsEsc = true;
+  const b = S.ball;
+  for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2;
+    S.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, life: .45, c: i % 2 ? '#c9b6ff' : '#ffffff', r: 5, g: 0 });
+  }
+  tsBanner();
+}
 function activateSkill() {
   if (S.dead || S.won || S.cd > 0) return;
   S.power = SKILL_TIME; S.cd = SKILL_CD;
@@ -187,7 +203,7 @@ function respawn() {
     // Ngã khi đang đánh boss: hồi sinh ngay trong cổng, trận đấu tiếp tục.
     // Kurumi lùi về cuối đấu trường, giữ số đòn đã trúng; bóng được bảo vệ 1.5 giây.
     Object.assign(S.ball, { x: ARENA.l + 50, y: ARENA.floor - 60 });
-    Object.assign(B, { x: ARENA.r - 140, dir: -1, inv: 0, fireT: 0, fire: 0, warn: false, shot: 0 });
+    Object.assign(B, { x: ARENA.r - 140, dir: -1, inv: 0, fireT: 0, fire: 0, warn: false, shot: 0, hellT: 0, ts: 0, laserShot: false });
     S.bullets = [];
     S.safe = 1.5;
   }
@@ -209,26 +225,31 @@ function update(dt) {
   }
 
   if (S.won || S.lost) return;
+  S.time += dt;
+  if (S.time >= TIME_LIMIT) { lose('time'); return; }
   updateBoss(dt);
   if (S.dead) {
     S.dead -= dt;
     if (S.dead <= 0) { S.dead = 0; if (S.lives <= 0) lose(); else respawn(); }
     return;
   }
-  S.time += dt;
   S.power = Math.max(0, S.power - dt);
   S.cd = Math.max(0, S.cd - dt);
   S.safe = Math.max(0, S.safe - dt);
   const b = S.ball;
 
-  S.lastGround += dt;
-  S.jumpBuf -= dt;
-  if (S.jumpBuf > 0 && S.lastGround < .1) { b.vy = -JUMP; S.jumpBuf = 0; S.lastGround = 1; }
-  if (!keys.jump && b.vy < -320) b.vy = -320;   // nhả sớm → nhảy thấp
+  // Thời gian ngưng đọng: bóng bị đóng băng cho tới khi nhấn Shift
+  const frozen = S.boss.ts > 0 && !S.tsEsc;
+  if (!frozen) {
+    S.lastGround += dt;
+    S.jumpBuf -= dt;
+    if (S.jumpBuf > 0 && S.lastGround < .1) { b.vy = -JUMP; S.jumpBuf = 0; S.lastGround = 1; }
+    if (!keys.jump && b.vy < -320) b.vy = -320;   // nhả sớm → nhảy thấp
 
-  const steps = 4;
-  for (let i = 0; i < steps; i++) step(dt / steps);
-  b.rot += b.vx * dt / R;
+    const steps = 4;
+    for (let i = 0; i < steps; i++) step(dt / steps);
+  } else S.jumpBuf = 0;
+  b.rot += frozen ? 0 : b.vx * dt / R;
   b.squash = Math.max(0, b.squash - dt * 1.6);
 
   if (b.y > DEATH_Y) die();
@@ -281,7 +302,7 @@ function shoot(B, P) {
 }
 function updateBoss(dt) {
   const B = S.boss, b = S.ball;
-  for (const u of S.bullets) u.x += u.vx * dt;
+  if (!B.ts) for (const u of S.bullets) u.x += u.vx * dt;   // đạn cũng đứng yên khi ngưng đọng
   S.bullets = S.bullets.filter(u => u.x > ARENA.gateX && u.x < ARENA.r);
   if (B.dead) return;
   B.squash = Math.max(0, B.squash - dt);
@@ -292,6 +313,27 @@ function updateBoss(dt) {
   }
   const P = PHASES[B.phase];
   B.inv = Math.max(0, B.inv - dt);
+  // Hell mode: ngưng đọng thời gian
+  if (B.phase >= 2) {
+    if (B.ts > 0) {
+      B.ts -= dt;
+      if (B.ts <= LASER_AT && !B.laserShot) { B.laserShot = true; S.shake = 1; }
+      if (B.ts <= 0) { B.ts = 0; B.hellT = 0; S.tsEsc = false; tsBanner(); }
+    } else if (!B.fire && !B.warn && !S.dead) {
+      B.hellT += dt;
+      if (B.hellT >= TS_EVERY) {
+        B.ts = TS_DUR; B.laserShot = false; S.tsEsc = false;
+        B.dir = Math.sign(b.x - B.x) || B.dir;          // laze bắn về phía bóng
+        Object.assign(b, { vx: 0, vy: 0 });
+        tsBanner();
+      }
+    }
+  }
+  if (B.ts > 0) {
+    // trong lúc ngưng đọng chỉ còn laze; Kurumi đứng yên
+    if (!S.dead) bossTouch(B, b, true);
+    return;
+  }
   if (P.cycle) {
     if (B.fire > 0) {
       const el = P.dur - B.fire;
@@ -309,7 +351,18 @@ function updateBoss(dt) {
     if (B.x < lo) { B.x = lo; B.dir = 1; }
   }
   if (S.dead) return;
-
+  bossTouch(B, b, false);
+}
+const laserOn = B => B.ts > 0 && B.ts <= LASER_AT && B.ts > LASER_AT - LASER_DUR;
+function laserSpan(B) {
+  return B.dir > 0 ? [B.x + BOSS_W / 2, ARENA.r] : [ARENA.gateX + 30, B.x - BOSS_W / 2];
+}
+function bossTouch(B, b, stopped) {
+  // Laze: phủ sát mặt đất về phía trước, chỉ né được bằng cách nhảy lên (vô địch không chặn được)
+  if (laserOn(B) && !S.safe) {
+    const [lo, hi] = laserSpan(B);
+    if (b.x + R > lo && b.x - R < hi && b.y + R * .8 > ARENA.floor - LASER_H) { die(); return; }
+  }
   // Đạn
   for (const u of S.bullets) {
     if (Math.hypot(u.x - b.x, u.y - b.y) < R + 5) {
@@ -326,7 +379,7 @@ function updateBoss(dt) {
   if (b.vy > 0 && b.y < top + 10) {
     b.y = top - R; b.vy = -700; b.squash = .25;
     b.vx = (Math.sign(b.x - cx) || -B.dir) * 280;   // văng sang bên, không giẫm liên tục được
-    if (!B.inv && (!B.fire || S.power)) hitBoss();
+    if (!stopped && !B.inv && (!B.fire || S.power)) hitBoss();
     return;
   }
   // Chạm phía trước hoặc phía sau
@@ -350,7 +403,7 @@ function hitBoss() {
         S.parts.push({ x: B.x, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.2, c: ['#16101a', '#c0182b', '#ffc21a', '#ffffff'][i % 4], r: 5 + Math.random() * 8 });
       }
     } else {
-      B.phase++; B.hits = 0; B.fireT = 0; B.fire = 0; B.shot = 0; B.inv = 1.6;
+      B.phase++; B.hits = 0; B.fireT = 0; B.fire = 0; B.shot = 0; B.inv = 1.6; B.hellT = 0;
       for (let i = 0; i < 30; i++) {
         const a = i / 30 * Math.PI * 2;
         S.parts.push({ x: B.x, y: cy, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320, life: .6, c: i % 2 ? '#ffc21a' : '#5a1f6e', r: 7, g: 0 });
@@ -359,8 +412,16 @@ function hitBoss() {
   }
   bossBar();
 }
-function lose() {
+function tsBanner() {
+  const B = S.boss, on = B.ts > 0 && !S.dead;
+  $('tsBanner').hidden = !on;
+  if (on) $('tsBanner').textContent = S.tsEsc ? 'Nhảy lên để né laze!' : 'Thời gian ngưng đọng! Nhấn Shift để thoát';
+  $('tsBanner').dataset.esc = S.tsEsc ? '1' : '0';
+}
+function lose(reason) {
   S.lost = true;
+  $('tsBanner').hidden = true;
+  $('loseTitle').textContent = reason === 'time' ? 'Hết giờ!' : 'Hết mạng!';
   $('loseProg').textContent = `Bạn đã đi được ${Math.round(progress() * 100)}% chặng đường`;
   $('lose').hidden = false;
   $('again2').focus();
@@ -370,7 +431,7 @@ function win() {
   S.won = true;
   const got = S.stars.filter(s => s.got).length;
   $('winStars').textContent = `Sao: ${got}/${S.stars.length}`;
-  $('winTime').textContent = `Thời gian: ${fmt(S.time)}`;
+  $('winTime').textContent = `Thời gian: ${fmt(S.time)} (còn dư ${fmt(TIME_LIMIT - S.time)})`;
   $('winDeaths').textContent = `Mạng còn lại: ${S.lives}/${LIVES}`;
   $('win').hidden = false;
   $('again').focus();
@@ -380,7 +441,7 @@ let lastSec = -1, lastSkill = '';
 function hud() {
   $('stars').textContent = `${S.stars.filter(s => s.got).length}/${S.stars.length}`;
   $('lives').textContent = '♥'.repeat(Math.max(0, S.lives)) + '♡'.repeat(LIVES - Math.max(0, S.lives));
-  $('time').textContent = fmt(S.time);
+  $('time').textContent = fmt(Math.ceil(TIME_LIMIT - S.time));
 }
 
 /* ---------- Vẽ ---------- */
@@ -548,7 +609,7 @@ function drawGate() {
   ctx.fillStyle = '#8a8f98';
   for (let y = gy - 290; y < gy; y += 40) ctx.fillRect(x - 2, y, 34, 5);
 }
-function drawClock(cx, cy, r, alpha) {
+function drawClock(cx, cy, r, alpha, frozen) {
   if (r < 20) return;   // vòng trong có bán kính r - 10: arc() âm sẽ ném lỗi
   ctx.save(); ctx.translate(cx, cy); ctx.globalAlpha = alpha;
   ctx.fillStyle = 'rgb(30 10 40 / .45)';
@@ -564,16 +625,16 @@ function drawClock(cx, cy, r, alpha) {
   }
   // kim quay ngược
   ctx.lineCap = 'round';
-  ctx.save(); ctx.rotate(-S.t * 4); ctx.strokeStyle = '#ffc21a'; ctx.lineWidth = 7;
+  ctx.save(); ctx.rotate(frozen ? -.6 : -S.t * 4); ctx.strokeStyle = '#ffc21a'; ctx.lineWidth = 7;
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r * .5); ctx.stroke(); ctx.restore();
-  ctx.save(); ctx.rotate(-S.t * 11); ctx.strokeStyle = '#ffe9a8'; ctx.lineWidth = 4;
+  ctx.save(); ctx.rotate(frozen ? 2.2 : -S.t * 11); ctx.strokeStyle = '#ffe9a8'; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r * .75); ctx.stroke(); ctx.restore();
   ctx.fillStyle = '#ffc21a'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 // Chibi Kurumi (fan art vẽ bằng hình khối). Gốc toạ độ ở chân, +x là hướng mặt.
 function drawKurumi(B, x, gy) {
-  const walking = S.fight && !B.fire && !B.warn;
+  const walking = S.fight && !B.fire && !B.warn && !B.ts;
   const bob = walking ? Math.abs(Math.sin(S.t * 8)) * 3 : 0;
   const step = walking ? Math.sin(S.t * 8) * 4 : 0;
   const HAIR = '#1a1020', RED = '#c0182b', BLK = '#16101a', SKIN = '#ffe3d3', GOLD = '#ffc21a';
@@ -616,7 +677,7 @@ function drawKurumi(B, x, gy) {
   ctx.beginPath(); ctx.moveTo(0, -59); ctx.lineTo(7, -64); ctx.lineTo(7, -54); ctx.closePath(); ctx.fill();
 
   // tay cầm súng kíp
-  const aim = B.fire || B.warn;
+  const aim = B.fire || B.warn || B.ts > 0;
   ctx.save(); ctx.translate(9, -58); ctx.rotate(aim ? .05 : .95);
   ctx.fillStyle = BLK; ctx.fillRect(0, -3, 15, 7);
   ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(16, 0, 3.5, 0, Math.PI * 2); ctx.fill();
@@ -681,13 +742,55 @@ function drawBoss() {
     ctx.beginPath(); ctx.arc(x, cy, CLOCK_R, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
+  if (B.phase >= 2) {
+    // hào quang đỏ của hell mode
+    const pr = 70 + Math.sin(S.t * 6) * 6;
+    ctx.fillStyle = 'rgb(192 24 43 / .22)';
+    ctx.beginPath(); ctx.arc(x, cy, pr, 0, Math.PI * 2); ctx.fill();
+  }
+  if (B.ts > 0) drawClock(x, cy - 40, 170, .55, true);
   if (B.fire) drawClock(x, cy, CLOCK_R * clockScale(B), 1);
+  drawLaser(B);
   drawKurumi(B, x, gy);
   // mũi tên chỉ chỗ giẫm
-  if (!B.fire && !B.inv && S.fight) {
+  if (!B.fire && !B.inv && !B.ts && S.fight) {
     const ay = gy - BOSS_H - 30 + Math.sin(S.t * 6) * 6;
     ctx.fillStyle = '#ffc21a'; ctx.strokeStyle = '#14301c'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(x - 12, ay - 10); ctx.lineTo(x + 12, ay - 10); ctx.lineTo(x, ay + 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+}
+function drawLaser(B) {
+  if (!B.ts) return;
+  const [lo, hi] = laserSpan(B), top = ARENA.floor - LASER_H, h = LASER_H;
+  if (B.ts > LASER_AT && B.ts <= LASER_AT + LASER_CHARGE) {
+    // nạp năng lượng: vạch ngắm nhấp nháy + quả cầu sáng ở nòng súng
+    const k = 1 - (B.ts - LASER_AT) / LASER_CHARGE;
+    if (Math.floor(S.t * 16) % 2) { ctx.fillStyle = 'rgb(255 60 100 / .5)'; ctx.fillRect(lo, top + h / 2 - 2, hi - lo, 4); }
+    ctx.strokeStyle = 'rgb(255 60 100 / .7)'; ctx.lineWidth = 2;
+    ctx.strokeRect(lo, top, hi - lo, h);
+    ctx.fillStyle = '#ff3c64';
+    ctx.beginPath(); ctx.arc(B.x + B.dir * (BOSS_W / 2 + 18), top + h / 2, 6 + k * 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(B.x + B.dir * (BOSS_W / 2 + 18), top + h / 2, 3 + k * 10, 0, Math.PI * 2); ctx.fill();
+  }
+  if (laserOn(B)) {
+    const fl = Math.sin(S.t * 60) * 4;
+    ctx.fillStyle = 'rgb(255 40 90 / .45)'; ctx.fillRect(lo, top - 10 - fl, hi - lo, h + 10 + fl);
+    ctx.fillStyle = '#ff3c64'; ctx.fillRect(lo, top, hi - lo, h);
+    ctx.fillStyle = '#ffb3c6'; ctx.fillRect(lo, top + h * .25, hi - lo, h * .5);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(lo, top + h * .4 + fl / 2, hi - lo, h * .2);
+  }
+}
+function drawTimeStop() {
+  const B = S.boss;
+  if (!(B.ts > 0)) return;
+  ctx.fillStyle = 'rgb(60 30 90 / .28)';
+  ctx.fillRect(S.cam.x - 10, S.cam.y - 10, viewW + 20, VIEW_H + 20);
+  if (!S.tsEsc && !S.dead) {
+    // bóng bị đóng băng: vòng băng tím quanh bóng
+    const b = S.ball;
+    ctx.strokeStyle = Math.floor(S.t * 6) % 2 ? '#c9b6ff' : '#ffffff'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(b.x, b.y, R + 8, 0, Math.PI * 2); ctx.stroke();
   }
 }
 function drawBullets() {
@@ -769,6 +872,7 @@ function render() {
   drawEnemies();
   drawBoss();
   drawBullets();
+  drawTimeStop();
   drawBall();
   drawParts();
 }
@@ -788,7 +892,12 @@ function loop(now) {
   update(dt);
   try { render(); } catch (e) { console.error(e); ctx.restore(); }
   const sec = Math.floor(S.time);
-  if (sec !== lastSec) { lastSec = sec; $('time').textContent = fmt(S.time); }
+  if (sec !== lastSec) {
+    lastSec = sec;
+    const left = Math.max(0, Math.ceil(TIME_LIMIT - S.time));
+    $('time').textContent = fmt(left);
+    $('time').classList.toggle('low', left <= 20);
+  }
   const pct = (progress() * 100).toFixed(1) + '%';
   $('progFill').style.width = pct; $('progMe').style.left = pct;
   const sk = S.power > 0 ? `Vô địch ${S.power.toFixed(1)}s` : S.cd > 0 ? `Hồi ${Math.ceil(S.cd)}s` : 'Vô địch: K';

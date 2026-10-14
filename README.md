@@ -25,6 +25,7 @@ python -m http.server 8000
 
 ## Luật chơi
 
+- Phải về đích trong **2 phút**; hết giờ là thua.
 - Có **3 mạng**. Rơi xuống vực, chạm gai, chạm quái hoặc trúng lửa boss đều mất 1 mạng. Hết mạng thì chơi lại từ đầu.
 - **Cờ kiểm tra**: chạm qua thì lần ngã sau hồi sinh tại đó. Có 2 cờ, cờ thứ hai nằm ngay trước đấu trường boss.
 - **Quái vuông đen**: nhảy giẫm lên đầu để hạ, chạm ngang thì mất mạng.
@@ -33,7 +34,7 @@ python -m http.server 8000
 
 ### Tuyệt kĩ Vô địch
 
-Bật trong 2 giây, hồi chiêu 8 giây. Trong lúc vô địch, bóng không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
+Bật trong 2 giây, hồi chiêu 30 giây. Trong lúc vô địch, bóng không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
 
 ### Boss: chibi Kurumi
 
@@ -42,12 +43,12 @@ Vào đấu trường thì cổng đóng lại. Boss có 3 giai đoạn, mỗi g
 | Giai đoạn | Tốc độ | Tấn công |
 |---|---|---|
 | 1 | Chậm | Không |
-| 2 | Chậm | Mỗi 5 giây: đồng hồ + 3 viên đạn |
-| 3 | Nhanh hơn | Mỗi 3 giây: đồng hồ + 4 viên đạn nhanh hơn |
+| 2 (Hell mode) | Chậm | Mỗi 5 giây: đồng hồ + 3 viên đạn; ngưng đọng thời gian mỗi 5 giây |
+| 3 (Hell mode) | Nhanh hơn | Mỗi 3 giây: đồng hồ + 4 viên đạn nhanh hơn; ngưng đọng thời gian mỗi 5 giây |
 
-Khi tấn công, Kurumi triệu hồi một chiếc đồng hồ lớn quanh người (chạm vào là mất mạng, và lúc đó không giẫm được) rồi bắn đạn thẳng về phía trước: nhảy qua để tránh. Trước khi tấn công, Kurumi dừng lại, quay về phía bạn, giơ súng và một vòng nét đứt hiện ra báo trước. Khi bật Vô địch, đạn và đồng hồ không làm hại bạn.
+Khi tấn công, Kurumi triệu hồi một chiếc đồng hồ lớn quanh người (chạm vào là mất mạng, và lúc đó không giẫm được) rồi bắn đạn thẳng về phía trước: nhảy qua để tránh.
 
-Hạ boss xong, cờ đích xuất hiện. Lăn tới cờ để hoàn thành màn chơi.
+**Hell mode** bắt đầu sau 3 lần giẫm đầu tiên. Cứ 5 giây Kurumi ngưng đọng thời gian trong 3,5 giây: bóng bị đóng băng, nhấn `Shift` (hoặc `K`, nút ⚡) để thoát. 1 giây trước khi ngưng đọng kết thúc, Kurumi bắn một luồng laze khổng lồ sát mặt đất về phía bạn. Laze chỉ né được bằng cách nhảy lên (Vô địch không chặn được); hãy nhảy khi quả cầu năng lượng ở nòng súng đang to dần.
 
 ## Ghi chú về nhân vật
 

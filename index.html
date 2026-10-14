@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=cb44f9fe">
+<link rel="stylesheet" href="css/style.css?v=08de55b6">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -16,7 +16,7 @@
   <div class="stats">
     <span class="chip"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5"/></svg><span id="stars">0/0</span></span>
     <span class="chip lives" title="Số mạng"><span id="lives">♥♥♥</span></span>
-    <span class="chip" id="time">0:00</span>
+    <span class="chip" id="time" title="Thời gian còn lại">2:00</span>
     <span class="chip skill" id="skillChip" data-state="ready"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="skill">Vô địch: K</span></span>
   </div>
   <button class="restart" id="restart" type="button">Chơi lại (R)</button>
@@ -36,9 +36,11 @@
 </div>
 
 <div class="hint" id="hint">
-  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> để lăn · <kbd>↑</kbd> hoặc <kbd>Space</kbd> để nhảy · <kbd>K</kbd> hoặc <kbd>Shift</kbd>: vô địch 2 giây</span>
-  <span class="tap">Giữ ◀ ▶ để lăn · ▲ để nhảy · ⚡ vô địch 2 giây</span>
+  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> để lăn · <kbd>↑</kbd> hoặc <kbd>Space</kbd> để nhảy · <kbd>K</kbd> hoặc <kbd>Shift</kbd>: vô địch 2 giây · về đích trong 2 phút</span>
+  <span class="tap">Giữ ◀ ▶ để lăn · ▲ để nhảy · ⚡ vô địch 2 giây · về đích trong 2 phút</span>
 </div>
+
+<div class="tsbanner" id="tsBanner" hidden></div>
 
 <div class="overlay" id="win" hidden>
   <div class="card">
@@ -52,7 +54,7 @@
 
 <div class="overlay" id="lose" hidden>
   <div class="card">
-    <h2>Hết mạng!</h2>
+    <h2 id="loseTitle">Hết mạng!</h2>
     <p id="loseProg">Bạn đã đi được 0% chặng đường</p>
     <button id="again2" type="button">Chơi lại từ đầu</button>
   </div>
@@ -69,6 +71,6 @@
   </div>
 </div>
 
-<script src="js/game.js?v=cb44f9fe"></script>
+<script src="js/game.js?v=08de55b6"></script>
 </body>
 </html>
