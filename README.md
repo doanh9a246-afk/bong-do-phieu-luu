@@ -33,6 +33,10 @@ python -m http.server 8000
 - **Quái vuông đen**: nhảy giẫm lên đầu để hạ, chạm ngang thì mất mạng.
 - **12 ngôi sao** rải khắp màn chơi.
 - **Thanh chặng đường** phía trên màn hình cho biết bạn đã đi được bao xa.
+- **Biển “!”** đánh dấu chỗ có mẹo; đi tới gần sẽ hiện hướng dẫn ngắn (giẫm quái, nhảy xa, đi qua gai, bắn sét, né đạn, chuẩn bị đánh boss).
+- **Tim** (2 cái trên đường): nhặt được +1 mạng, tối đa 5 mạng.
+- **Ụ băng** ngay trước đấu trường bắn mũi băng sát đất mỗi 2,4 giây, giống boss: nhảy qua, bắn sét phá đạn, hoặc phá ụ bằng 2 tia sét hay 1 cú giẫm.
+- Vừa hồi sinh được bảo vệ 1,2 giây (nhấp nháy) để không bị chết lại ngay.
 
 ### Tuyệt kĩ Vô địch
 

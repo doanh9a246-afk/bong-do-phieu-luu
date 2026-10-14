@@ -77,11 +77,24 @@ const ENEMY_DEF = [
   { min: 3700, max: 3880, f: f3 },
   { min: 4800, max: 5050, f: f4 },
   { min: 5300, max: 5550, f: f4 },
+  { min: 1150, max: 1320, f: f1 },    // quái đầu tiên để tập giẫm
 ];
 const FLOWERS = [[180, f1, 1], [760, f1, .8], [1700, f2, 1.1], [2470, f2, .9], [3460, f3, 1], [4300, f3, .9], [4700, f4, 1.1], [5800, f4, .8]];
 const SIGNS = [[300, f1], [1330, f1], [4370, f3]];
 const CHECKPOINTS = [{ x: 3420, f: f3 }, { x: 6080, f: f4 }];
 const GOAL = { x: 6880, f: f4 };
+// Đường đến boss: mẹo theo từng chặng, tim hồi mạng, ụ băng để tập né đạn như khi đánh boss
+const MAX_LIVES = 5;
+const TIPS = [
+  { x: 960,  f: f1, text: 'Quái vuông phía trước: nhảy giẫm lên đầu để hạ nó.' },
+  { x: 2560, f: f2, text: 'Giữ ↑ lâu để nhảy cao và xa qua các bục.' },
+  { x: 3500, f: f3, text: 'Gai phía trước: nhảy qua, hoặc bật Vô địch (Shift) để đi xuyên qua.' },
+  { x: 4600, f: f4, text: 'Nhấn J để bắn tia sét, hạ quái từ xa.' },
+  { x: 5480, f: f4, text: 'Ụ băng bắn đạn sát đất: nhảy qua, hoặc bắn sét (J) để phá đạn và phá ụ.' },
+  { x: 6130, f: f4, text: 'Boss phía trước! Giữ sẵn Vô địch cho cú đánh úp của Naamah.' },
+];
+const HEARTS = [[2090, 200], [5990, 372]];
+const TURRET = { x: 5940, f: f4, every: 2.4, speed: 260, range: 760, hp: 2 };
 
 /* ---------- Trạng thái ---------- */
 const S = {};
@@ -92,6 +105,8 @@ function reset() {
     cam: { x: 0, y: 0 },
     onGround: false, lastGround: 0, jumpBuf: 0, jumpHeld: false,
     stars: STAR_POS.map(([x, y]) => ({ x, y, got: false })),
+    hearts: HEARTS.map(([x, y]) => ({ x, y, got: false })),
+    turret: { ...TURRET, t: 0, alive: true, flash: 0 }, tshots: [], tipSeen: TIPS.map(() => false),
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
     bossKills: 0, submitted: false,
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
@@ -266,6 +281,8 @@ function die() {
 function respawn() {
   Object.assign(S.ball, { x: S.spawn.x, y: S.spawn.y, vx: 0, vy: 0, squash: 0 });
   S.power = 0;
+  S.safe = Math.max(S.safe, 1.2);   // tránh vừa hồi sinh đã chết lại
+  S.tshots = [];
   const B = S.boss;
   if (!B.dead && S.fight) {
     // Ngã khi đang đánh boss: hồi sinh ngay trong cổng, trận đấu tiếp tục.
@@ -339,7 +356,7 @@ function update(dt) {
   b.squash = Math.max(0, b.squash - dt * 1.6);
 
   if (b.y > DEATH_Y) die();
-  if (!S.power) {
+  if (!S.power && !S.safe) {
     for (const sp of SPIKES) {
       if (b.x > sp.x0 - R * .6 && b.x < sp.x1 + R * .6 && b.y + R > sp.f(b.x) - 16) die();
     }
@@ -357,16 +374,75 @@ function update(dt) {
         }
       }
       else if (b.vy > 0 && b.y < ey - 12) { e.alive = false; e.squash = .4; b.vy = -560; sfx('stomp'); }
-      else die();
+      else if (!S.safe) die();
     }
   }
   for (const s of S.stars) {
     if (!s.got && Math.hypot(s.x - b.x, s.y - b.y) < R + 16) { s.got = true; s.pop = .3; hud(); sfx('star'); }
   }
+  for (const h of S.hearts) {
+    if (!h.got && Math.hypot(h.x - b.x, h.y - b.y) < R + 16) {
+      h.got = true;
+      const before = S.lives;
+      S.lives = Math.min(MAX_LIVES, S.lives + 1);
+      hud(); sfx('star');
+      S.pops.push({ x: h.x, y: h.y - 24, t: .9, text: S.lives > before ? '+1 mạng' : 'Đầy mạng', c: '#ff6b81' });
+    }
+  }
+  TIPS.forEach((tp, i) => { if (!S.tipSeen[i] && b.x > tp.x - 220) { S.tipSeen[i] = true; showTip(tp.text); } });
+  updateTurret(dt);
+  if (S.dead) return;
   CHECKPOINTS.forEach((c, i) => {
     if (i > S.cp && b.x > c.x) { S.cp = i; S.spawn = { x: c.x, y: c.f(c.x) - 60 }; }
   });
   if (S.boss.dead && b.x > GOAL.x - 10) win();
+}
+
+/* ---------- Đường đến boss: mẹo và ụ băng ---------- */
+let tipTimer = 0;
+function showTip(text) {
+  const el = $('tip');
+  el.textContent = text; el.hidden = false; el.classList.remove('gone');
+  $('hint').classList.add('gone');
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => el.classList.add('gone'), 4500);
+}
+function breakTurret() {
+  const T = S.turret, gy = T.f(T.x);
+  T.alive = false;
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 300;
+    S.parts.push({ x: T.x, y: gy - 24, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: .8, c: ['#7ff0ff', '#d8fbff', '#8a8f98'][i % 3], r: 4 + Math.random() * 5 });
+  }
+  sfx('stomp');
+}
+function updateTurret(dt) {
+  const T = S.turret, b = S.ball;
+  for (const q of S.tshots) q.x += q.vx * dt;
+  S.tshots = S.tshots.filter(q => q.alive !== false && q.x > T.x - T.range);
+  T.flash = Math.max(0, T.flash - dt);
+  if (S.dead) return;
+  // đạn của ụ: Vô địch hoặc vừa hồi sinh thì đạn vỡ, không thì mất mạng
+  for (const q of S.tshots) {
+    if (Math.hypot(q.x - b.x, q.y - b.y) < R + 6) {
+      if (S.power || S.safe) { q.alive = false; continue; }
+      die(); return;
+    }
+  }
+  if (!T.alive) return;
+  const gy = T.f(T.x);
+  if (Math.abs(b.x - T.x) < 900) {
+    T.t += dt;
+    if (T.t >= T.every) { T.t = 0; T.flash = .12; S.tshots.push({ x: T.x - 28, y: gy - 22, vx: -T.speed }); }
+  }
+  // giẫm từ trên thì phá ụ, chạm ngang thì mất mạng
+  const top = gy - 44;
+  const cx = clamp(b.x, T.x - 22, T.x + 22), cy = clamp(b.y, top, gy);
+  if ((b.x - cx) ** 2 + (b.y - cy) ** 2 < R * R) {
+    if (S.power || (b.vy > 0 && b.y < top + 8)) { breakTurret(); if (!S.power) b.vy = -560; }
+    else if (S.safe) { b.x = T.x - 22 - R - 1; b.vx = -300; }
+    else die();
+  }
 }
 
 /* ---------- Tia sét của Pikachu ---------- */
@@ -400,6 +476,16 @@ function updateBolts(dt) {
       }
     }
     if (q.life <= 0) continue;
+    for (const sh of S.tshots) {
+      if (sh.alive !== false && Math.abs(sh.x - q.x) < 22 && Math.abs(sh.y - q.y) < 22) { sh.alive = false; q.life = 0; boltSpark(q.x, q.y, '#7ff0ff'); break; }
+    }
+    if (q.life <= 0) continue;
+    const T = S.turret;
+    if (T.alive && Math.abs(q.x - T.x) < 26 && q.y > T.f(T.x) - 52 && q.y < T.f(T.x)) {
+      q.life = 0; T.hp--; T.flash = .15; boltSpark(q.x, q.y, '#7ff0ff', 12);
+      if (T.hp <= 0) breakTurret();
+      continue;
+    }
     // triệt tiêu đạn của boss
     for (const u of S.bullets) {
       if (Math.abs(u.x - q.x) < 22 && Math.abs(u.y - q.y) < 22) { u.x = -1e9; q.life = 0; boltSpark(q.x, q.y); break; }
@@ -920,7 +1006,7 @@ const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2,
 let lastSec = -1, lastSkill = '';
 function hud() {
   $('stars').textContent = `${S.stars.filter(s => s.got).length}/${S.stars.length}`;
-  $('lives').textContent = '♥'.repeat(Math.max(0, S.lives)) + '♡'.repeat(LIVES - Math.max(0, S.lives));
+  $('lives').textContent = '♥'.repeat(Math.max(0, S.lives)) + '♡'.repeat(Math.max(0, LIVES - S.lives));
   $('time').textContent = fmt(Math.ceil(TIME_LIMIT - S.time));
 }
 
@@ -1451,6 +1537,47 @@ function drawHellSky() {
   ctx.beginPath(); ctx.arc(mx - 12, my - 8, 9, 0, Math.PI * 2); ctx.arc(mx + 14, my + 12, 6, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
+// Biển "!" đánh dấu chỗ có mẹo
+function drawTipSign(x, gy) {
+  ctx.fillStyle = '#9aa3ad'; ctx.fillRect(x - 3, gy - 56, 6, 56);
+  ctx.fillStyle = '#ffc21a'; ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x, gy - 104); ctx.lineTo(x + 26, gy - 60); ctx.lineTo(x - 26, gy - 60); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#14141a'; ctx.fillRect(x - 3, gy - 92, 6, 18); ctx.fillRect(x - 3, gy - 70, 6, 5);
+}
+function drawHearts() {
+  for (const h of S.hearts) {
+    if (h.got) continue;
+    const y = h.y + Math.sin(S.t * 3 + h.x) * 4, k = 1 + Math.sin(S.t * 6) * .06;
+    ctx.save(); ctx.translate(h.x, y); ctx.scale(k, k);
+    ctx.fillStyle = 'rgb(255 80 110 / .25)'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, 12); ctx.bezierCurveTo(-20, -2, -12, -18, 0, -8); ctx.bezierCurveTo(12, -18, 20, -2, 0, 12);
+    ctx.fillStyle = '#ff4d6d'; ctx.fill(); ctx.strokeStyle = '#7a1028'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(-9, -9, 4, 4);
+    ctx.restore();
+  }
+}
+function drawTurret() {
+  const T = S.turret, gy = T.f(T.x);
+  for (const q of S.tshots) {
+    ctx.fillStyle = 'rgb(216 251 255 / .4)'; ctx.fillRect(q.x + 6, q.y - 2, 30, 4);
+    ctx.beginPath(); ctx.moveTo(q.x - 14, q.y); ctx.lineTo(q.x, q.y - 6); ctx.lineTo(q.x + 12, q.y); ctx.lineTo(q.x, q.y + 6); ctx.closePath();
+    ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  if (!T.alive) {
+    ctx.fillStyle = '#7a7f88'; ctx.fillRect(T.x - 24, gy - 10, 48, 10);
+    return;
+  }
+  const fl = T.flash > 0;
+  // đế đá
+  ctx.fillStyle = fl ? '#ffffff' : '#8a8f98'; ctx.strokeStyle = '#3d414a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(T.x - 24, gy + 2); ctx.lineTo(T.x + 24, gy + 2); ctx.lineTo(T.x + 18, gy - 26); ctx.lineTo(T.x - 18, gy - 26); ctx.closePath(); ctx.fill(); ctx.stroke();
+  // nòng pha lê băng hướng sang trái
+  ctx.fillStyle = fl ? '#ffffff' : '#7ff0ff'; ctx.strokeStyle = '#d8fbff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(T.x - 30, gy - 24); ctx.lineTo(T.x - 6, gy - 32); ctx.lineTo(T.x + 10, gy - 44); ctx.lineTo(T.x + 12, gy - 24); ctx.lineTo(T.x - 6, gy - 16); ctx.closePath(); ctx.fill(); ctx.stroke();
+  // vạch máu nhỏ
+  for (let i = 0; i < TURRET.hp; i++) { ctx.fillStyle = i < T.hp ? '#7ff0ff' : 'rgb(255 255 255 / .25)'; ctx.fillRect(T.x - 12 + i * 14, gy - 58, 10, 4); }
+}
 function drawBolts() {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   for (const q of S.bolts) {
@@ -1622,6 +1749,7 @@ function render() {
   const x0 = cx - 100, x1 = cx + viewW + 100;
   for (const [x, f, s] of FLOWERS) if (x > x0 && x < x1) drawFlower(x, f(x), s);
   for (const [x, f] of SIGNS) if (x > x0 && x < x1) drawSign(x, f(x));
+  for (const tp of TIPS) if (tp.x > x0 && tp.x < x1) drawTipSign(tp.x, tp.f(tp.x));
   CHECKPOINTS.forEach((c, i) => drawFlag(c.x, c.f(c.x), S.cp >= i ? '#4fcf2e' : '#c9d1db', false));
   if (S.boss.dead) drawFlag(GOAL.x, GOAL.f(GOAL.x), '#e3262b', true);
   drawSolids(x0, x1);
@@ -1630,6 +1758,8 @@ function render() {
   drawHellSky();
   drawStars();
   drawEnemies();
+  drawTurret();
+  drawHearts();
   drawBoss();
   drawBullets();
   drawBolts();
