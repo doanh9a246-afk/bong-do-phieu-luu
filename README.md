@@ -35,19 +35,23 @@ python -m http.server 8000
 
 Bật trong 2 giây, hồi chiêu 8 giây. Trong lúc vô địch, bóng không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
 
-### Boss
+### Boss: chibi Kurumi
 
 Vào đấu trường thì cổng đóng lại. Boss có 3 giai đoạn, mỗi giai đoạn phải **giẫm lên đầu 3 lần**. Chạm phía trước hay phía sau boss đều mất mạng.
 
-| Giai đoạn | Tốc độ | Phun lửa |
+| Giai đoạn | Tốc độ | Tấn công |
 |---|---|---|
 | 1 | Chậm | Không |
-| 2 | Chậm | Mỗi 5 giây |
-| 3 | Nhanh hơn | Mỗi 3 giây |
+| 2 | Chậm | Mỗi 5 giây: đồng hồ + 3 viên đạn |
+| 3 | Nhanh hơn | Mỗi 3 giây: đồng hồ + 4 viên đạn nhanh hơn |
 
-Lửa là một tia thẳng bắn ra trước mặt boss: nhảy qua để tránh. Trước khi phun, boss dừng lại, quay về phía bạn và nhấp nháy để báo trước. Đang phun lửa thì giẫm không tính đòn, trừ khi bạn đang bật Vô địch.
+Khi tấn công, Kurumi triệu hồi một chiếc đồng hồ lớn quanh người (chạm vào là mất mạng, và lúc đó không giẫm được) rồi bắn đạn thẳng về phía trước: nhảy qua để tránh. Trước khi tấn công, Kurumi dừng lại, quay về phía bạn, giơ súng và một vòng nét đứt hiện ra báo trước. Khi bật Vô địch, đạn và đồng hồ không làm hại bạn.
 
 Hạ boss xong, cờ đích xuất hiện. Lăn tới cờ để hoàn thành màn chơi.
+
+## Ghi chú về nhân vật
+
+Boss là fan art dạng chibi của Tokisaki Kurumi, được vẽ hoàn toàn bằng code (hình khối trên canvas), không dùng hình ảnh gốc nào. Nhân vật Tokisaki Kurumi và *Date A Live* thuộc bản quyền của tác giả Koushi Tachibana và các bên giữ bản quyền. Đây là dự án cá nhân, phi thương mại.
 
 ## Cấu trúc thư mục
 

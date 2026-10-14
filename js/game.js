@@ -9,11 +9,11 @@ const LEVEL_W = 7000, DEATH_Y = 900;
 const LIVES = 3;
 // Đấu trường boss ở cuối màn
 const ARENA = { l: 6220, r: 6950, gateX: 6190, floor: 420 };
-const BOSS_W = 84, BOSS_H = 84, FIRE_LEN = 340, WARN = .7;
+const BOSS_W = 64, BOSS_H = 112, CLOCK_R = 105, WARN = .7;
 const PHASES = [null,
-  { speed: 55, cycle: 0, dur: 0,   name: 'Giai đoạn 1', note: 'Nhảy giẫm lên đầu boss 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
-  { speed: 55, cycle: 5, dur: 1.4, name: 'Giai đoạn 2', note: 'Cứ 5 giây boss phun lửa thẳng về phía trước: nhảy qua. Lúc phun lửa không giẫm được.' },
-  { speed: 85, cycle: 3, dur: 1.2, name: 'Giai đoạn 3', note: 'Boss chạy nhanh hơn, phun lửa mỗi 3 giây. Giẫm thêm 3 lần nữa!' },
+  { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Nhảy giẫm lên đầu Kurumi 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
+  { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'Giai đoạn 2', note: 'Cứ 5 giây Kurumi triệu hồi đồng hồ quanh người và bắn đạn thẳng: tránh xa đồng hồ, nhảy qua đạn.' },
+  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'Giai đoạn 3', note: 'Kurumi chạy nhanh hơn, triệu hồi đồng hồ và bắn mỗi 3 giây. Giẫm thêm 3 lần nữa!' },
 ];
 
 const cv = document.getElementById('game');
@@ -82,7 +82,8 @@ function reset() {
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
     lives: LIVES, fight: false, gateClosed: false,
-    boss: { x: 6750, dir: -1, hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, squash: 0 },
+    boss: { x: 6750, dir: -1, hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, squash: 0, shot: 0, flash: 0 },
+    bullets: [],
   });
   $('win').hidden = true;
   $('lose').hidden = true;
@@ -185,7 +186,8 @@ function respawn() {
   if (!B.dead && S.fight) {
     // ra ngoài cổng, boss về vị trí cũ nhưng giữ số đòn đã trúng
     S.fight = false; S.gateClosed = false;
-    Object.assign(B, { x: 6750, dir: -1, inv: 0, fireT: 0, fire: 0, warn: false });
+    Object.assign(B, { x: 6750, dir: -1, inv: 0, fireT: 0, fire: 0, warn: false, shot: 0 });
+    S.bullets = [];
   }
   bossBar();
   S.cam.x = clamp(S.spawn.x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
@@ -265,17 +267,22 @@ function bossBar() {
   $('bnote').textContent = B.dead ? 'Lăn tới cờ đích để về đích.' : PHASES[B.phase].note;
   document.querySelectorAll('#bossbar .pips i').forEach((p, i) => p.classList.toggle('on', !B.dead && i < 3 - B.hits));
 }
-function fireBox(B) {
-  // tia lửa thẳng phía trước mặt boss
+// Đồng hồ Zafkiel: to dần khi xuất hiện, thu lại khi sắp tắt
+function clockScale(B) {
   const P = PHASES[B.phase];
-  const len = FIRE_LEN * Math.min(1, (P.dur - B.fire) / .25);
-  const x0 = B.x + B.dir * BOSS_W / 2, x1 = x0 + B.dir * len;
-  return { lo: Math.min(x0, x1), hi: Math.max(x0, x1), top: ARENA.floor - 66, bot: ARENA.floor - 26, x0, x1 };
+  return Math.min(1, (P.dur - B.fire) / .25, B.fire / .15);
+}
+function shoot(B, P) {
+  S.bullets.push({ x: B.x + B.dir * (BOSS_W / 2 + 22), y: ARENA.floor - 24, vx: B.dir * P.bspeed });
+  B.flash = .08;
 }
 function updateBoss(dt) {
   const B = S.boss, b = S.ball;
+  for (const u of S.bullets) u.x += u.vx * dt;
+  S.bullets = S.bullets.filter(u => u.x > ARENA.gateX && u.x < ARENA.r);
   if (B.dead) return;
   B.squash = Math.max(0, B.squash - dt);
+  B.flash = Math.max(0, B.flash - dt);
   if (!S.fight) {
     if (!S.dead && b.x > ARENA.l + 30) { S.fight = true; S.gateClosed = true; B.fireT = 0; bossBar(); }
     return;
@@ -283,12 +290,15 @@ function updateBoss(dt) {
   const P = PHASES[B.phase];
   B.inv = Math.max(0, B.inv - dt);
   if (P.cycle) {
-    if (B.fire > 0) { B.fire -= dt; if (B.fire <= 0) { B.fire = 0; B.fireT = 0; } }
-    else { B.fireT += dt; if (B.fireT >= P.cycle) B.fire = P.dur; }
+    if (B.fire > 0) {
+      const el = P.dur - B.fire;
+      while (B.shot < P.shots && el >= .15 + B.shot * P.gap) { shoot(B, P); B.shot++; }
+      B.fire -= dt; if (B.fire <= 0) { B.fire = 0; B.fireT = 0; }
+    } else { B.fireT += dt; if (B.fireT >= P.cycle) { B.fire = P.dur; B.shot = 0; } }
   }
   const wasWarn = B.warn;
   B.warn = !!P.cycle && !B.fire && B.fireT > P.cycle - WARN;
-  if (B.warn && !wasWarn && !S.dead) B.dir = Math.sign(b.x - B.x) || B.dir;   // quay về phía bóng rồi mới phun
+  if (B.warn && !wasWarn && !S.dead) B.dir = Math.sign(b.x - B.x) || B.dir;   // quay về phía bóng rồi mới bắn
   if (!B.fire && !B.warn) {
     B.x += B.dir * P.speed * dt;
     const lo = ARENA.l + BOSS_W / 2 + 40, hi = ARENA.r - BOSS_W / 2 - 10;
@@ -297,12 +307,16 @@ function updateBoss(dt) {
   }
   if (S.dead) return;
 
-  if (B.fire && !S.power) {
-    const f = fireBox(B);
-    const fx = clamp(b.x, f.lo, f.hi), fy = clamp(b.y, f.top, f.bot);
-    if ((b.x - fx) ** 2 + (b.y - fy) ** 2 < (R * .8) ** 2) { die(); return; }
+  // Đạn
+  for (const u of S.bullets) {
+    if (Math.hypot(u.x - b.x, u.y - b.y) < R + 5) {
+      if (S.power) { u.x = -1e9; continue; }
+      die(); return;
+    }
   }
+  // Đồng hồ quanh người
   const gy = ARENA.floor, top = gy - BOSS_H, cx = B.x;
+  if (B.fire && !S.power && Math.hypot(b.x - cx, b.y - (gy - 56)) < CLOCK_R * clockScale(B) + R * .3) { die(); return; }
   const nx = clamp(b.x, cx - BOSS_W / 2, cx + BOSS_W / 2), ny = clamp(b.y, top, gy);
   if ((b.x - nx) ** 2 + (b.y - ny) ** 2 >= R * R) return;
   // Giẫm từ trên xuống: cách duy nhất để gây sát thương
@@ -327,16 +341,16 @@ function hitBoss() {
   }
   if (B.hits >= 3) {
     if (B.phase === 3) {
-      B.dead = true; S.gateClosed = false;
+      B.dead = true; S.gateClosed = false; S.bullets = [];
       for (let i = 0; i < 70; i++) {
         const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 500;
-        S.parts.push({ x: B.x, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.2, c: ['#16181d', '#ffc21a', '#ff7b39', '#ffffff'][i % 4], r: 5 + Math.random() * 8 });
+        S.parts.push({ x: B.x, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.2, c: ['#16101a', '#c0182b', '#ffc21a', '#ffffff'][i % 4], r: 5 + Math.random() * 8 });
       }
     } else {
-      B.phase++; B.hits = 0; B.fireT = 0; B.fire = 0; B.inv = 1.6;
+      B.phase++; B.hits = 0; B.fireT = 0; B.fire = 0; B.shot = 0; B.inv = 1.6;
       for (let i = 0; i < 30; i++) {
         const a = i / 30 * Math.PI * 2;
-        S.parts.push({ x: B.x, y: cy, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320, life: .6, c: B.phase === 2 ? '#ff4a1c' : '#c03a8a', r: 7, g: 0 });
+        S.parts.push({ x: B.x, y: cy, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320, life: .6, c: i % 2 ? '#ffc21a' : '#5a1f6e', r: 7, g: 0 });
       }
     }
   }
@@ -531,69 +545,153 @@ function drawGate() {
   ctx.fillStyle = '#8a8f98';
   for (let y = gy - 290; y < gy; y += 40) ctx.fillRect(x - 2, y, 34, 5);
 }
+function drawClock(cx, cy, r, alpha) {
+  ctx.save(); ctx.translate(cx, cy); ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgb(30 10 40 / .45)';
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#ffc21a'; ctx.lineWidth = 8; ctx.stroke();
+  ctx.strokeStyle = '#7a4a1e'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, 0, r - 10, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#ffc21a';
+  for (let i = 0; i < 12; i++) {
+    ctx.save(); ctx.rotate(i * Math.PI / 6);
+    ctx.fillRect(-3, -r + 14, 6, i % 3 ? 10 : 18);
+    ctx.restore();
+  }
+  // kim quay ngược
+  ctx.lineCap = 'round';
+  ctx.save(); ctx.rotate(-S.t * 4); ctx.strokeStyle = '#ffc21a'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r * .5); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.rotate(-S.t * 11); ctx.strokeStyle = '#ffe9a8'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r * .75); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = '#ffc21a'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+// Chibi Kurumi (fan art vẽ bằng hình khối). Gốc toạ độ ở chân, +x là hướng mặt.
+function drawKurumi(B, x, gy) {
+  const walking = S.fight && !B.fire && !B.warn;
+  const bob = walking ? Math.abs(Math.sin(S.t * 8)) * 3 : 0;
+  const step = walking ? Math.sin(S.t * 8) * 4 : 0;
+  const HAIR = '#1a1020', RED = '#c0182b', BLK = '#16101a', SKIN = '#ffe3d3', GOLD = '#ffc21a';
+  ctx.save();
+  ctx.translate(x, gy);
+  // bóng tối dưới chân
+  ctx.fillStyle = 'rgb(60 15 70 / .5)';
+  ctx.beginPath(); ctx.ellipse(0, -1, 44 + Math.sin(S.t * 3) * 4, 8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.scale(B.dir * (1 + B.squash * .6), 1 - B.squash);
+  if (B.inv > 0 && Math.floor(S.t * 20) % 2) ctx.globalAlpha = .4;
+
+  // chân + giày đỏ
+  ctx.fillStyle = BLK;
+  ctx.fillRect(-12 + step, -20, 9, 16); ctx.fillRect(4 - step, -20, 9, 16);
+  ctx.fillStyle = RED;
+  ctx.fillRect(-14 + step, -6, 12, 6); ctx.fillRect(3 - step, -6, 13, 6);
+
+  ctx.translate(0, -bob);
+  // bím tóc sau (dài) và trước (ngắn hơn) — kiểu tóc lệch
+  ctx.fillStyle = HAIR;
+  ctx.save(); ctx.translate(-30, -70); ctx.rotate(.25 + Math.sin(S.t * 4) * .06);
+  ctx.beginPath(); ctx.ellipse(0, 22, 11, 32, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(26, -78); ctx.rotate(-.2 + Math.sin(S.t * 4 + 1) * .06);
+  ctx.beginPath(); ctx.ellipse(0, 16, 9, 22, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+  // váy chuông đỏ, viền đăng ten đen
+  ctx.fillStyle = RED;
+  ctx.beginPath(); ctx.moveTo(-13, -50); ctx.lineTo(13, -50);
+  ctx.quadraticCurveTo(26, -36, 31, -20); ctx.lineTo(-31, -20);
+  ctx.quadraticCurveTo(-26, -36, -13, -50); ctx.fill();
+  ctx.fillStyle = BLK;
+  for (let fx = -28; fx <= 28; fx += 9.3) { ctx.beginPath(); ctx.arc(fx, -20, 6, 0, Math.PI); ctx.fill(); }
+  ctx.fillRect(-5, -48, 10, 28);
+  ctx.fillStyle = '#ffffff';
+  for (let fx = -26; fx <= 26; fx += 9.3) ctx.fillRect(fx, -17, 2, 2);
+  // thân áo đen + nơ đỏ
+  ctx.fillStyle = BLK; ctx.fillRect(-12, -64, 24, 16);
+  ctx.fillStyle = RED;
+  ctx.beginPath(); ctx.moveTo(0, -59); ctx.lineTo(-7, -64); ctx.lineTo(-7, -54); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, -59); ctx.lineTo(7, -64); ctx.lineTo(7, -54); ctx.closePath(); ctx.fill();
+
+  // tay cầm súng kíp
+  const aim = B.fire || B.warn;
+  ctx.save(); ctx.translate(9, -58); ctx.rotate(aim ? .05 : .95);
+  ctx.fillStyle = BLK; ctx.fillRect(0, -3, 15, 7);
+  ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(16, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7a4a1e'; ctx.fillRect(13, -1, 5, 10);
+  ctx.fillStyle = '#3a3f4a'; ctx.fillRect(15, -6, 24, 6);
+  ctx.fillStyle = GOLD; ctx.fillRect(20, -7, 8, 2); ctx.fillRect(36, -7, 3, 8);
+  if (B.flash > 0) {
+    ctx.fillStyle = '#ffd23f';
+    ctx.beginPath(); ctx.moveTo(40, -3); ctx.lineTo(54, -10); ctx.lineTo(50, -3); ctx.lineTo(56, 4); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // đầu chibi
+  const hy = -88;
+  ctx.fillStyle = SKIN; ctx.strokeStyle = '#2a1a20'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, hy, 25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // tóc: chỏm, mái răng cưa, tóc mai
+  ctx.fillStyle = HAIR;
+  ctx.beginPath(); ctx.arc(0, hy - 2, 27, Math.PI, 0); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-27, hy - 2);
+  for (let i = 0; i <= 8; i++) ctx.lineTo(-27 + i * 6.75, hy + (i % 2 ? 10 : -2));
+  ctx.lineTo(27, hy - 2); ctx.fill();
+  ctx.fillRect(-27, hy - 4, 7, 26); ctx.fillRect(21, hy - 4, 6, 20);
+  ctx.fillStyle = '#3a2440'; ctx.fillRect(-14, hy - 24, 12, 3);
+  // băng đô lolita đỏ đen
+  ctx.fillStyle = RED; ctx.fillRect(-20, hy - 30, 40, 7);
+  ctx.fillStyle = BLK;
+  for (let i = -18; i <= 18; i += 9) { ctx.beginPath(); ctx.arc(i, hy - 30, 4.5, Math.PI, 0); ctx.fill(); }
+  // mắt phải đỏ, mắt trái là mặt đồng hồ vàng
+  ctx.fillStyle = '#e3262b';
+  ctx.beginPath(); ctx.ellipse(1, hy + 2, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, hy - 1, 2, 2);
+  ctx.fillStyle = GOLD;
+  ctx.beginPath(); ctx.arc(15, hy + 2, 5.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#5a3416'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(15, hy + 2); ctx.lineTo(15, hy - 2);
+  ctx.moveTo(15, hy + 2); ctx.lineTo(15 + Math.cos(-S.t * 3) * 3.5, hy + 2 + Math.sin(-S.t * 3) * 3.5); ctx.stroke();
+  if (B.warn && Math.floor(S.t * 14) % 2) {
+    ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(15, hy + 2, 8, 0, Math.PI * 2); ctx.stroke();
+  }
+  // má hồng + miệng
+  ctx.fillStyle = 'rgb(255 120 140 / .55)';
+  ctx.beginPath(); ctx.ellipse(-5, hy + 11, 4, 2.5, 0, 0, Math.PI * 2); ctx.ellipse(21, hy + 11, 3.5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#7a1a2a'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (B.phase === 3 || aim) ctx.arc(9, hy + 11, 4, .1, Math.PI - .1);
+  else ctx.arc(9, hy + 10, 3, .3, Math.PI - .3);
+  ctx.stroke();
+  ctx.restore();
+}
 function drawBoss() {
   const B = S.boss;
   if (B.dead) return;
-  const gy = ARENA.floor;
-  let x = B.x;
-  if (B.warn) x += Math.sin(S.t * 70) * 3;
-  // tia lửa thẳng
-  if (B.fire) {
-    const f = fireBox(B), mid = (f.top + f.bot) / 2, d = B.dir;
-    const len = Math.abs(f.x1 - f.x0);
-    ctx.fillStyle = 'rgb(255 110 30 / .35)';
-    ctx.fillRect(f.lo, f.top - 8, f.hi - f.lo, f.bot - f.top + 16);
-    for (let s = 0; s < len; s += 16) {
-      const k = s / FIRE_LEN, fl = Math.sin(S.t * 40 + s * .3) * 4;
-      const px = f.x0 + d * s, r = 18 + k * 6 + fl;
-      ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.arc(px, mid + Math.sin(S.t * 25 + s) * 3, r, 0, Math.PI * 2); ctx.fill();
-    }
-    for (let s = 0; s < len; s += 14) {
-      const px = f.x0 + d * s, r = 11 + Math.sin(S.t * 50 + s) * 3;
-      ctx.fillStyle = '#ff9a1f'; ctx.beginPath(); ctx.arc(px, mid, r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(px, mid, r * .5, 0, Math.PI * 2); ctx.fill();
-    }
-  }
+  const gy = ARENA.floor, P = PHASES[B.phase];
+  const x = B.x + (B.warn ? Math.sin(S.t * 70) * 2 : 0);
+  const cy = gy - 56;
   if (B.warn) {
-    ctx.strokeStyle = Math.floor(S.t * 14) % 2 ? '#ff7b39' : '#ffd23f'; ctx.lineWidth = 6;
-    ctx.strokeRect(x - BOSS_W / 2 - 6, gy - BOSS_H - 6, BOSS_W + 12, BOSS_H + 12);
+    ctx.save();
+    ctx.setLineDash([10, 10]); ctx.lineDashOffset = -S.t * 60;
+    ctx.strokeStyle = Math.floor(S.t * 14) % 2 ? '#ffc21a' : '#ffe9a8'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(x, cy, CLOCK_R, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
-  ctx.save();
-  ctx.translate(x, gy);
-  ctx.scale(1 + B.squash * .6, 1 - B.squash);
-  const flash = B.inv > 0 && Math.floor(S.t * 20) % 2;
-  ctx.fillStyle = flash ? '#ffffff' : ['', '#16181d', '#3a0f14', '#4a0a30'][B.phase];
-  ctx.fillRect(-BOSS_W / 2, -BOSS_H, BOSS_W, BOSS_H);
-  ctx.fillStyle = 'rgb(255 255 255 / .12)'; ctx.fillRect(-BOSS_W / 2, -BOSS_H, BOSS_W, 8);
-  // vương miện gai
-  ctx.fillStyle = '#ffc21a';
-  for (let i = 0; i < 3; i++) {
-    const sx = -30 + i * 22, h = 12 + B.phase * 4;
-    ctx.beginPath(); ctx.moveTo(sx, -BOSS_H); ctx.lineTo(sx + 8, -BOSS_H - h); ctx.lineTo(sx + 16, -BOSS_H); ctx.fill();
-  }
-  // mặt nhìn về hướng đi
-  const d = B.dir, ex = d * 14;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(ex - 18, -62, 14, 14); ctx.fillRect(ex + 4, -62, 14, 14);
-  ctx.fillStyle = '#e3262b';
-  ctx.fillRect(ex - 14 + d * 3, -58, 7, 8); ctx.fillRect(ex + 8 + d * 3, -58, 7, 8);
-  ctx.strokeStyle = '#e3262b'; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(ex - 20, -72); ctx.lineTo(ex - 4, -65); ctx.moveTo(ex + 20, -72); ctx.lineTo(ex + 4, -65); ctx.stroke();
-  // miệng: đỏ rực khi sắp phun, vàng khi đang phun
-  if (B.fire || B.warn) { ctx.fillStyle = B.fire ? '#ffd23f' : '#ff4a1c'; ctx.fillRect(d > 0 ? 18 : -42, -50, 24, 22); }
-  else { ctx.fillStyle = '#ffffff'; for (let i = 0; i < 4; i++) ctx.fillRect(ex - 14 + i * 8, -30, 5, 7); }
-  // gai hai bên hông: chạm là mất mạng
-  ctx.fillStyle = '#c9d1db';
-  for (const sd of [-1, 1]) for (let i = 0; i < 3; i++) {
-    const y = -70 + i * 24;
-    ctx.beginPath(); ctx.moveTo(sd * BOSS_W / 2, y); ctx.lineTo(sd * (BOSS_W / 2 + 10), y + 7); ctx.lineTo(sd * BOSS_W / 2, y + 14); ctx.fill();
-  }
-  ctx.restore();
+  if (B.fire) drawClock(x, cy, CLOCK_R * clockScale(B), 1);
+  drawKurumi(B, x, gy);
   // mũi tên chỉ chỗ giẫm
-  if (!B.fire && !B.inv) {
-    const ay = gy - BOSS_H - 40 + Math.sin(S.t * 6) * 6;
+  if (!B.fire && !B.inv && S.fight) {
+    const ay = gy - BOSS_H - 30 + Math.sin(S.t * 6) * 6;
     ctx.fillStyle = '#ffc21a'; ctx.strokeStyle = '#14301c'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(x - 12, ay - 10); ctx.lineTo(x + 12, ay - 10); ctx.lineTo(x, ay + 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+}
+function drawBullets() {
+  for (const u of S.bullets) {
+    const d = Math.sign(u.vx);
+    ctx.fillStyle = 'rgb(255 210 63 / .35)'; ctx.fillRect(u.x - d * 40, u.y - 2, d * 30, 4);
+    ctx.fillStyle = '#2b2b33'; ctx.fillRect(u.x - 9, u.y - 4, 18, 8);
+    ctx.fillStyle = '#ffc21a'; ctx.beginPath(); ctx.arc(u.x + d * 9, u.y, 4, 0, Math.PI * 2); ctx.fill();
   }
 }
 function drawBall() {
@@ -665,6 +763,7 @@ function render() {
   drawStars();
   drawEnemies();
   drawBoss();
+  drawBullets();
   drawBall();
   drawParts();
 }
