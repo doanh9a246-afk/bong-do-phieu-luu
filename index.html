@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bóng Đỏ Phiêu Lưu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game" aria-label="Màn chơi"></canvas>
+
+<div class="hud">
+  <div class="stats">
+    <span class="chip"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5"/></svg><span id="stars">0/0</span></span>
+    <span class="chip lives" title="Số mạng"><span id="lives">♥♥♥</span></span>
+    <span class="chip" id="time">0:00</span>
+    <span class="chip skill" id="skillChip" data-state="ready"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="skill">Vô địch: K</span></span>
+  </div>
+  <button class="restart" id="restart" type="button">Chơi lại (R)</button>
+</div>
+
+<div class="prog" aria-label="Chặng đường">
+  <div class="track" id="progTrack">
+    <div class="fill" id="progFill"></div>
+    <span class="end" title="Boss"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="15" fill="#16181d" stroke="#ffc21a" stroke-width="1.5"/><path d="M5 7l3-5 3 5 3-5 3 5 3-5v5" fill="#ffc21a"/><rect x="7" y="11" width="4" height="4" fill="#fff"/><rect x="13" y="11" width="4" height="4" fill="#fff"/></svg></span>
+    <span class="me" id="progMe"></span>
+  </div>
+</div>
+
+<div class="bossbar" id="bossbar" hidden>
+  <div class="bhead"><b>BOSS</b> · <span id="bphase">Giai đoạn 1</span><span class="pips"><i></i><i></i><i></i></span></div>
+  <div class="bnote" id="bnote"></div>
+</div>
+
+<div class="hint" id="hint">
+  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> để lăn · <kbd>↑</kbd> hoặc <kbd>Space</kbd> để nhảy · <kbd>K</kbd> hoặc <kbd>Shift</kbd>: vô địch 2 giây</span>
+  <span class="tap">Giữ ◀ ▶ để lăn · ▲ để nhảy · ⚡ vô địch 2 giây</span>
+</div>
+
+<div class="overlay" id="win" hidden>
+  <div class="card">
+    <h2>Về đích!</h2>
+    <p id="winStars">Sao: 0/0</p>
+    <p id="winTime">Thời gian: 0:00</p>
+    <p id="winDeaths">Số lần ngã: 0</p>
+    <button id="again" type="button">Chơi lại</button>
+  </div>
+</div>
+
+<div class="overlay" id="lose" hidden>
+  <div class="card">
+    <h2>Hết mạng!</h2>
+    <p id="loseProg">Bạn đã đi được 0% chặng đường</p>
+    <button id="again2" type="button">Chơi lại từ đầu</button>
+  </div>
+</div>
+
+<div class="touch">
+  <div class="grp">
+    <button class="tbtn" type="button" data-key="left" aria-label="Lăn trái">◀</button>
+    <button class="tbtn" type="button" data-key="right" aria-label="Lăn phải">▶</button>
+  </div>
+  <div class="grp">
+    <button class="tbtn power" id="skillBtn" type="button" data-key="skill" aria-label="Tuyệt kĩ vô địch">⚡</button>
+    <button class="tbtn" type="button" data-key="jump" aria-label="Nhảy">▲</button>
+  </div>
+</div>
+
+<script src="js/game.js"></script>
+</body>
+</html>
