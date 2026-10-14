@@ -21,7 +21,7 @@ python -m http.server 8000
 | Chạy trái / phải | `←` `→` hoặc `A` `D` | ◀ ▶ |
 | Nhảy (giữ lâu nhảy cao hơn) | `↑`, `W` hoặc `Space` | ▲ |
 | Tuyệt kĩ Vô địch | `K` hoặc `Shift` | ⚡ |
-| Tia sét (bắn xa) | `J` hoặc `X` | Sét |
+| Tia sét (bắn xa) | `J` hoặc `X`, hoặc bấm nút ⚡ Sét góc phải dưới | Sét |
 | Bật / tắt âm thanh | `M` | nút "Âm thanh" |
 | Chơi lại | `R` | nút "Chơi lại" |
 
@@ -72,6 +72,20 @@ Vòng ma lực quanh ác quỷ đang tấn công chạm vào là mất mạng, v
 
 Hạ được boss hợp thể thì cổng mở, trời trở lại bình thường và cờ đích xuất hiện. Tất cả phải xong trong 2 phút!
 
+## Bảng xếp hạng
+
+Bảng xếp hạng nằm ở góc trái trên màn hình game (bấm tiêu đề để thu gọn). Kết thúc lượt chơi (thắng hay thua), nhập tên để lưu điểm.
+
+Xếp hạng theo **số boss đã hạ** (Lilith, Naamah, Lilith × Naamah: 0–3), bằng nhau thì ai **đi xa hơn** xếp trên, vẫn bằng thì ai **nhanh hơn** xếp trên. Mỗi tên chỉ giữ thành tích tốt nhất.
+
+Mặc định bảng chỉ lưu trên máy đang chơi. Để mọi người dùng chung một bảng cập nhật trực tiếp:
+
+1. Tạo một Google Sheet mới, vào **Tiện ích mở rộng → Apps Script**, dán toàn bộ [`server/leaderboard.gs`](server/leaderboard.gs), bấm Lưu.
+2. **Triển khai → Tùy chọn triển khai mới → Ứng dụng web**, *Thực thi với tư cách: Tôi*, *Người có quyền truy cập: Bất kỳ ai*, bấm Triển khai và cấp quyền.
+3. Sao chép **URL ứng dụng web** và dán vào hằng `LEADERBOARD_URL` ở đầu phần bảng xếp hạng trong `js/game.js`.
+
+Điểm được lưu vào trang tính `Diem` của Google Sheet đó; bạn có thể xem hoặc xoá dòng trực tiếp trong Sheet.
+
 ## Ghi chú về nhân vật
 
 Nhân vật chính và các boss là fan art dạng chibi, được vẽ hoàn toàn bằng code (hình khối trên canvas); âm thanh được tổng hợp bằng Web Audio. Không dùng hình ảnh hay âm thanh gốc nào. Pikachu thuộc bản quyền của Nintendo, Creatures Inc., GAME FREAK inc. và The Pokémon Company. Lilith, Naamah và *Black Clover* thuộc bản quyền của tác giả Yūki Tabata và các bên giữ bản quyền. Đây là dự án cá nhân, phi thương mại.
@@ -79,7 +93,8 @@ Nhân vật chính và các boss là fan art dạng chibi, được vẽ hoàn t
 ## Cấu trúc thư mục
 
 ```
-index.html     Trang game, HUD và các bảng thông báo
-css/style.css  Giao diện HUD, thanh chặng đường, thanh máu boss, nút cảm ứng
-js/game.js     Màn chơi, vật lý, boss, vẽ hình và vòng lặp game
+index.html          Trang game, HUD, bảng xếp hạng và các bảng thông báo
+css/style.css       Giao diện HUD, thanh chặng đường, thanh máu boss, nút cảm ứng
+js/game.js          Màn chơi, vật lý, boss, vẽ hình và vòng lặp game
+server/leaderboard.gs  Mã Google Apps Script cho bảng xếp hạng dùng chung
 ```

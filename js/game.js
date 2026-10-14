@@ -93,6 +93,7 @@ function reset() {
     onGround: false, lastGround: 0, jumpBuf: 0, jumpHeld: false,
     stars: STAR_POS.map(([x, y]) => ({ x, y, got: false })),
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
+    bossKills: 0, submitted: false,
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
     lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false, sky: 0,
     boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, cut: null, fuse: null, hp: FUSED_HP, hitCd: 0, marks: [], units: newUnits() },
@@ -187,13 +188,15 @@ function activateSkill() {
     S.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, life: .5, c: i % 2 ? '#ffc21a' : '#ffffff', r: 6, g: 0 });
   }
 }
+const typing = e => e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
 addEventListener('keydown', e => {
+  if (typing(e)) return;
   if (e.code === 'KeyR') { reset(); return; }
   if (e.code === 'KeyM') { setMuted(!muted); return; }
   const k = KEYMAP[e.code];
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
 });
-addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) { e.preventDefault(); setKey(k, false); } });
+addEventListener('keyup', e => { if (typing(e)) return; const k = KEYMAP[e.code]; if (k) { e.preventDefault(); setKey(k, false); } });
 addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.skill = keys.bolt = false; });
 document.querySelectorAll('[data-key]').forEach(b => {
   const k = b.dataset.key;
@@ -744,6 +747,7 @@ function updateFused(B, b, dt) {
 }
 function killFused(B, u) {
   B.dead = true; S.gateClosed = false; S.bullets = []; B.marks = []; S.flash = .8;
+  S.bossKills = 3;
   for (let i = 0; i < 120; i++) {
     const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 600;
     S.parts.push({ x: u.x, y: ARENA.floor - 80, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.4, c: ['#7ff0ff', '#ff2f5c', '#0f2430', '#1c0c12', '#ffffff'][i % 5], r: 5 + Math.random() * 9 });
@@ -764,6 +768,7 @@ function hitBoss(u) {
   if (B.hits >= 3) {
     if (B.phase === 3) {
       // Naamah gục: bắt đầu hợp thể ở phía xa quả bóng
+      S.bossKills = Math.max(S.bossKills, 2);
       const center = (ARENA.l + ARENA.r) / 2;
       const mx = S.ball.x < center ? ARENA.r - 190 : ARENA.l + 190;
       Object.assign(B, { hits: 0, fire: 0, warn: false, ts: 0, shot: 0, fuse: { t: 0, nx: u.x, mx, merged: false } });
@@ -771,6 +776,7 @@ function hitBoss(u) {
       tsBanner();
     } else if (B.phase === 2) {
       // Lilith bị hạ: bắt đầu màn Naamah chui ra
+      S.bossKills = Math.max(S.bossKills, 1);
       Object.assign(B, { hits: 0, fire: 0, warn: false, shot: 0, ts: 0, hellT: 0, cut: { t: 0 } });
       S.tsEsc = false; S.bullets = [];
       tsBanner();
@@ -799,7 +805,7 @@ function lose(reason) {
   $('loseTitle').textContent = reason === 'time' ? 'Hết giờ!' : 'Hết mạng!';
   $('loseProg').textContent = `Bạn đã đi được ${Math.round(progress() * 100)}% chặng đường`;
   $('lose').hidden = false;
-  $('again2').focus();
+  openSubmit('lose');
 }
 const progress = () => clamp(S.ball.x / GOAL.x, 0, 1);
 function win() {
@@ -810,8 +816,106 @@ function win() {
   $('winTime').textContent = `Thời gian: ${fmt(S.time)} (còn dư ${fmt(TIME_LIMIT - S.time)})`;
   $('winDeaths').textContent = `Mạng còn lại: ${S.lives}/${LIVES}`;
   $('win').hidden = false;
-  $('again').focus();
+  openSubmit('win');
 }
+/* ---------- Bảng xếp hạng ---------- */
+// Dán URL ứng dụng web Apps Script (xem server/leaderboard.gs) vào đây để mọi người dùng chung một bảng.
+// Để trống thì bảng chỉ lưu trên máy đang chơi.
+const LEADERBOARD_URL = '';
+const LB_KEY = 'bongdo.board', NAME_KEY = 'bongdo.name', BOARD_OPEN_KEY = 'bongdo.boardOpen';
+let lbRows = [], lbState = 'loading', lbAt = null;
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+// Xếp hạng: nhiều boss hơn > đi xa hơn > nhanh hơn
+const rankCmp = (a, b) => b.bosses - a.bosses || b.progress - a.progress || a.seconds - b.seconds;
+function cleanRow(r) {
+  if (!r || typeof r.name !== 'string') return null;
+  const n = (v, lo, hi) => clamp(Math.round(Number(v) || 0), lo, hi);
+  return { name: r.name.trim().slice(0, 16) || 'Ẩn danh', bosses: n(r.bosses, 0, 3), seconds: n(r.seconds, 0, TIME_LIMIT), progress: n(r.progress, 0, 100), stars: n(r.stars, 0, 12) };
+}
+function bestPerName(rows) {
+  const m = new Map();
+  for (const r of rows) { const k = r.name.toLowerCase(), cur = m.get(k); if (!cur || rankCmp(r, cur) < 0) m.set(k, r); }
+  return [...m.values()].sort(rankCmp);
+}
+function localRows() { try { return (JSON.parse(lsGet(LB_KEY, '[]')) || []).map(cleanRow).filter(Boolean); } catch (e) { return []; } }
+async function loadBoard() {
+  if (LEADERBOARD_URL) {
+    try {
+      const res = await fetch(LEADERBOARD_URL + '?top=10', { cache: 'no-store' });
+      const j = await res.json();
+      lbRows = bestPerName((j.rows || []).map(cleanRow).filter(Boolean)).slice(0, 10);
+      lbState = 'online'; lbAt = new Date();
+    } catch (e) { lbState = 'error'; lbRows = bestPerName(localRows()).slice(0, 10); }
+  } else { lbState = 'local'; lbRows = bestPerName(localRows()).slice(0, 10); }
+  renderBoard();
+}
+function renderBoard() {
+  const ol = $('boardList'), me = lsGet(NAME_KEY, '').toLowerCase();
+  ol.textContent = '';
+  if (!lbRows.length) {
+    const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Chưa có ai. Hãy là người đầu tiên!';
+    ol.appendChild(li);
+  }
+  lbRows.forEach((r, i) => {
+    const li = document.createElement('li');
+    if (me && r.name.toLowerCase() === me) li.className = 'me';
+    const rank = document.createElement('span'); rank.textContent = i + 1;
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name; nm.title = `${r.name}: ${r.bosses} boss, ${r.progress}% chặng đường`;
+    const bk = document.createElement('span'); bk.className = 'bk'; bk.setAttribute('aria-label', `${r.bosses} boss`);
+    for (let k = 0; k < 3; k++) { const d = document.createElement('i'); if (k < r.bosses) d.className = 'on'; bk.appendChild(d); }
+    const tm = document.createElement('span'); tm.textContent = r.bosses === 3 ? fmt(r.seconds) : `${r.progress}%`;
+    li.append(rank, nm, bk, tm);
+    ol.appendChild(li);
+  });
+  $('boardStatus').textContent = lbState === 'local' ? 'Đang lưu trên máy này'
+    : lbState === 'error' ? 'Không tải được bảng chung, đang hiện điểm trên máy này'
+    : lbState === 'online' ? `Bảng chung · cập nhật ${String(lbAt.getHours()).padStart(2, '0')}:${String(lbAt.getMinutes()).padStart(2, '0')}`
+    : 'Đang tải…';
+}
+function runRecord() {
+  return { bosses: S.bossKills, seconds: Math.round(Math.min(S.time, TIME_LIMIT)), progress: S.won ? 100 : Math.round(progress() * 100), stars: S.stars.filter(s => s.got).length };
+}
+function openSubmit(k) {
+  $(k + 'Name').value = lsGet(NAME_KEY, '');
+  $(k + 'Save').disabled = false;
+  $(k + 'Sent').hidden = true;
+  ($(k + 'Name').value ? $(k + 'Save') : $(k + 'Name')).focus();
+}
+async function submitScore(k) {
+  if (S.submitted) return;
+  const name = $(k + 'Name').value.trim().slice(0, 16) || 'Ẩn danh';
+  lsSet(NAME_KEY, name);
+  S.submitted = true;
+  $(k + 'Save').disabled = true;
+  const row = { name, ...runRecord() };
+  const list = localRows(); list.push(row); lsSet(LB_KEY, JSON.stringify(list.slice(-100)));
+  let sentOnline = false;
+  if (LEADERBOARD_URL) {
+    try { await fetch(LEADERBOARD_URL, { method: 'POST', body: JSON.stringify(row) }); sentOnline = true; } catch (e) {}
+  }
+  await loadBoard();
+  const rank = lbRows.findIndex(r => r.name.toLowerCase() === name.toLowerCase()) + 1;
+  const el = $(k + 'Sent');
+  el.hidden = false;
+  el.textContent = (LEADERBOARD_URL && !sentOnline ? 'Không gửi được lên bảng chung, đã lưu trên máy này. ' : 'Đã lưu! ')
+    + `${row.bosses}/3 boss · ${row.progress}% chặng đường` + (rank ? ` · hạng ${rank}` : '');
+}
+for (const k of ['win', 'lose']) {
+  $(k + 'Form').addEventListener('submit', e => { e.preventDefault(); submitScore(k); });
+}
+$('boardToggle').addEventListener('click', () => {
+  const open = $('board').hasAttribute('data-closed');
+  $('board').toggleAttribute('data-closed', !open);
+  $('boardToggle').setAttribute('aria-expanded', String(open));
+  lsSet(BOARD_OPEN_KEY, open ? '1' : '0');
+});
+if (lsGet(BOARD_OPEN_KEY, matchMedia('(max-width: 640px)').matches ? '0' : '1') === '0') {
+  $('board').setAttribute('data-closed', ''); $('boardToggle').setAttribute('aria-expanded', 'false');
+}
+loadBoard();
+if (LEADERBOARD_URL) setInterval(loadBoard, 30000);
+
 const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 let lastSec = -1, lastSkill = '';
 function hud() {

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=31b9e55b">
+<link rel="stylesheet" href="css/style.css?v=b1ab854a">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -26,6 +26,19 @@
     <button class="restart" id="restart" type="button">Chơi lại (R)</button>
   </div>
 </div>
+
+<aside class="board" id="board" aria-label="Bảng xếp hạng">
+  <button class="board-head" id="boardToggle" type="button" aria-expanded="true" aria-controls="boardBody">
+    <span>Bảng xếp hạng</span><span class="board-caret" aria-hidden="true">▾</span>
+  </button>
+  <div id="boardBody">
+    <div class="board-cols" aria-hidden="true"><span>#</span><span>Tên</span><span>Boss</span><span>Kết quả</span></div>
+    <ol class="board-list" id="boardList"></ol>
+    <p class="board-status" id="boardStatus">Đang tải…</p>
+  </div>
+</aside>
+
+<button class="boltfab" type="button" data-key="bolt" aria-label="Bắn tia sét">⚡ Sét <kbd>J</kbd></button>
 
 <div class="prog" aria-label="Chặng đường">
   <div class="track" id="progTrack">
@@ -54,6 +67,14 @@
     <p id="winStars">Sao: 0/0</p>
     <p id="winTime">Thời gian: 0:00</p>
     <p id="winDeaths">Số lần ngã: 0</p>
+    <form class="submit" id="winForm">
+      <label for="winName">Lưu vào bảng xếp hạng</label>
+      <div class="submit-row">
+        <input id="winName" maxlength="16" autocomplete="nickname" placeholder="Tên của bạn">
+        <button id="winSave" type="submit">Lưu</button>
+      </div>
+      <p class="sent" id="winSent" hidden></p>
+    </form>
     <button id="again" type="button">Chơi lại</button>
   </div>
 </div>
@@ -62,6 +83,14 @@
   <div class="card">
     <h2 id="loseTitle">Hết mạng!</h2>
     <p id="loseProg">Bạn đã đi được 0% chặng đường</p>
+    <form class="submit" id="loseForm">
+      <label for="loseName">Lưu vào bảng xếp hạng</label>
+      <div class="submit-row">
+        <input id="loseName" maxlength="16" autocomplete="nickname" placeholder="Tên của bạn">
+        <button id="loseSave" type="submit">Lưu</button>
+      </div>
+      <p class="sent" id="loseSent" hidden></p>
+    </form>
     <button id="again2" type="button">Chơi lại từ đầu</button>
   </div>
 </div>
@@ -82,10 +111,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=31b9e55b&t=' + Date.now();
+  s.src = 'js/game.js?v=b1ab854a&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=31b9e55b&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=b1ab854a&t=' + Date.now();
 })();
 </script>
 </body>
