@@ -4,7 +4,7 @@ const VIEW_H = 600;      // chiều cao khung nhìn (đơn vị thế giới)
 const PX = 0.3;          // vẽ ở độ phân giải thấp rồi phóng to → hạt pixel to
 const R = 22;            // bán kính bóng
 const G = 1900, JUMP = 760, MAXV = 320;
-const SKILL_TIME = 2, SKILL_CD = 30;  // tuyệt kĩ vô địch: 2 giây, hồi 30 giây
+const SKILL_TIME = 2, SKILL_CD = 10;  // tuyệt kĩ vô địch: 2 giây, hồi 10 giây
 const TIME_LIMIT = 120;               // phải về đích trong 2 phút
 // Hell mode (từ giai đoạn 2): ngưng đọng thời gian mỗi 5 giây, laze 1 giây trước khi kết thúc
 const TS_EVERY = 5, TS_DUR = 3.5, LASER_AT = 1, LASER_DUR = .35, LASER_CHARGE = .8, LASER_H = 56;
@@ -14,10 +14,12 @@ const LIVES = 3;
 const ARENA = { l: 6220, r: 6950, gateX: 6190, floor: 420 };
 const BOSS_W = 64, BOSS_H = 112, AURA_R = 105, WARN = .7;
 const PHASES = [null,
-  { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Nhảy giẫm lên đầu Lilith hoặc Naamah, tổng cộng 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
-  { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'HELL MODE', note: 'Hai ác quỷ thay phiên tạo vòng ma lực và bắn băng / lửa. Cứ 5 giây cả hai phong ấn bạn: nhấn Shift để thoát rồi nhảy né laze.' },
-  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Nhanh hơn, tấn công mỗi 3 giây và vẫn phong ấn mỗi 5 giây. Giẫm 3 lần cuối!' },
+  { speed: 55, cycle: 0, dur: 0,   shots: 0, gap: 0,   bspeed: 0,   name: 'Giai đoạn 1', note: 'Lilith xuất hiện trước. Giẫm lên đầu 3 lần. Chạm phía trước hay phía sau đều mất mạng.' },
+  { speed: 55, cycle: 5, dur: 1.4, shots: 3, gap: .3,  bspeed: 380, name: 'HELL MODE', note: 'Lilith tạo vòng băng và bắn mũi băng; cứ 5 giây phong ấn bạn (Shift để thoát, nhảy né laze). Giẫm 3 lần để hạ Lilith… nhưng hãy giữ sẵn Vô địch!' },
+  { speed: 85, cycle: 3, dur: 1.3, shots: 4, gap: .25, bspeed: 480, name: 'HELL MODE', note: 'Naamah nhanh hơn: vòng lửa và cầu lửa mỗi 3 giây, vẫn phong ấn mỗi 5 giây. Giẫm 3 lần cuối!' },
 ];
+// Màn chuyển cảnh khi Lilith bị hạ: Naamah chui ra, hiện sau lưng bóng và đánh úp
+const CUT = { burst: .9, emerge: .6, vanish: 1.5, appear: 1.7, strike: 2.5, end: 2.9 };
 
 const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
@@ -85,7 +87,8 @@ function reset() {
     enemies: ENEMY_DEF.map(e => ({ ...e, x: (e.min + e.max) / 2, dir: 1, alive: true, squash: 0 })),
     power: 0, cd: 0, cp: -1, dead: 0, deaths: 0, time: 0, won: false, lost: false, parts: [], t: 0, moved: false,
     lives: LIVES, fight: false, gateClosed: false, safe: 0, tsEsc: false,
-    boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, units: newUnits() },
+    boss: { hits: 0, phase: 1, inv: 0, fireT: 0, fire: 0, warn: false, dead: false, shot: 0, hellT: 0, ts: 0, laserShot: false, att: 0, cut: null, units: newUnits() },
+    lastDir: 1,
     bullets: [],
   });
   $('win').hidden = true;
@@ -201,11 +204,10 @@ function respawn() {
   const B = S.boss;
   if (!B.dead && S.fight) {
     // Ngã khi đang đánh boss: hồi sinh ngay trong cổng, trận đấu tiếp tục.
-    // Hai ác quỷ lùi về cuối đấu trường, giữ số đòn đã trúng; bóng được bảo vệ 1.5 giây.
+    // Ác quỷ lùi về cuối đấu trường, giữ số đòn đã trúng; bóng được bảo vệ 1.5 giây.
     Object.assign(S.ball, { x: ARENA.l + 50, y: ARENA.floor - 60 });
     Object.assign(B, { inv: 0, fireT: 0, fire: 0, warn: false, shot: 0, hellT: 0, ts: 0, laserShot: false });
-    Object.assign(B.units[0], { x: ARENA.r - 300, dir: -1 });
-    Object.assign(B.units[1], { x: ARENA.r - 120, dir: -1 });
+    if (!B.cut) Object.assign(B.units[0], { x: ARENA.r - 160, dir: -1 });
     S.bullets = [];
     S.safe = 1.5;
   }
@@ -241,7 +243,10 @@ function update(dt) {
   const b = S.ball;
 
   // Thời gian ngưng đọng: bóng bị đóng băng cho tới khi nhấn Shift
-  const frozen = S.boss.ts > 0 && !S.tsEsc;
+  const cut = S.boss.cut;
+  const frozen = (S.boss.ts > 0 && !S.tsEsc) || (cut && cut.t < CUT.strike);
+  const inDir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  if (inDir) S.lastDir = inDir;
   if (!frozen) {
     S.lastGround += dt;
     S.jumpBuf -= dt;
@@ -288,14 +293,13 @@ function update(dt) {
 /* ---------- Boss: Lilith (băng) & Naamah (lửa) ---------- */
 // S.boss giữ trạng thái chung (giai đoạn, số đòn, hell mode); S.boss.units là hai ác quỷ
 function newUnits() {
-  return [
-    { kind: 'ice',  x: 6560, dir: -1, squash: 0, flash: 0, hurt: 0 },
-    { kind: 'fire', x: 6820, dir: -1, squash: 0, flash: 0, hurt: 0 },
-  ];
+  return [{ kind: 'ice', x: 6720, dir: -1, squash: 0, flash: 0, hurt: 0 }];
 }
+const devilName = B => B.units[0].kind === 'ice' ? 'LILITH' : 'NAAMAH';
 function bossBar() {
   const B = S.boss;
   $('bossbar').hidden = !(S.fight || B.dead);
+  $('bname').textContent = B.dead ? 'LILITH & NAAMAH' : devilName(B);
   $('bphase').textContent = B.dead ? 'Đã hạ!' : `${PHASES[B.phase].name} (${B.phase}/3)`;
   $('bnote').textContent = B.dead ? 'Lăn tới cờ đích để về đích.' : PHASES[B.phase].note;
   document.querySelectorAll('#bossbar .pips i').forEach((p, i) => p.classList.toggle('on', !B.dead && i < 3 - B.hits));
@@ -320,6 +324,7 @@ function updateBoss(dt) {
     if (!S.dead && b.x > ARENA.l + 30) { S.fight = true; S.gateClosed = true; B.fireT = 0; bossBar(); }
     return;
   }
+  if (B.cut) { updateCut(B, b, dt); return; }
   const P = PHASES[B.phase];
   B.inv = Math.max(0, B.inv - dt);
   // Hell mode: phong ấn (đóng băng bóng) rồi bắn laze
@@ -349,7 +354,7 @@ function updateBoss(dt) {
       const el = P.dur - B.fire;
       while (B.shot < P.shots && el >= .15 + B.shot * P.gap) { shoot(A, P); B.shot++; }
       B.fire -= dt;
-      if (B.fire <= 0) { B.fire = 0; B.fireT = 0; B.att ^= 1; }
+      if (B.fire <= 0) { B.fire = 0; B.fireT = 0; B.att = (B.att + 1) % U.length; }
     } else { B.fireT += dt; if (B.fireT >= P.cycle) { B.fire = P.dur; B.shot = 0; } }
   }
   const wasWarn = B.warn;
@@ -363,7 +368,7 @@ function updateBoss(dt) {
     if (u.x < lo) { u.x = lo; u.dir = 1; }
   }
   // giữ khoảng cách để hai ác quỷ không chồng lên nhau
-  const [u0, u1] = U, GAP = 130, d = Math.abs(u0.x - u1.x);
+  const [u0, u1] = U, GAP = 130, d = u1 ? Math.abs(u0.x - u1.x) : Infinity;
   if (d < GAP) {
     const sg = Math.sign(u1.x - u0.x) || 1, push = (GAP - d) / 2;
     if (!busy(B, u0)) { u0.x = clamp(u0.x - sg * push, lo, hi); u0.dir = -sg; }
@@ -412,6 +417,71 @@ function bossTouch(B, b, stopped) {
     die(); return;
   }
 }
+function cutBanner(text, warn) {
+  const el = $('tsBanner');
+  el.hidden = !text;
+  if (text) { el.textContent = text; el.dataset.esc = warn ? '1' : '0'; }
+}
+function updateCut(B, b, dt) {
+  const C = B.cut;
+  C.t += dt;
+  const lo = ARENA.l + BOSS_W / 2 + 40, hi = ARENA.r - BOSS_W / 2 - 10;
+  if (C.t >= CUT.burst && !C.burst) {
+    // Lilith vỡ tung, Naamah chui ra từ chính chỗ đó
+    C.burst = true;
+    const L = B.units[0];
+    for (let i = 0; i < 50; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 100 + Math.random() * 420;
+      S.parts.push({ x: L.x, y: ARENA.floor - 60, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 200, life: 1, c: ['#7ff0ff', '#d8fbff', '#0f2430', '#ff2f5c'][i % 4], r: 4 + Math.random() * 6 });
+    }
+    B.units = [{ kind: 'fire', x: L.x, dir: L.dir, squash: 0, flash: 0, hurt: 0, emerge: 0 }];
+    B.att = 0;
+    bossBar();
+  }
+  const N = B.units[0];
+  if (C.burst) N.emerge = clamp((C.t - CUT.burst) / CUT.emerge, 0, 1);
+  if (C.t >= CUT.vanish && !C.vanish) {
+    C.vanish = true; N.hidden = true;
+    smoke(N.x, ARENA.floor - 50);
+  }
+  if (C.t >= CUT.appear && !C.appear) {
+    // hiện ra sau lưng bóng (phía ngược hướng bóng đang lăn)
+    C.appear = true; N.hidden = false;
+    let x = b.x - S.lastDir * 90;
+    if (x < lo || x > hi) x = b.x + S.lastDir * 90;
+    N.x = clamp(x, lo, hi);
+    N.dir = Math.sign(b.x - N.x) || 1;
+    smoke(N.x, ARENA.floor - 50);
+  }
+  if (C.appear && !C.struck) {
+    cutBanner(S.power > 0 ? 'Đang vô địch: sẽ chặn được đòn!'
+      : S.cd > 0 ? `Vô địch còn hồi ${Math.ceil(S.cd)} giây: không thể chặn!`
+      : 'Naamah sau lưng! Nhấn Shift để chặn!', S.power <= 0);
+  }
+  if (C.t >= CUT.strike && !C.struck) {
+    C.struck = true;
+    cutBanner('');
+    if (S.power > 0) {
+      // chặn được: bóng văng ra, không mất mạng
+      for (let i = 0; i < 20; i++) {
+        const a = Math.random() * Math.PI * 2;
+        S.parts.push({ x: b.x, y: b.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, life: .5, c: i % 2 ? '#ffc21a' : '#ffffff', r: 5, g: 0 });
+      }
+      b.vx = N.dir * 420; b.vy = -420;
+    } else die();
+  }
+  if (C.t >= CUT.end) {
+    B.cut = null; delete N.emerge;
+    Object.assign(B, { phase: 3, hits: 0, inv: 1.2, fireT: 0, hellT: 0, att: 0 });
+    bossBar();
+  }
+}
+function smoke(x, y) {
+  for (let i = 0; i < 22; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 160;
+    S.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: .6, c: i % 3 ? '#3a1a24' : '#ff2f5c', r: 8 + Math.random() * 8, g: -100 });
+  }
+}
 const devilColors = u => u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
 function hitBoss(u) {
   const B = S.boss;
@@ -432,6 +502,11 @@ function hitBoss(u) {
           S.parts.push({ x: v.x, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 250, life: 1.2, c: [d1, d2, d3, '#ffffff'][i % 4], r: 5 + Math.random() * 8 });
         }
       }
+    } else if (B.phase === 2) {
+      // Lilith bị hạ: bắt đầu màn Naamah chui ra
+      Object.assign(B, { hits: 0, fire: 0, warn: false, shot: 0, ts: 0, hellT: 0, cut: { t: 0 } });
+      S.tsEsc = false; S.bullets = [];
+      tsBanner();
     } else {
       B.phase++; B.hits = 0; B.fireT = 0; B.fire = 0; B.shot = 0; B.inv = 1.6; B.hellT = 0; B.att = 0;
       for (const v of B.units) {
@@ -712,8 +787,9 @@ function drawDevil(u, B, x, gy) {
   const ice = u.kind === 'ice';
   const [GLOW, GLOW2, BODY] = devilColors(u);
   const SKIN = ice ? '#4a6470' : '#5a3a40', HAIR = ice ? '#c3d3da' : '#2a1216';
-  const moving = S.fight && !B.ts && !busy(B, u);
-  const aim = busy(B, u) || B.ts > 0;
+  if (u.hidden) return;
+  const moving = S.fight && !B.ts && !B.cut && !busy(B, u);
+  const aim = busy(B, u) || B.ts > 0 || (B.cut && B.cut.appear);
   const bob = moving ? Math.abs(Math.sin(S.t * 7 + (ice ? 0 : 1.5))) * 3 : Math.sin(S.t * 2) * 1.5;
   const flap = Math.sin(S.t * (moving ? 9 : 4) + (ice ? 0 : 1)) * .15;
   ctx.save();
@@ -721,6 +797,7 @@ function drawDevil(u, B, x, gy) {
   ctx.fillStyle = ice ? 'rgb(127 240 255 / .28)' : 'rgb(255 47 92 / .28)';
   ctx.beginPath(); ctx.ellipse(0, -1, 30, 6, 0, 0, Math.PI * 2); ctx.fill();
   ctx.scale(u.dir * (1 + u.squash * .6), 1 - u.squash);
+  if (u.emerge !== undefined) ctx.scale(Math.max(.05, u.emerge), Math.max(.05, u.emerge));   // trồi ra từ xác Lilith
   if (u.hurt > 0 && Math.floor(S.t * 20) % 2) ctx.globalAlpha = .4;
   ctx.translate(0, -bob);
 
@@ -799,7 +876,9 @@ function drawBoss() {
   if (B.dead) return;
   const gy = ARENA.floor, cy = gy - 56;
   if (B.ts > 0) drawSeal();
-  const xs = B.units.map(u => u.x + (u === B.units[B.att] && B.warn ? Math.sin(S.t * 70) * 2 : 0));
+  const C = B.cut;
+  const shake = C && !C.burst ? Math.sin(S.t * 80) * (2 + C.t * 4) : 0;
+  const xs = B.units.map(u => u.x + shake + (u === B.units[B.att] && B.warn ? Math.sin(S.t * 70) * 2 : 0));
   B.units.forEach((u, i) => {
     const [GLOW] = devilColors(u), x = xs[i];
     if (B.phase >= 2) {
@@ -818,8 +897,31 @@ function drawBoss() {
   });
   drawLasers(B);
   B.units.forEach((u, i) => drawDevil(u, B, xs[i], gy));
+  if (C && !C.burst) {
+    // Lilith nứt ra, ánh đỏ bên trong lan dần
+    const k = C.t / CUT.burst, x = xs[0];
+    ctx.fillStyle = `rgb(255 47 92 / ${(.15 + k * .45).toFixed(2)})`;
+    ctx.beginPath(); ctx.arc(x, cy - 10, 30 + k * 40, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ff2f5c'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x - 4, gy - 100); ctx.lineTo(x + 6, gy - 80); ctx.lineTo(x - 3, gy - 60); ctx.lineTo(x + 5, gy - 30);
+    ctx.moveTo(x + 6, gy - 80); ctx.lineTo(x + 16, gy - 74); ctx.moveTo(x - 3, gy - 60); ctx.lineTo(x - 14, gy - 52);
+    ctx.stroke();
+  }
+  if (C && C.appear && !C.struck) {
+    // Naamah vung vuốt: vòng đỏ thu hẹp quanh bóng báo hiệu đòn đánh
+    const k = (C.t - CUT.appear) / (CUT.strike - CUT.appear), b = S.ball;
+    ctx.strokeStyle = Math.floor(S.t * 16) % 2 ? '#ff2f5c' : '#ffffff'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(b.x, b.y, R + 60 * (1 - k) + 6, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (C && C.struck && C.t < CUT.strike + .3) {
+    // vết cào
+    const b = S.ball, k = (C.t - CUT.strike) / .3;
+    ctx.strokeStyle = `rgb(255 47 92 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 5;
+    for (const o of [-14, 0, 14]) { ctx.beginPath(); ctx.moveTo(b.x - 30, b.y - 30 + o); ctx.lineTo(b.x + 30, b.y + 20 + o); ctx.stroke(); }
+  }
   // mũi tên chỉ chỗ giẫm
-  if (!B.inv && !B.ts && S.fight) {
+  if (!B.inv && !B.ts && !B.cut && S.fight) {
     B.units.forEach((u, i) => {
       if (i === B.att && B.fire) return;
       const ay = gy - BOSS_H - 34 + Math.sin(S.t * 6 + i) * 6, x = xs[i];

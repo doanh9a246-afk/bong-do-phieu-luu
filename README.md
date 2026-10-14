@@ -34,21 +34,23 @@ python -m http.server 8000
 
 ### Tuyệt kĩ Vô địch
 
-Bật trong 2 giây, hồi chiêu 30 giây. Trong lúc vô địch, bóng không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
+Bật trong 2 giây, hồi chiêu 10 giây. Trong lúc vô địch, bóng không bị gai và lửa làm hại, chạm quái là quái vỡ. Rơi xuống vực vẫn mất mạng.
 
 ### Boss: Lilith & Naamah
 
-Vào đấu trường thì cổng đóng lại. Hai ác quỷ cùng xuất hiện: **Lilith** (băng, xanh) và **Naamah** (lửa, đỏ). Trận đấu có 3 giai đoạn, mỗi giai đoạn phải **giẫm lên đầu 3 lần** (giẫm ác quỷ nào cũng được). Chạm phía trước hay phía sau đều mất mạng.
+Vào đấu trường thì cổng đóng lại. Mỗi lần chỉ có một ác quỷ. Phải **giẫm lên đầu** để gây sát thương; chạm phía trước hay phía sau đều mất mạng.
 
-| Giai đoạn | Tốc độ | Tấn công |
-|---|---|---|
-| 1 | Chậm | Không |
-| 2 (Hell mode) | Chậm | Mỗi 5 giây một ác quỷ tấn công (thay phiên): vòng ma lực + 3 viên đạn; phong ấn mỗi 5 giây |
-| 3 (Hell mode) | Nhanh hơn | Mỗi 3 giây: vòng ma lực + 4 viên đạn nhanh hơn; phong ấn mỗi 5 giây |
+| Giai đoạn | Ác quỷ | Tốc độ | Tấn công | Số lần giẫm |
+|---|---|---|---|---|
+| 1 | Lilith (băng) | Chậm | Không | 3 |
+| 2 (Hell mode) | Lilith (băng) | Chậm | Mỗi 5 giây: vòng tinh thể băng + 3 mũi băng; phong ấn mỗi 5 giây | 3 |
+| 3 (Hell mode) | Naamah (lửa) | Nhanh hơn | Mỗi 3 giây: vòng lửa + 4 cầu lửa; phong ấn mỗi 5 giây | 3 |
 
-Khi tấn công, ác quỷ tạo một vòng ma lực quanh người (Lilith: vòng tinh thể băng, Naamah: vòng lửa). Chạm vào là mất mạng, và lúc đó không giẫm được ác quỷ đang tấn công. Sau đó ác quỷ bắn đạn thẳng về phía trước (mũi băng hoặc cầu lửa): nhảy qua để tránh.
+Vòng ma lực quanh ác quỷ đang tấn công chạm vào là mất mạng, và lúc đó không giẫm được. Đạn bay thẳng về phía trước: nhảy qua để tránh.
 
-**Hell mode** bắt đầu sau 3 lần giẫm đầu tiên. Cứ 5 giây hai ác quỷ phong ấn bạn trong 3,5 giây: bóng bị đóng băng, nhấn `Shift` (hoặc `K`, nút ⚡) để thoát. 1 giây trước khi phong ấn kết thúc, cả hai bắn laze sát mặt đất về phía bạn. Laze chỉ né được bằng cách nhảy lên (Vô địch không chặn được); hãy nhảy khi quả cầu năng lượng ở tay ác quỷ đang to dần.
+**Hell mode**: cứ 5 giây ác quỷ phong ấn bạn trong 3,5 giây. Bóng bị đóng băng, nhấn `Shift` (hoặc `K`, nút ⚡) để thoát. 1 giây trước khi phong ấn kết thúc, ác quỷ bắn laze sát mặt đất về phía bạn. Laze chỉ né được bằng cách nhảy lên (Vô địch không chặn được).
+
+**Khi hạ được Lilith**: Lilith nứt ra, Naamah chui ra từ xác Lilith, biến mất rồi hiện ngay sau lưng quả bóng và đánh úp. Bóng bị giữ yên trong lúc này. Cách duy nhất để không mất mạng là bật **Vô địch** (`Shift`) trước khi bị cào; nếu Vô địch đang hồi chiêu thì chắc chắn mất 1 mạng. Hãy giữ sẵn Vô địch khi sắp hạ Lilith!
 
 ## Ghi chú về nhân vật
 
