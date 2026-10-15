@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=21d39a72">
+<link rel="stylesheet" href="css/style.css?v=c588a767">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -22,6 +22,7 @@
     <span class="chip energy" id="energyChip" data-full="0" title="Điện năng: J tia sét 5 · Quả cầu điện 20 · L Lưới điện 30 · Shift Lao điện 25 · U 100.000 Vôn cần đầy"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="ebar"><i id="efill"></i></span><span id="energy">50</span></span>
   </div>
   <div class="btns">
+    <button class="restart" id="charBtn" type="button">Nhân vật (P)</button>
     <button class="restart" id="mute" type="button" aria-pressed="true">Âm thanh: Bật (M)</button>
     <button class="restart" id="restart" type="button">Chơi lại (R)</button>
   </div>
@@ -96,6 +97,23 @@
   </div>
 </div>
 
+<div class="overlay" id="chars" hidden>
+  <div class="card charcard" role="dialog" aria-modal="true" aria-labelledby="charsTitle">
+    <h2 id="charsTitle">Chọn nhân vật</h2>
+    <div class="charlist" id="charList"></div>
+    <p class="charinfo" id="charInfo"></p>
+    <form class="submit" id="pwForm" hidden>
+      <label for="pwInput">Stelle đang khoá: nhập mật khẩu để mở</label>
+      <div class="submit-row">
+        <input id="pwInput" type="password" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="Mật khẩu">
+        <button type="submit">Mở khoá</button>
+      </div>
+      <p class="sent" id="pwMsg" role="status" hidden></p>
+    </form>
+    <button type="button" id="charsClose">Đóng (P)</button>
+  </div>
+</div>
+
 <div class="touch">
   <div class="grp">
     <button class="tbtn" type="button" data-key="left" aria-label="Lăn trái">◀</button>
@@ -115,10 +133,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=21d39a72&t=' + Date.now();
+  s.src = 'js/game.js?v=c588a767&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=21d39a72&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=c588a767&t=' + Date.now();
 })();
 </script>
 </body>
