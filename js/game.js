@@ -4,7 +4,7 @@ const VIEW_H = 600;      // chiều cao khung nhìn (đơn vị thế giới)
 let PX = 1;              // số điểm ảnh canvas trên mỗi đơn vị thế giới; fit() tính theo màn hình để hình luôn nét
 const R = 22;            // bán kính bóng
 const G = 1900, JUMP = 760, MAXV = 320;
-const TIME_LIMIT = 300;               // phải về đích trong 5 phút
+let TIME_LIMIT = 300;                 // phải về đích trong 5 phút (màn 2: 7 phút)
 // Bộ chiêu của Pikachu: mọi chiêu tốn điện năng (0–100), nạp khi chạy, nhặt sao, hạ quái, đánh trúng boss
 const ENERGY_MAX = 100, ENERGY_START = 50;
 const COST = { shock: 5, ball: 20, web: 30, tackle: 25, volt: 100 };
@@ -14,15 +14,15 @@ const WEB_SPEED = 460, WEB_LIFE = .65, WEB_STUN = 2;                // Lưới �
 const TACKLE_TIME = .55, TACKLE_DASH = .35, TACKLE_SPEED = 700, TACKLE_CD = 1;   // Lao điện: Shift
 // Phong ấn của boss: Pikachu bị đóng băng, laze bắn 1 giây trước khi kết thúc
 const TS_DUR = 3.5, LASER_AT = 1, LASER_DUR = .35, LASER_CHARGE = .8, LASER_H = 56;
-const LEVEL_W = 7000, DEATH_Y = 900;
+let LEVEL_W = 7000, DEATH_Y = 900;
 const LIVES = 3;
 // Đấu trường boss ở cuối màn
-const ARENA = { l: 6220, r: 6950, gateX: 6190, floor: 420 };
-const ARENA_MID = (ARENA.l + ARENA.r) / 2;
+const ARENA = { l: 6220, r: 6950, gateX: 6190, floor: 420 };   // loadMap() đặt lại theo màn
+let ARENA_MID = (ARENA.l + ARENA.r) / 2;
 const BOSS_W = 64, BOSS_H = 112, AURA_R = 105, WARN = .7;
 const EXHAUST = 1.4;                  // boss kiệt sức sau mỗi chiêu: đánh lúc này sát thương ×2
 const SWEEP_H = 200, SWEEP_SPEED = 420;
-const PHASES = [null,
+const PHASES_LN = [null,
   { tag: 'Giai đoạn 1', hp: 12, every: 3.6, seal: 0,
     note: 'Lilith bay lượn, chỉ hạ xuống đất khi kiệt sức sau mỗi chiêu: lúc đó giẫm hoặc đánh để gây sát thương ×2. Né gai băng (khung xanh báo trước) và mũi băng. Lên bục để bắn trúng khi Lilith bay.' },
   { tag: 'HELL MODE', hp: 12, every: 3, seal: 8,
@@ -33,8 +33,18 @@ const PHASES = [null,
     note: 'Khiên băng lửa chỉ hở khi bạn đang Lao điện (Shift) hoặc boss kiệt sức sau mỗi chiêu; 100.000 Vôn luôn xuyên khiên. Nhặt vết tích: sát thương ×2.',
     note2: 'Nửa máu sau: laze quét dọc cả đấu trường (lên bục cao nhất để né) và dơi xuất hiện!' },
 ];
+// Màn 2: Zagred (Black Clover) — ma pháp Ngôn Hồn, mỗi lời nói ra đều thành thật
+const PHASES_Z = [null,
+  { tag: 'Giai đoạn 1', hp: 16, every: 2.9, seal: 0,
+    note: 'Zagred bay lơ lửng và dùng Ngôn Hồn: “Xuyên!” gai bóng tối trồi lên chỗ bạn đứng, “Nghiền!” cột bóng tối đè xuống, cầu tối bắn quạt. Hắn hạ xuống khi kiệt sức sau mỗi chiêu: giẫm hoặc đánh để gây ×2.' },
+  { tag: 'HÌNH DẠNG THẬT', hp: 22, every: 2.5, seal: 9,
+    note: 'Zagred lộ hình dạng thật: “Rơi!” mưa thiên thạch tối, “Diệt!” laze quét cả đấu trường (lên bục cao để né), cứ 9 giây “Đứng yên!” phong ấn bạn (Shift để thoát, nhảy né laze).' },
+];
+let PHASES = PHASES_LN;
 // Thời lượng báo trước của từng chiêu boss
-const ACT_WARN = { fan: .5, spikes: .3, puddle: .4, dash: .6, slam: .35, lob: .4, pillar: .3, dual: .5, sweep: 1 };
+const ACT_WARN = { fan: .5, spikes: .3, puddle: .4, dash: .6, slam: .35, lob: .4, pillar: .3, dual: .5, sweep: 1, xuyen: .4, orbs: .4, nghien: .5, rain: .6 };
+// lời Zagred hô khi ra chiêu
+const ZAG_WORDS = { xuyen: '“Xuyên!”', orbs: '“Bắn!”', nghien: '“Nghiền!”', rain: '“Rơi!”', sweep: '“Diệt!”' };
 // Hợp thể sau khi Naamah bị hạ
 const FUSE = { ghost: .5, merge: 1.4, end: 2.2 }, FUSED_HP = 20, FUSED_K = 1.35;
 const FW = BOSS_W * FUSED_K, FH = BOSS_H * FUSED_K;
@@ -49,13 +59,22 @@ const ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
 let viewW = 1000;
 
-/* ---------- Màn chơi ---------- */
-const SOLIDS = [];
+/* ---------- Màn chơi ----------
+   Màn 1 "Đồng cỏ": đi ngang, boss Lilith & Naamah. Màn 2 "Núi Quỷ": leo chéo lên đỉnh núi, khó hơn, boss Zagred.
+   Mọi bảng dưới đây được dựng lại bởi loadMap() khi đổi màn. */
+let MAP = 1;
+const SOLIDS = [], SPIKES = [], STAR_POS = [], ENEMY_DEF = [], FLOWERS = [], SIGNS = [], CHECKPOINTS = [], TIPS = [], FLYER_DEF = [], GROUNDS = [], HEARTS = [];
+const GOAL = {}, TURRET = {}, SPAWN = {};
+let CAM_Y = [-250, 100];   // giới hạn camera theo chiều dọc
+let ENEMY_SPEED = 70;
+const MAX_LIVES = 5;      // tim hồi mạng tối đa
+const PIKA_TIP = 'Thanh ⚡ là điện năng. J: tia sét · giữ J rồi thả: Quả cầu điện (chạy càng nhanh càng mạnh) · L: Lưới điện · Shift: Lao điện · U khi đầy: 100.000 Vôn.';
 function addGround(x0, x1, f) {
   const top = [];
   for (let x = x0; x < x1; x += 16) top.push(x, f(x));
   top.push(x1, f(x1));
-  addSolid(top.concat([x1, 1400, x0, 1400]), top, 'ground');
+  addSolid(top.concat([x1, f(x1) + 1400, x0, f(x0) + 1400]), top, 'ground');
+  GROUNDS.push([x0, x1, f]);
   return f;
 }
 function addBox(x, y, w, h) {
@@ -66,73 +85,121 @@ function addSolid(pts, top, kind) {
   for (let i = 0; i < pts.length; i += 2) { minX = Math.min(minX, pts[i]); maxX = Math.max(maxX, pts[i]); minY = Math.min(minY, pts[i + 1]); }
   SOLIDS.push({ pts, top, kind, minX, maxX, minY });
 }
-
-const f1 = addGround(0, 1400, x => x < 350 ? 480 : 480 - 50 * Math.sin((x - 350) / 525 * Math.PI) ** 2);
-addBox(880, 320, 150, 26);
-const f2 = addGround(1540, 2640, x => Math.abs(x - 2090) < 470 ? 480 - 160 * (1 + Math.cos(Math.PI * (x - 2090) / 470)) / 2 : 480);
-addBox(2720, 430, 140, 26);
-addBox(2940, 370, 130, 26);
-addBox(3140, 430, 130, 26);
-const f3 = addGround(3330, 4420, x => x < 3900 ? 480 : x < 4200 ? 480 - (x - 3900) * .4 : 360);
-const f4 = addGround(4540, LEVEL_W, x => x >= 6140 ? 420 : 420 - 22 * Math.sin((x - 4540) / 200 * Math.PI) ** 2);
-addBox(5600, 300, 140, 26);
-addBox(6330, 290, 110, 22);                       // bục nhảy trong đấu trường để né chiêu
-addBox(6535, 200, 120, 22);
-addBox(6750, 290, 110, 22);
-addBox(ARENA.r, -800, 80, 1300);                 // tường phải của đấu trường
-addBox(ARENA.gateX, -800, 30, 1220);             // cổng trái, chỉ chặn khi đang đánh boss
-SOLIDS[SOLIDS.length - 1].gate = true;
-
-const SPIKES = [
-  { x0: 3560, x1: 3660, f: f3 },
-  { x0: 5150, x1: 5230, f: f4 },
-];
-const STAR_POS = [
-  [500, 400], [700, 370], [955, 280], [1470, 380], [2090, 260], [2790, 390],
-  [3005, 320], [3610, 380], [4050, 370], [4480, 300], [5190, 330], [5670, 250],
-];
-const ENEMY_DEF = [
-  { min: 3700, max: 3880, f: f3 },
-  { min: 4800, max: 5050, f: f4 },
-  { min: 5300, max: 5550, f: f4 },
-  { min: 1150, max: 1320, f: f1 },    // quái đầu tiên để tập giẫm
-];
-const FLOWERS = [[180, f1, 1], [760, f1, .8], [1700, f2, 1.1], [2470, f2, .9], [3460, f3, 1], [4300, f3, .9], [4700, f4, 1.1], [5800, f4, .8]];
-const SIGNS = [[300, f1], [1330, f1], [4370, f3]];
-const CHECKPOINTS = [{ x: 3420, f: f3 }, { x: 6080, f: f4 }];
-const GOAL = { x: 6880, f: f4 };
-// Đường đến boss: mẹo theo từng chặng, tim hồi mạng, ụ băng để tập né đạn như khi đánh boss
-const MAX_LIVES = 5;
-const TIPS = [
-  { x: 420,  f: f1, text: 'Thanh ⚡ là điện năng. J: tia sét · giữ J rồi thả: Quả cầu điện (chạy càng nhanh càng mạnh) · L: Lưới điện · Shift: Lao điện · U khi đầy: 100.000 Vôn.' },
-  { x: 960,  f: f1, text: 'Quái vuông phía trước: nhảy giẫm lên đầu để hạ nó.' },
-  { x: 1760, f: f2, text: 'Dơi lao xuống khi bạn tới gần: giẫm lên đầu hoặc bắn sét.' },
-  { x: 2300, f: f2, text: 'Ma lửa bay xuyên mọi thứ và không giẫm được: chỉ chiêu điện mới hạ được nó.' },
-  { x: 2620, f: f2, text: 'Giữ ↑ lâu để nhảy cao và xa qua các bục.' },
-  { x: 3500, f: f3, text: 'Gai phía trước: nhảy qua, hoặc Lao điện (Shift) để xuyên qua.' },
-  { x: 4560, f: f4, text: 'Chim băng thả cột băng: nhìn bóng đổ dưới đất để né, nhảy lên bắn sét để hạ chim.' },
-  { x: 5480, f: f4, text: 'Ụ băng bắn đạn sát đất: nhảy qua, bắn sét phá đạn, hoặc Lao điện phá ụ.' },
-  { x: 6130, f: f4, text: 'Boss phía trước! Đánh mạnh nhất khi boss kiệt sức sau mỗi chiêu. Giữ ít nhất 25 điện năng cho cú đánh úp.' },
-];
-// Quái bay: dơi lao xuống, chim băng thả cột băng, ma lửa chỉ hạ được bằng chiêu điện
-const FLYER_DEF = [
-  { type: 'bat', x: 1900, y: 226 }, { type: 'bat', x: 3000, y: 262 }, { type: 'bat', x: 5000, y: 272 },
-  { type: 'ghost', x: 2400, y: 330 }, { type: 'ghost', x: 4300, y: 290 },
-  { type: 'bird', x: 4800, y: 250, x0: 4620, x1: 4980 }, { type: 'bird', x: 5420, y: 250, x0: 5300, x1: 5560 },
-];
+// tường phải và cổng trái của đấu trường
+function addArenaWalls() {
+  addBox(ARENA.r, ARENA.floor - 1220, 80, 1300);
+  addBox(ARENA.gateX, ARENA.floor - 1220, 30, 1220);
+  SOLIDS[SOLIDS.length - 1].gate = true;
+}
+function buildMap1() {
+  LEVEL_W = 7000; DEATH_Y = 900; TIME_LIMIT = 300; CAM_Y = [-250, 100]; ENEMY_SPEED = 70;
+  Object.assign(ARENA, { l: 6220, r: 6950, gateX: 6190, floor: 420 });
+  Object.assign(SPAWN, { x: 120, y: 440 });
+  const f1 = addGround(0, 1400, x => x < 350 ? 480 : 480 - 50 * Math.sin((x - 350) / 525 * Math.PI) ** 2);
+  addBox(880, 320, 150, 26);
+  const f2 = addGround(1540, 2640, x => Math.abs(x - 2090) < 470 ? 480 - 160 * (1 + Math.cos(Math.PI * (x - 2090) / 470)) / 2 : 480);
+  addBox(2720, 430, 140, 26);
+  addBox(2940, 370, 130, 26);
+  addBox(3140, 430, 130, 26);
+  const f3 = addGround(3330, 4420, x => x < 3900 ? 480 : x < 4200 ? 480 - (x - 3900) * .4 : 360);
+  const f4 = addGround(4540, LEVEL_W, x => x >= 6140 ? 420 : 420 - 22 * Math.sin((x - 4540) / 200 * Math.PI) ** 2);
+  addBox(5600, 300, 140, 26);
+  addBox(6330, 290, 110, 22);                       // bục nhảy trong đấu trường để né chiêu
+  addBox(6535, 200, 120, 22);
+  addBox(6750, 290, 110, 22);
+  addArenaWalls();
+  SPIKES.push({ x0: 3560, x1: 3660, f: f3 }, { x0: 5150, x1: 5230, f: f4 });
+  STAR_POS.push([500, 400], [700, 370], [955, 280], [1470, 380], [2090, 260], [2790, 390],
+    [3005, 320], [3610, 380], [4050, 370], [4480, 300], [5190, 330], [5670, 250]);
+  ENEMY_DEF.push({ min: 3700, max: 3880, f: f3 }, { min: 4800, max: 5050, f: f4 }, { min: 5300, max: 5550, f: f4 },
+    { min: 1150, max: 1320, f: f1 });    // quái đầu tiên để tập giẫm
+  FLOWERS.push([180, f1, 1], [760, f1, .8], [1700, f2, 1.1], [2470, f2, .9], [3460, f3, 1], [4300, f3, .9], [4700, f4, 1.1], [5800, f4, .8]);
+  SIGNS.push([300, f1], [1330, f1], [4370, f3]);
+  CHECKPOINTS.push({ x: 3420, f: f3 }, { x: 6080, f: f4 });
+  Object.assign(GOAL, { x: 6880, f: f4 });
+  // Đường đến boss: mẹo theo từng chặng, tim hồi mạng, ụ băng để tập né đạn như khi đánh boss
+  TIPS.push(
+    { x: 420,  f: f1, text: PIKA_TIP },
+    { x: 960,  f: f1, text: 'Quái vuông phía trước: nhảy giẫm lên đầu để hạ nó.' },
+    { x: 1760, f: f2, text: 'Dơi lao xuống khi bạn tới gần: giẫm lên đầu hoặc bắn sét.' },
+    { x: 2300, f: f2, text: 'Ma lửa bay xuyên mọi thứ và không giẫm được: chỉ chiêu điện mới hạ được nó.' },
+    { x: 2620, f: f2, text: 'Giữ ↑ lâu để nhảy cao và xa qua các bục.' },
+    { x: 3500, f: f3, text: 'Gai phía trước: nhảy qua, hoặc Lao điện (Shift) để xuyên qua.' },
+    { x: 4560, f: f4, text: 'Chim băng thả cột băng: nhìn bóng đổ dưới đất để né, nhảy lên bắn sét để hạ chim.' },
+    { x: 5480, f: f4, text: 'Ụ băng bắn đạn sát đất: nhảy qua, bắn sét phá đạn, hoặc Lao điện phá ụ.' },
+    { x: 6130, f: f4, text: 'Boss phía trước! Đánh mạnh nhất khi boss kiệt sức sau mỗi chiêu. Giữ ít nhất 25 điện năng cho cú đánh úp.' });
+  // Quái bay: dơi lao xuống, chim băng thả cột băng, ma lửa chỉ hạ được bằng chiêu điện
+  FLYER_DEF.push({ type: 'bat', x: 1900, y: 226 }, { type: 'bat', x: 3000, y: 262 }, { type: 'bat', x: 5000, y: 272 },
+    { type: 'ghost', x: 2400, y: 330 }, { type: 'ghost', x: 4300, y: 290 },
+    { type: 'bird', x: 4800, y: 250, x0: 4620, x1: 4980 }, { type: 'bird', x: 5420, y: 250, x0: 5300, x1: 5560 });
+  HEARTS.push([2090, 200], [5990, 372]);
+  Object.assign(TURRET, { x: 5940, f: f4, every: 2.4, speed: 260, range: 760, hp: 2 });
+}
+// Màn 2 "Núi Quỷ": leo chéo từ chân núi lên đỉnh (cao hơn ~2.600), có cầu thang bục, vực sâu (rơi là mất mạng),
+// quái nhanh hơn, ụ băng bắn nhanh hơn, boss Zagred trên đỉnh
+function buildMap2() {
+  LEVEL_W = 8190; DEATH_Y = 900; TIME_LIMIT = 420; CAM_Y = [-2620, 100]; ENEMY_SPEED = 100;
+  Object.assign(ARENA, { l: 7300, r: 8110, gateX: 7270, floor: -2100 });
+  Object.assign(SPAWN, { x: 120, y: 440 });
+  // chân núi: dốc thoải đi lên
+  const g1 = addGround(0, 1500, x => x < 300 ? 480 : 480 - (x - 300) * .3);
+  // cầu thang bục qua vực thứ nhất
+  addBox(1580, 70, 110, 24); addBox(1730, 0, 110, 24); addBox(1880, -70, 110, 24); addBox(2030, -140, 90, 24);
+  // sườn núi dốc
+  const g2 = addGround(2140, 3400, x => -170 - (x - 2140) * .36);
+  // bục lơ lửng zíc zắc qua vực thứ hai
+  for (const [x, y, w] of [[3460, -690, 120], [3640, -760, 110], [3820, -840, 110], [3990, -910, 120], [4170, -985, 110], [4350, -1055, 120], [4540, -1115, 130]]) addBox(x, y, w, 22);
+  // sườn trên có bãi bằng đặt ụ băng
+  const g3 = addGround(4720, 6120, x => x < 5350 ? -1160 - (x - 4720) * .3 : x < 5800 ? -1349 : -1349 - (x - 5800) * .4);
+  // cầu thang bục chéo lên đỉnh, bên dưới là vực
+  for (let i = 0; i < 6; i++) addBox(6200 + i * 150, -1550 - i * 90, 120, 22);
+  // đỉnh núi: đấu trường của Zagred
+  const g4 = addGround(7100, LEVEL_W, () => -2100);
+  addBox(7410, -2230, 110, 22); addBox(7645, -2320, 120, 22); addBox(7890, -2230, 110, 22);
+  addArenaWalls();
+  SPIKES.push({ x0: 900, x1: 980, f: g1 }, { x0: 2600, x1: 2700, f: g2 }, { x0: 3100, x1: 3180, f: g2 },
+    { x0: 5060, x1: 5150, f: g3 }, { x0: 5880, x1: 5960, f: g3 });
+  STAR_POS.push([520, 380], [1180, 160], [1635, 20], [1935, -120], [2450, -320], [2900, -480],
+    [3700, -810], [4040, -960], [4400, -1105], [4980, -1290], [5600, -1420], [6260, -1610], [6560, -1790], [6860, -1970]);
+  ENEMY_DEF.push({ min: 620, max: 860, f: g1 }, { min: 2300, max: 2520, f: g2 }, { min: 2780, max: 3060, f: g2 },
+    { min: 4800, max: 5000, f: g3 }, { min: 5420, max: 5560, f: g3 }, { min: 5880, max: 6080, f: g3 });
+  FLOWERS.push([200, g1, .9], [1300, g1, .8], [2250, g2, 1], [4800, g3, .9]);
+  SIGNS.push([260, g1], [2200, g2]);
+  CHECKPOINTS.push({ x: 2260, f: g2 }, { x: 4790, f: g3 }, { x: 7140, f: g4 });
+  Object.assign(GOAL, { x: 8010, f: g4 });
+  TIPS.push(
+    { x: 400,  f: g1, text: 'Màn 2 — Núi Quỷ: leo lên đỉnh núi đánh Zagred. Quái chạy nhanh hơn, vực sâu rơi là mất mạng.' },
+    { x: 1420, f: g1, text: 'Vực phía trước: nhảy lên từng bục để leo sang sườn núi.' },
+    { x: 2560, f: g2, text: 'Sườn dốc có gai và quái: nhảy qua gai, giẫm quái từ trên xuống.' },
+    { x: 3380, f: g2, text: 'Bục lơ lửng zíc zắc: chim băng thả cột băng, dơi lao xuống. Giữ ↑ để nhảy cao.' },
+    { x: 5280, f: g3, text: 'Ụ băng bắn nhanh hơn: nhảy qua đạn hoặc phá ụ.' },
+    { x: 6100, f: g3, text: 'Cầu thang bục cuối: nhảy chéo lên đỉnh, bên dưới là vực. Zagred dùng ma pháp Ngôn Hồn: mỗi lời hắn nói đều thành thật!' },
+    { x: 7200, f: g4, text: 'Zagred: “Xuyên!” gai trồi lên · “Nghiền!” cột đen đè xuống · “Đứng yên!” phong ấn bạn (Shift để thoát). Đánh khi hắn kiệt sức.' });
+  FLYER_DEF.push({ type: 'bat', x: 1800, y: -200 }, { type: 'bat', x: 3750, y: -960 }, { type: 'bat', x: 5200, y: -1480 },
+    { type: 'ghost', x: 2950, y: -620 }, { type: 'ghost', x: 4650, y: -1260 }, { type: 'ghost', x: 6000, y: -1700 },
+    { type: 'bird', x: 3800, y: -1060, x0: 3550, x1: 4150 }, { type: 'bird', x: 4300, y: -1230, x0: 4100, x1: 4600 },
+    { type: 'bird', x: 6600, y: -1950, x0: 6400, x1: 6900 });
+  HEARTS.push([1935, -150], [4560, -1160], [6710, -1880]);
+  Object.assign(TURRET, { x: 5700, f: g3, every: 1.7, speed: 330, range: 720, hp: 3 });
+}
+function loadMap(n) {
+  MAP = n === 2 ? 2 : 1;
+  for (const a of [SOLIDS, SPIKES, STAR_POS, ENEMY_DEF, FLOWERS, SIGNS, CHECKPOINTS, TIPS, FLYER_DEF, GROUNDS, HEARTS]) a.length = 0;
+  (MAP === 2 ? buildMap2 : buildMap1)();
+  ARENA_MID = (ARENA.l + ARENA.r) / 2;
+  PHASES = MAP === 2 ? PHASES_Z : PHASES_LN;
+  ACT_LIST = MAP === 2 ? ACT_LIST_Z : ACT_LIST_LN;
+}
 const newFlyer = d => ({ ...d, ax: d.x, ay: d.y, t: Math.random() * 6, alive: true, stun: 0, state: 'patrol', cd: 0, dir: 1, dropT: 1.2, dieT: 0, r: d.type === 'ghost' ? 18 : 16 });
 // Mặt đất dùng cho Quả cầu điện nảy và cột băng rơi
-const GROUNDS = [[0, 1400, f1], [1540, 2640, f2], [3330, 4420, f3], [4540, LEVEL_W, f4]];
 function groundYAt(x) { for (const [a, b, f] of GROUNDS) if (x >= a && x <= b) return f(x); return null; }
-const HEARTS = [[2090, 200], [5990, 372]];
-const TURRET = { x: 5940, f: f4, every: 2.4, speed: 260, range: 760, hp: 2 };
 
 /* ---------- Trạng thái ---------- */
 const S = {};
 function reset() {
   Object.assign(S, {
-    ball: { x: 120, y: 440, vx: 0, vy: 0, rot: 0, squash: 0, run: 0, face: 1 },
-    spawn: { x: 120, y: 440 },
+    ball: { x: SPAWN.x, y: SPAWN.y, vx: 0, vy: 0, rot: 0, squash: 0, run: 0, face: 1 },
+    spawn: { ...SPAWN }, safeY: SPAWN.y,
     cam: { x: 0, y: 0 },
     onGround: false, lastGround: 0, jumpBuf: 0, jumpHeld: false,
     stars: STAR_POS.map(([x, y]) => ({ x, y, got: false })),
@@ -300,6 +367,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP') { if (paused) closeChars(); else openChars(); return; }
   if (paused) return;
   if (e.code === 'KeyR') { reset(); return; }
+  if (e.code === 'KeyN') { setMap(MAP === 1 ? 2 : 1); return; }
   if (e.code === 'KeyM') { setMuted(!muted); return; }
   if (e.code === 'KeyB' && TEST_MODE) { warpToBoss(); return; }
   const k = KEYMAP[e.code];
@@ -364,17 +432,19 @@ function step(h) {
   if (b.x < R) { b.x = R; b.vx = Math.max(0, b.vx); }
   if (S.onGround) S.lastGround = 0;
 }
+// rơi khỏi núi: dưới đáy màn, hoặc (màn 2) rơi sâu hơn chỗ đứng gần nhất
+const fellOff = () => S.ball.y > DEATH_Y || (MAP === 2 && S.ball.y > S.safeY + 620);
 function die() {
   if (S.dead) return;
   // Rimuru (Đại Hiền Giả): chặn một đòn chí mạng mỗi 15 giây, trừ khi rơi xuống vực
   // Xayda biến khỉ: khỉ khổng lồ chịu đòn thay, mất 6 giây biến hình
-  if (S.ape > 0 && S.ball.y <= DEATH_Y) {
+  if (S.ape > 0 && !fellOff()) {
     S.ape = Math.max(0, S.ape - 6); S.safe = Math.max(S.safe, 1.2);
     sfx('hit');
     S.pops.push({ x: S.ball.x, y: S.ball.y - 70, t: .9, text: 'Khỉ chịu đòn! -6 giây', c: '#ffb38a' });
     return;
   }
-  if (CHAR === 'rimuru' && S.resist <= 0 && S.ball.y <= DEATH_Y) {
+  if (CHAR === 'rimuru' && S.resist <= 0 && !fellOff()) {
     S.resist = 15; S.safe = Math.max(S.safe, 1.2);
     sfx('gulp');
     S.pops.push({ x: S.ball.x, y: S.ball.y - 56, t: 1, text: 'Kháng tính! (Đại Hiền Giả)', c: '#9ef0ff' });
@@ -403,20 +473,22 @@ function respawn() {
     Object.assign(B, { inv: 0, act: null, exhaust: 0, stun: 0, hazards: [], sweep: null, ts: 0, hellT: 0, laserShot: false, atkT: 2.5 });
     if (!B.cut && !B.fuse) {
       const u = B.units[0];
-      Object.assign(u, { x: ARENA.r - 160, dir: -1, vy: 0, y: u.kind === 'ice' ? ARENA.floor - 150 : u.kind === 'fused' ? ARENA.floor - 12 : ARENA.floor });
+      Object.assign(u, { x: ARENA.r - 160, dir: -1, vy: 0, y: u.kind === 'ice' ? ARENA.floor - 150 : u.kind === 'zag' ? ARENA.floor - 130 : u.kind === 'fused' ? ARENA.floor - 12 : ARENA.floor });
       u.mt = Math.PI / 2;
     }
     S.bullets = [];
     S.safe = 1.5;
   }
   bossBar();
+  S.safeY = S.ball.y;
   S.cam.x = clamp(S.ball.x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
+  S.cam.y = clamp(S.ball.y - VIEW_H * .55, CAM_Y[0], CAM_Y[1]);
 }
 
 function update(dt) {
   S.t += dt;
   // Bầu trời địa ngục: chuyển dần sang đỏ đen khi Naamah xuất hiện, trở lại khi Naamah bị hạ
-  const Bo = S.boss, hellSky = !Bo.dead && (Bo.phase >= 3 || !!(Bo.cut && Bo.cut.burst));
+  const Bo = S.boss, hellSky = !Bo.dead && (Bo.phase >= (MAP === 2 ? 2 : 3) || !!(Bo.cut && Bo.cut.burst));
   S.flash = Math.max(0, S.flash - dt * 1.8);
   for (const q of S.pops) { q.t -= dt; q.y -= 40 * dt; }
   S.pops = S.pops.filter(q => q.t > 0);
@@ -428,7 +500,7 @@ function update(dt) {
   for (const e of S.enemies) {
     if (!e.alive) { e.squash = Math.max(0, e.squash - dt); continue; }
     if (e.stun > 0) { e.stun -= dt; continue; }    // dính Lưới điện: đứng yên
-    e.x += e.dir * 70 * dt;
+    e.x += e.dir * ENEMY_SPEED * dt;
     if (e.x > e.max) { e.x = e.max; e.dir = -1; }
     if (e.x < e.min) { e.x = e.min; e.dir = 1; }
   }
@@ -486,7 +558,8 @@ function update(dt) {
   updatePikachuMoves(dt);
   b.squash = Math.max(0, b.squash - dt * 1.6);
 
-  if (b.y > DEATH_Y) die();
+  if (S.onGround) S.safeY = b.y;
+  if (fellOff()) die();
   if (!S.power && !S.safe) {
     for (const sp of SPIKES) {
       if (b.x > sp.x0 - R * .6 && b.x < sp.x1 + R * .6 && b.y + R > sp.f(b.x) - 16) die();
@@ -1252,8 +1325,8 @@ function killFlyer(f) {
   sfx('stomp'); gainEnergy(8);
 }
 function summonBats() {
-  for (const x of [ARENA.l + 130, ARENA.r - 130]) S.flyers.push(newFlyer({ type: 'bat', x, y: 230 }));
-  S.pops.push({ x: ARENA_MID, y: 200, t: 1, text: 'Dơi xuất hiện!', c: '#c9b6ff' });
+  for (const x of [ARENA.l + 130, ARENA.r - 130]) S.flyers.push(newFlyer({ type: 'bat', x, y: ARENA.floor - 190 }));
+  S.pops.push({ x: ARENA_MID, y: ARENA.floor - 220, t: 1, text: 'Dơi xuất hiện!', c: '#c9b6ff' });
   sfx('screech');
 }
 function updateFlyers(dt) {
@@ -1321,6 +1394,7 @@ function updateFlyers(dt) {
 
 /* ---------- Boss: Lilith (băng) → Naamah (lửa) → Hợp thể ---------- */
 function newUnits() {
+  if (MAP === 2) return [{ kind: 'zag', x: ARENA_MID + 160, y: ARENA.floor - 130, dir: -1, squash: 0, flash: 0, hurt: 0, mt: 0, vy: 0 }];
   return [{ kind: 'ice', x: ARENA_MID + 140, y: ARENA.floor - 150, dir: -1, squash: 0, flash: 0, hurt: 0, mt: Math.PI / 2, vy: 0 }];
 }
 function newBoss() {
@@ -1330,11 +1404,11 @@ function newBoss() {
     units: newUnits(),
   };
 }
-const devilName = B => B.phase === 4 || B.fuse ? 'LILITH × NAAMAH' : B.units[0].kind === 'ice' ? 'LILITH' : 'NAAMAH';
+const devilName = B => MAP === 2 ? 'ZAGRED' : B.phase === 4 || B.fuse ? 'LILITH × NAAMAH' : B.units[0].kind === 'ice' ? 'LILITH' : 'NAAMAH';
 function bossBar() {
   const B = S.boss, P = PHASES[B.phase];
   $('bossbar').hidden = !(S.fight || B.dead);
-  $('bname').textContent = B.dead ? 'LILITH × NAAMAH' : devilName(B);
+  $('bname').textContent = B.dead ? (MAP === 2 ? 'ZAGRED' : 'LILITH × NAAMAH') : devilName(B);
   $('bphase').textContent = B.dead ? 'Đã hạ!' : B.fuse ? 'Đang hợp thể…' : B.cut ? 'Lilith gục…' : `${P.tag} · ${Math.max(0, B.hp)}/${B.maxHp} máu`;
   $('bnote').textContent = B.dead ? 'Lăn tới cờ đích để về đích.' : B.fuse ? 'Lilith và Naamah đang hợp thể!'
     : B.cut ? 'Coi chừng sau lưng!' : (B.phase === 4 && B.half ? P.note2 : P.note);
@@ -1342,7 +1416,7 @@ function bossBar() {
   $('hpbar').hidden = B.dead || !!B.fuse || !!B.cut;
   $('hpfill').style.width = (Math.max(0, B.hp) / B.maxHp * 100) + '%';
 }
-const devilColors = u => u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
+const devilColors = u => u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : u.kind === 'zag' ? ['#b04cff', '#e6c8ff', '#14081c'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
 const arenaLo = w => ARENA.l + w / 2 + 40, arenaHi = w => ARENA.r - w / 2 - 10;
 const unitW = u => u.kind === 'fused' ? FW : BOSS_W;
 
@@ -1398,7 +1472,7 @@ function startSeal(B, b) {
 // Đứng yên (kiệt sức, choáng, phong ấn): Lilith hạ xuống đất, Naamah rơi về mặt đất
 function settleUnits(B, dt) {
   for (const u of B.units) {
-    if (u.kind === 'ice') u.y = Math.min(ARENA.floor, u.y + 420 * dt);
+    if (u.kind === 'ice' || u.kind === 'zag') u.y = Math.min(ARENA.floor, u.y + 420 * dt);
     else if (u.kind === 'fire') { if (u.y < ARENA.floor) { u.vy += 1900 * dt; u.y = Math.min(ARENA.floor, u.y + u.vy * dt); } else u.vy = 0; }
     else u.y = ARENA.floor - 12 + Math.sin(S.t * 2) * 6;
   }
@@ -1419,6 +1493,20 @@ function moveUnits(B, b, dt) {
         u.mt += Math.PI; u.x = ARENA_MID + 230 * Math.sin(u.mt);
         boltSpark(u.x, u.y - 60, '#d8fbff', 16);
       }
+    } else if (u.kind === 'zag') {
+      // Zagred lơ lửng đối diện bạn, thỉnh thoảng dịch chuyển sang phía bên kia
+      u.mt += dt;
+      const side = b.x < ARENA_MID ? 1 : -1;
+      const tx = clamp(b.x + side * 230, lo, hi), ty = ARENA.floor - 130 + Math.sin(u.mt * 2) * 18;
+      u.x += (tx - u.x) * Math.min(1, dt * 1.4); u.y += (ty - u.y) * Math.min(1, dt * 3);
+      u.dir = Math.sign(b.x - u.x) || u.dir;
+      B.blinkT -= dt;
+      if (B.blinkT <= 0) {
+        B.blinkT = 6.5;
+        boltSpark(u.x, u.y - 60, '#b04cff', 18);
+        u.x = clamp(b.x - side * 230, lo, hi);
+        boltSpark(u.x, u.y - 60, '#e6c8ff', 18);
+      }
     } else if (u.kind === 'fire') {
       settleUnits(B, dt);
       u.x += u.dir * 80 * dt;
@@ -1432,7 +1520,9 @@ function moveUnits(B, b, dt) {
     }
   }
 }
-const ACT_LIST = [null, ['fan', 'spikes'], ['spikes', 'fan', 'puddle', 'fan'], ['dash', 'lob', 'slam', 'pillar'], ['dual']];
+const ACT_LIST_LN = [null, ['fan', 'spikes'], ['spikes', 'fan', 'puddle', 'fan'], ['dash', 'lob', 'slam', 'pillar'], ['dual']];
+const ACT_LIST_Z = [null, ['xuyen', 'orbs', 'nghien', 'orbs'], ['rain', 'xuyen', 'sweep', 'nghien', 'orbs']];
+let ACT_LIST = ACT_LIST_LN;
 function startAction(B, b) {
   const list = B.phase === 4 && B.half ? ['dual', 'sweep'] : ACT_LIST[B.phase];
   const type = list[B.actN++ % list.length];
@@ -1440,6 +1530,7 @@ function startAction(B, b) {
   u.dir = Math.sign(b.x - u.x) || u.dir;
   B.act = { type, t: 0 };
   if (type === 'dash') B.act.dir = u.dir;
+  if (u.kind === 'zag') { S.pops.push({ x: u.x, y: u.y - BOSS_H - 30, t: 1, text: ZAG_WORDS[type] || '', c: '#e6c8ff' }); sfx('screech'); }
   B.atkT = PHASES[B.phase].every;
 }
 function endAction(B) {
@@ -1448,9 +1539,10 @@ function endAction(B) {
   if (a && a.type === 'dual') dropMarks(B, B.units[0]);
   B.exhaust = EXHAUST;
 }
-function aimedFan(sx, sy, kind, speed = 360) {
+function aimedFan(sx, sy, kind, speed = 360, n = 3) {
   const b = S.ball, ang = Math.atan2(b.y - sy, b.x - sx);
-  for (const k of [-1, 0, 1]) {
+  for (let i = 0; i < n; i++) {
+    const k = i - (n - 1) / 2;
     const a = ang + k * .22;
     S.bullets.push({ x: sx, y: sy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, kind, r: 7 });
   }
@@ -1470,8 +1562,33 @@ function runAction(B, b, dt) {
   const at = t => prevT < t && a.t >= t;   // đúng mốc thời gian t trong khung này
   const lo = arenaLo(unitW(u)), hi = arenaHi(unitW(u));
   const W = ACT_WARN[a.type];
-  if (u.kind === 'ice') settleHover(u, dt);
+  if (u.kind === 'ice' || u.kind === 'zag') settleHover(u, dt);
   switch (a.type) {
+    case 'xuyen':
+      // “Xuyên!”: gai bóng tối trồi lên đúng chỗ bạn đứng, 4 lần liên tiếp
+      for (const t of [W, W + .3, W + .6, W + .9]) if (at(t)) addHazard('spike', b.x, { dark: true, w: 64, h: 90 });
+      if (a.t >= W + 1.2) endAction(B);
+      break;
+    case 'orbs':
+      // quạt 5 cầu tối, 3 loạt
+      if (at(W) || at(W + .35) || at(W + .7)) { aimedFan(u.x + u.dir * 20, u.y - 80, 'dark', 380, 5); u.flash = .1; }
+      if (a.t >= W + .9) endAction(B);
+      break;
+    case 'nghien':
+      // “Nghiền!”: cột bóng tối đè xuống chỗ bạn, rồi thêm hai cột hai bên
+      if (at(W)) addHazard('pillar', b.x, { dark: true, w: 90, h: 340 });
+      if (at(W + .5)) for (const o of [-180, 180]) addHazard('pillar', b.x + o, { dark: true, w: 90, h: 340 });
+      if (a.t >= W + 1.5) endAction(B);
+      break;
+    case 'rain':
+      // “Rơi!”: mưa thiên thạch tối khắp đấu trường, rơi xuống thành lửa tím
+      a.n = a.n || 0;
+      while (a.n < 11 && a.t >= W + a.n * .12) {
+        S.bullets.push({ x: ARENA.l + 60 + Math.random() * (ARENA.r - ARENA.l - 100), y: ARENA.floor - 520, vx: 0, vy: 120, g: 900, kind: 'dark', r: 10 });
+        a.n++;
+      }
+      if (a.t >= W + 1.7) endAction(B);
+      break;
     case 'fan':
       if (at(W) || at(W + .55)) { aimedFan(u.x + u.dir * 20, u.y - 70, 'ice'); u.flash = .1; }
       if (a.t >= W + .8) endAction(B);
@@ -1537,9 +1654,9 @@ function updateBullets(dt, frozen) {
   if (!frozen) for (const q of S.bullets) {
     if (q.g) q.vy += q.g * dt;
     q.x += q.vx * dt; q.y += (q.vy || 0) * dt;
-    if (q.g && q.y >= ARENA.floor - 6) { q.dead = true; addHazard('fire', q.x); }
+    if (q.g && q.y >= ARENA.floor - 6) { q.dead = true; addHazard('fire', q.x, q.kind === 'dark' ? { dark: true } : undefined); }
   }
-  S.bullets = S.bullets.filter(q => !q.dead && q.x > ARENA.gateX && q.x < ARENA.r && q.y > -400 && q.y < ARENA.floor + 4);
+  S.bullets = S.bullets.filter(q => !q.dead && q.x > ARENA.gateX && q.x < ARENA.r && q.y > ARENA.floor - 820 && q.y < ARENA.floor + 4);
 }
 function updateHazards(B, b, dt) {
   for (const h of B.hazards) {
@@ -1630,12 +1747,25 @@ function damageBoss(u, base, kind) {
   }
   if (B.hp <= 0) bossDown(B, u);
   else {
-    if (B.phase === 1 && B.hp <= PHASES[1].hp / 2) enterHell(B, u);
+    if (MAP === 1 && B.phase === 1 && B.hp <= PHASES[1].hp / 2) enterHell(B, u);
+    if (MAP === 2 && B.phase === 2 && B.hp <= PHASES[2].hp / 2 && !B.summoned) { B.summoned = true; S.bossKills = Math.max(S.bossKills, 2); summonBats(); }
     if (B.phase === 3 && B.hp <= 6 && !B.summoned) { B.summoned = true; summonBats(); }
     if (B.phase === 4 && B.hp <= FUSED_HP / 2 && !B.half) { B.half = true; B.actN = 1; summonBats(); }
     bossBar();
   }
   return true;
+}
+// Zagred hết máu lần đầu: lộ hình dạng thật, máu đầy lại
+function zagTransform(B, u) {
+  S.bossKills = Math.max(S.bossKills, 1);
+  Object.assign(B, { phase: 2, hp: PHASES[2].hp, maxHp: PHASES[2].hp, inv: 1.6, atkT: 2.2, hellT: 0, actN: 0, summoned: false, blinkT: 6.5 });
+  S.flash = 1; S.safe = Math.max(S.safe, 1);
+  for (let i = 0; i < 60; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 420;
+    S.parts.push({ x: u.x, y: u.y - 60, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, c: ['#b04cff', '#e6c8ff', '#14081c', '#ff2f5c'][i % 4], r: 5 + Math.random() * 7, g: 0 });
+  }
+  S.pops.push({ x: u.x, y: u.y - BOSS_H - 50, t: 1.6, text: 'Zagred: hình dạng thật!', c: '#e6c8ff' });
+  sfx('roar');
 }
 function enterHell(B, u) {
   Object.assign(B, { phase: 2, inv: 1, hellT: 0, act: null, exhaust: 0, atkT: 1.2, sweep: null });
@@ -1648,6 +1778,11 @@ function enterHell(B, u) {
 function bossDown(B, u) {
   Object.assign(B, { act: null, sweep: null, hazards: [], exhaust: 0, stun: 0, ts: 0, hellT: 0 });
   S.bullets = []; S.tsEsc = false;
+  if (MAP === 2) {
+    if (B.phase === 1) zagTransform(B, u); else killFused(B, u);
+    tsBanner(); bossBar();
+    return;
+  }
   if (B.phase <= 2) {
     // Lilith gục: rơi xuống đất, bắt đầu màn Naamah chui ra
     S.bossKills = Math.max(S.bossKills, 1);
@@ -1787,7 +1922,7 @@ function killFused(B, u) {
 function tsBanner() {
   const B = S.boss, on = B.ts > 0 && !S.dead;
   $('tsBanner').hidden = !on;
-  if (on) $('tsBanner').textContent = S.tsEsc ? 'Nhảy lên để né laze!' : 'Bị phong ấn! Nhấn Shift để thoát';
+  if (on) $('tsBanner').textContent = S.tsEsc ? 'Nhảy lên để né laze!' : MAP === 2 ? 'Zagred: “Đứng yên!” Nhấn Shift để thoát' : 'Bị phong ấn! Nhấn Shift để thoát';
   $('tsBanner').dataset.esc = S.tsEsc ? '1' : '0';
 }
 function lose(reason) {
@@ -1829,7 +1964,8 @@ function bestPerName(rows) {
   for (const r of rows) { const k = r.name.toLowerCase(), cur = m.get(k); if (!cur || rankCmp(r, cur) < 0) m.set(k, r); }
   return [...m.values()].sort(rankCmp);
 }
-function localRows() { try { return (JSON.parse(lsGet(LB_KEY, '[]')) || []).map(cleanRow).filter(Boolean); } catch (e) { return []; } }
+const lbKey = () => MAP === 2 ? LB_KEY + '2' : LB_KEY;
+function localRows() { try { return (JSON.parse(lsGet(lbKey(), '[]')) || []).map(cleanRow).filter(Boolean); } catch (e) { return []; } }
 async function loadBoard() {
   if (LEADERBOARD_URL) {
     try {
@@ -1843,6 +1979,7 @@ async function loadBoard() {
 }
 function renderBoard() {
   const ol = $('boardList'), me = lsGet(NAME_KEY, '').toLowerCase();
+  $('boardTitle').textContent = `Bảng xếp hạng · Màn ${MAP}`;
   ol.textContent = '';
   if (!lbRows.length) {
     const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Chưa có ai. Hãy là người đầu tiên!';
@@ -1887,7 +2024,7 @@ async function submitScore(k) {
   S.submitted = true;
   $(k + 'Save').disabled = true;
   const row = { name, ...runRecord() };
-  const list = localRows(); list.push(row); lsSet(LB_KEY, JSON.stringify(list.slice(-100)));
+  const list = localRows(); list.push(row); lsSet(lbKey(), JSON.stringify(list.slice(-100)));
   let sentOnline = false;
   if (LEADERBOARD_URL) {
     try { await fetch(LEADERBOARD_URL, { method: 'POST', body: JSON.stringify(row) }); sentOnline = true; } catch (e) {}
@@ -1937,7 +2074,7 @@ const CHAR_UI = {
     short: ['tia sét', 'Quả cầu điện', 'Lưới điện', 'Lao điện', '100.000 Vôn'],
     kit: [['J', 'Tia sét (5)'], ['Giữ J', 'Quả cầu điện: chạy càng nhanh càng mạnh (20)'], ['L', 'Lưới điện: trói quái và boss (30)'],
       ['Shift', 'Lao điện: vô địch khi lao (25)'], ['U', '100.000 Vôn: sét khắp màn hình (cần đầy)']],
-    tip: TIPS[0].text },
+    tip: PIKA_TIP },
   chii: { name: 'Chiikawa', from: 'Chiikawa', tag: 'Nhỏ mà có võ: nhổ cỏ, khóc oà, gọi bạn', energy: 'Dũng khí',
     btn: { bolt: ['Gậy', 'Gõ gậy'], web: ['Khóc', 'Khóc oà'], skill: ['Lăn', 'Lăn tròn'], volt: ['Bạn', 'Gọi bạn'] },
     short: ['gõ gậy', 'ném bó cỏ', 'Khóc oà', 'Lăn tròn', 'Gọi Hachiware & Usagi'],
@@ -2002,8 +2139,8 @@ const CHAR_UI = {
 function applyChar() {
   const u = CHAR_UI[CHAR], s = u.short;
   $('charBtn').textContent = `Nhân vật: ${u.name} (P)`;
-  document.querySelector('#hint .keys').innerHTML = `<kbd>←</kbd> <kbd>→</kbd> chạy · <kbd>↑</kbd>/<kbd>Space</kbd> nhảy · <kbd>J</kbd> ${s[0]}${s[1] ? ` (giữ rồi thả: ${s[1]})` : ''} · <kbd>L</kbd> ${s[2]} · <kbd>Shift</kbd> ${s[3]} · <kbd>U</kbd> ${s[4]}${u.more || ''} · <kbd>P</kbd> đổi nhân vật · về đích trong 5 phút`;
-  document.querySelector('#hint .tap').textContent = `◀ ▶ chạy · ▲ nhảy · ${u.btn.bolt[0]}${s[1] ? ` (giữ: ${s[1]})` : ''} · ${u.btn.web[0]}: ${s[2]} · ${u.btn.skill[0]}: ${s[3]} · ${u.btn.volt[0]}${CH().cost.volt != null ? `: ${s[4]}` : ' khi đầy'}${u.moreTap || ''} · về đích trong 5 phút`;
+  document.querySelector('#hint .keys').innerHTML = `<kbd>←</kbd> <kbd>→</kbd> chạy · <kbd>↑</kbd>/<kbd>Space</kbd> nhảy · <kbd>J</kbd> ${s[0]}${s[1] ? ` (giữ rồi thả: ${s[1]})` : ''} · <kbd>L</kbd> ${s[2]} · <kbd>Shift</kbd> ${s[3]} · <kbd>U</kbd> ${s[4]}${u.more || ''} · <kbd>P</kbd> đổi nhân vật · <kbd>N</kbd> đổi màn · về đích trong ${TIME_LIMIT / 60} phút`;
+  document.querySelector('#hint .tap').textContent = `◀ ▶ chạy · ▲ nhảy · ${u.btn.bolt[0]}${s[1] ? ` (giữ: ${s[1]})` : ''} · ${u.btn.web[0]}: ${s[2]} · ${u.btn.skill[0]}: ${s[3]} · ${u.btn.volt[0]}${CH().cost.volt != null ? `: ${s[4]}` : ' khi đầy'}${u.moreTap || ''} · về đích trong ${TIME_LIMIT / 60} phút`;
   document.querySelectorAll('.touch .sx').forEach(el => { el.hidden = CHAR !== 'saiyan'; });
   $('energyChip').title = `${u.energy}: ` + u.kit.map(([k, t]) => `${k} ${t}`).join(' · ');
   for (const [k, [label, aria]] of Object.entries(u.btn)) {
@@ -2098,15 +2235,16 @@ const CLOUDS = Array.from({ length: 9 }, (_, i) => ({ x: i * 520 + (i * 137) % 2
 function drawBackground() {
   const cam = S.cam;
   // trời chuyển màu từ xanh đậm xuống vàng nhạt ở chân trời
+  const T = THEMES[MAP];
   const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-  g.addColorStop(0, '#2f8fe6'); g.addColorStop(.55, '#8fd3ff'); g.addColorStop(1, '#fff1c9');
+  g.addColorStop(0, T.sky[0]); g.addColorStop(.55, T.sky[1]); g.addColorStop(1, T.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, viewW, VIEW_H);
   // mặt trời có quầng sáng (thị sai rất nhỏ)
   const sx0 = viewW * .78 - cam.x * .02, sy0 = 110 - cam.y * .05;
   const sun = ctx.createRadialGradient(sx0, sy0, 10, sx0, sy0, 190);
-  sun.addColorStop(0, 'rgb(255 250 220 / .95)'); sun.addColorStop(.22, 'rgb(255 236 170 / .55)'); sun.addColorStop(1, 'rgb(255 236 170 / 0)');
+  sun.addColorStop(0, T.sunG[0]); sun.addColorStop(.22, T.sunG[1]); sun.addColorStop(1, T.sunG[2]);
   ctx.fillStyle = sun; ctx.fillRect(sx0 - 200, sy0 - 200, 400, 400);
-  ctx.fillStyle = '#fffbe6'; ctx.beginPath(); ctx.arc(sx0, sy0, 34, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = T.sun; ctx.beginPath(); ctx.arc(sx0, sy0, 34, 0, Math.PI * 2); ctx.fill();
   // mây bông mềm, đáy hơi xám (thị sai 0.2)
   for (const c of CLOUDS) {
     const x = ((c.x - cam.x * .2) % 4700 + 4700) % 4700 - 200, y = c.y - cam.y * .1;
@@ -2119,8 +2257,8 @@ function drawBackground() {
       ctx.arc(x + 88 * c.s, y + 6 * c.s + dy, 18 * c.s, 0, Math.PI * 2);
       ctx.fill();
     };
-    blob(6 * c.s, 'rgb(170 200 230 / .55)');
-    blob(0, 'rgb(255 255 255 / .95)');
+    blob(6 * c.s, T.cloud[0]);
+    blob(0, T.cloud[1]);
   }
   // dãy núi xa mờ (thị sai 0.15) rồi đồi gần hơn (thị sai 0.4)
   const ridge = (par, base, amp, f1, f2, top, bot) => {
@@ -2134,9 +2272,18 @@ function drawBackground() {
     }
     ctx.lineTo(viewW, VIEW_H); ctx.fill();
   };
-  ridge(.15, 360, 90, 310, 130, '#9fc3e6', '#cfe6f2');
-  ridge(.4, 410, 60, 230, 97, '#62c48e', '#a8e3b8');
+  ridge(.15, 360, 90, 310, 130, T.r1[0], T.r1[1]);
+  ridge(.4, 410, 60, 230, 97, T.r2[0], T.r2[1]);
 }
+// màu cảnh: màn 1 đồng cỏ ban ngày, màn 2 núi đá tím lúc hoàng hôn
+const THEMES = {
+  1: { sky: ['#2f8fe6', '#8fd3ff', '#fff1c9'], sun: '#fffbe6', sunG: ['rgb(255 250 220 / .95)', 'rgb(255 236 170 / .55)', 'rgb(255 236 170 / 0)'],
+    cloud: ['rgb(170 200 230 / .55)', 'rgb(255 255 255 / .95)'], r1: ['#9fc3e6', '#cfe6f2'], r2: ['#62c48e', '#a8e3b8'],
+    dirt: '#1d5e2a', dirt2: '#174d22', grass: ['#3fb02a', '#5fd83a', '#a8f070'] },
+  2: { sky: ['#1c0f2e', '#5b2a5c', '#e98f6a'], sun: '#ffd2b0', sunG: ['rgb(255 200 170 / .95)', 'rgb(255 140 120 / .5)', 'rgb(255 140 120 / 0)'],
+    cloud: ['rgb(90 50 90 / .55)', 'rgb(214 160 196 / .85)'], r1: ['#4b3566', '#8a5f86'], r2: ['#2e2440', '#5a4468'],
+    dirt: '#3a2f46', dirt2: '#30263b', grass: ['#5f4f78', '#7d6b99', '#c4b2e2'] },
+};
 function tracePts(p) {
   ctx.beginPath(); ctx.moveTo(p[0], p[1]);
   for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
@@ -2145,9 +2292,10 @@ function drawSolids(x0, x1) {
   for (const s of SOLIDS) {
     if (s.gate || s.maxX < x0 || s.minX > x1) continue;   // cổng có hình riêng (drawGate)
     tracePts(s.pts); ctx.closePath();
-    ctx.fillStyle = '#1d5e2a'; ctx.fill();
+    const T = THEMES[MAP];
+    ctx.fillStyle = T.dirt; ctx.fill();
     ctx.save(); ctx.clip();
-    ctx.fillStyle = '#174d22';
+    ctx.fillStyle = T.dirt2;
     const gx0 = Math.max(s.minX, x0) - 60, gx1 = Math.min(s.maxX, x1) + 60;
     for (let gx = Math.floor(gx0 / 70) * 70; gx < gx1; gx += 70) {
       for (let gy = 0; gy < 3; gy++) {
@@ -2159,17 +2307,17 @@ function drawSolids(x0, x1) {
     // cỏ: dải chính, mép rủ xuống, viền sáng
     const t = s.top;
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    tracePts(t); ctx.strokeStyle = '#3fb02a'; ctx.lineWidth = 24; ctx.stroke();
-    ctx.fillStyle = '#3fb02a';
+    tracePts(t); ctx.strokeStyle = T.grass[0]; ctx.lineWidth = 24; ctx.stroke();
+    ctx.fillStyle = T.grass[0];
     for (let i = 0; i < t.length - 2; i += 2) {
       const mx = (t[i] + t[i + 2]) / 2, my = (t[i + 1] + t[i + 3]) / 2;
       if (mx < x0 - 20 || mx > x1 + 20) continue;
       ctx.beginPath(); ctx.arc(mx, my + 12, 7, 0, Math.PI * 2); ctx.fill();
     }
     ctx.save(); ctx.translate(0, -4);
-    tracePts(t); ctx.strokeStyle = '#5fd83a'; ctx.lineWidth = 14; ctx.stroke();
+    tracePts(t); ctx.strokeStyle = T.grass[1]; ctx.lineWidth = 14; ctx.stroke();
     ctx.translate(0, -5);
-    tracePts(t); ctx.strokeStyle = '#a8f070'; ctx.lineWidth = 3; ctx.stroke();
+    tracePts(t); ctx.strokeStyle = T.grass[2]; ctx.lineWidth = 3; ctx.stroke();
     ctx.restore();
   }
 }
@@ -2429,6 +2577,102 @@ function drawDevil(u, B, x, gy) {
   ctx.beginPath(); ctx.moveTo(5, hy + 9); ctx.quadraticCurveTo(9, hy + (aim ? 12 : 10), 13, hy + 8); ctx.stroke();
   ctx.restore();
 }
+// Zagred (Black Clover, fan art hình khối): ác quỷ da xám đen, tóc đen dài, cặp sừng cong lớn, mắt đỏ, vân ma lực tím;
+// ma pháp Ngôn Hồn — chữ bay quanh người. Hình dạng thật (giai đoạn 2): to hơn, cánh bóng tối, con mắt thứ ba.
+// Gốc toạ độ ở chân, +x là hướng mặt.
+function drawZagred(u, B, x, gy) {
+  if (u.hidden) return;
+  const tf = B.phase >= 2, aim = !!B.act || B.ts > 0;
+  const bob = Math.sin(S.t * 2.4) * 3, flap = Math.sin(S.t * 5) * .12;
+  const SK = '#2c2433', SK2 = '#43394d', HAIR = '#0d0a12', GL = '#b04cff', GL2 = '#e6c8ff', EYE = '#ff2f5c';
+  ctx.save();
+  ctx.translate(x, gy);
+  ctx.fillStyle = 'rgb(176 76 255 / .25)';
+  ctx.beginPath(); ctx.ellipse(0, -1, 32, 6, 0, 0, Math.PI * 2); ctx.fill();
+  const k = tf ? 1.18 : 1;
+  ctx.scale(u.dir * (1 + u.squash * .6) * k, (1 - u.squash) * k);
+  if (u.hurt > 0 && Math.floor(S.t * 20) % 2) ctx.globalAlpha = .4;
+  ctx.translate(0, -bob);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // cánh bóng tối rách (hình dạng thật): cánh xa mờ rồi cánh gần
+  if (tf) {
+    for (const [sx, al, rot] of [[-.7, .5, .3 - flap], [1, 1, -.1 + flap]]) {
+      ctx.save(); ctx.translate(-4, -74); ctx.rotate(rot); ctx.scale(sx, 1); ctx.globalAlpha *= al;
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(-30, -46); ctx.lineTo(-70, -40); ctx.lineTo(-58, -24); ctx.lineTo(-78, -10);
+      ctx.lineTo(-56, -4); ctx.lineTo(-66, 16); ctx.lineTo(-40, 8); ctx.lineTo(-34, 28); ctx.lineTo(-16, 8); ctx.closePath();
+      ctx.fillStyle = 'rgb(18 8 26 / .92)'; ctx.fill(); ctx.strokeStyle = GL; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+    }
+  }
+  // tóc đen dài buông sau lưng
+  ctx.fillStyle = HAIR;
+  ctx.beginPath(); ctx.moveTo(-6, -104); ctx.quadraticCurveTo(-30, -80 + Math.sin(S.t * 3) * 3, -22, -40);
+  ctx.lineTo(-12, -48); ctx.quadraticCurveTo(-14, -70, 2, -96); ctx.closePath(); ctx.fill();
+  // chân dài, khố tím
+  ctx.fillStyle = SK;
+  ctx.fillRect(-8, -42, 7, 42); ctx.fillRect(2, -42, 7, 42);
+  ctx.fillStyle = '#3a1550';
+  ctx.beginPath(); ctx.moveTo(-10, -46); ctx.lineTo(10, -46); ctx.lineTo(6, -28); ctx.lineTo(0, -24); ctx.lineTo(-6, -28); ctx.closePath(); ctx.fill();
+  // thân gầy, vân ma lực phát sáng
+  ctx.fillStyle = SK;
+  ctx.beginPath(); ctx.moveTo(-12, -84); ctx.lineTo(12, -84); ctx.lineTo(8, -46); ctx.lineTo(-8, -46); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = SK2; ctx.fillRect(-2, -82, 4, 34);
+  ctx.strokeStyle = GL; ctx.lineWidth = 1.6; ctx.globalAlpha *= .9;
+  ctx.beginPath();
+  ctx.moveTo(-9, -78); ctx.lineTo(-3, -70); ctx.lineTo(-8, -60); ctx.moveTo(9, -78); ctx.lineTo(3, -70); ctx.lineTo(8, -60);
+  ctx.moveTo(-6, -54); ctx.lineTo(0, -50); ctx.lineTo(6, -54);
+  ctx.stroke(); ctx.globalAlpha /= .9;
+  // tay dài móng vuốt: giơ ra trước khi niệm Ngôn Hồn, trên tay quả cầu tối
+  ctx.save(); ctx.translate(9, -80); ctx.rotate(aim ? -1.45 : .2 + Math.sin(S.t * 2) * .05);
+  ctx.fillStyle = SK; ctx.fillRect(-3.5, 0, 7, 34);
+  ctx.strokeStyle = GL2; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-2, 34); ctx.lineTo(-5, 42); ctx.moveTo(1, 34); ctx.lineTo(1, 43); ctx.moveTo(3, 34); ctx.lineTo(6, 42); ctx.stroke();
+  if (aim || u.flash > 0) {
+    ctx.fillStyle = 'rgb(176 76 255 / .45)'; ctx.beginPath(); ctx.arc(1, 48, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#14081c'; ctx.beginPath(); ctx.arc(1, 48, 7, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  // đầu
+  const hy = -98;
+  ctx.fillStyle = SK; ctx.strokeStyle = '#14081c'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(1, hy, 12, 14, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // mái tóc đen
+  ctx.fillStyle = HAIR;
+  ctx.beginPath(); ctx.arc(0, hy - 2, 13, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.lineTo(13, hy + 2); ctx.lineTo(7, hy - 5); ctx.lineTo(2, hy); ctx.lineTo(-4, hy - 6); ctx.lineTo(-12, hy + 4); ctx.closePath(); ctx.fill();
+  // cặp sừng cong lớn vểnh ra sau
+  ctx.fillStyle = '#1a1220'; ctx.strokeStyle = GL; ctx.lineWidth = 1.4;
+  for (const [ox, sc] of [[-6, .85], [4, 1]]) {
+    ctx.beginPath(); ctx.moveTo(ox - 3, hy - 10);
+    ctx.quadraticCurveTo(ox - 20 * sc, hy - 22 * sc, ox - 26 * sc, hy - 44 * sc);
+    ctx.quadraticCurveTo(ox - 10 * sc, hy - 30 * sc, ox + 5, hy - 11);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  // mắt đỏ xếch phát sáng, con mắt thứ ba khi ở hình dạng thật
+  ctx.fillStyle = EYE;
+  ctx.beginPath(); ctx.moveTo(4, hy - 1); ctx.lineTo(12, hy - 4); ctx.lineTo(11, hy + 1); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha *= .6; ctx.beginPath(); ctx.moveTo(-6, hy - 1); ctx.lineTo(0, hy - 3); ctx.lineTo(0, hy + 1); ctx.closePath(); ctx.fill(); ctx.globalAlpha /= .6;
+  if (tf) {
+    ctx.fillStyle = GL2; ctx.beginPath(); ctx.ellipse(4, hy - 9, 2, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#14081c'; ctx.fillRect(3.4, hy - 11, 1.2, 4);
+  }
+  // miệng cười nhe răng khi niệm chú
+  ctx.strokeStyle = '#14081c'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(2, hy + 7); ctx.quadraticCurveTo(7, hy + (aim ? 11 : 9), 12, hy + 6); ctx.stroke();
+  if (aim) { ctx.fillStyle = '#ffffff'; for (const tx of [5, 8, 11]) ctx.fillRect(tx, hy + 7, 1.4, 2); }
+  ctx.restore();
+  // chữ Ngôn Hồn bay quanh người (vẽ ngoài phép lật để chữ không bị ngược)
+  ctx.font = '700 15px serif'; ctx.textAlign = 'center';
+  const words = ['言', '霊', '魂', '死'];
+  for (let i = 0; i < words.length; i++) {
+    const a = S.t * 1.6 + i * Math.PI / 2, rr = (tf ? 62 : 52);
+    ctx.globalAlpha = .55 + Math.sin(S.t * 4 + i) * .25;
+    ctx.fillStyle = i % 2 ? GL2 : GL;
+    ctx.fillText(words[i], x + Math.cos(a) * rr, gy - 64 * k + Math.sin(a) * rr * .45 - bob);
+  }
+  ctx.globalAlpha = 1;
+}
 // Thân hợp thể: nửa trái là Lilith, nửa phải là Naamah
 function drawFusedBody(B, u, gy, k) {
   const x = u.x, busyNow = !!B.act;
@@ -2554,7 +2798,7 @@ function drawBoss() {
   }
   if (B.phase >= 2 && !C) {
     const pr = 62 + Math.sin(S.t * 6) * 6;
-    ctx.fillStyle = u.kind === 'ice' ? 'rgb(127 240 255 / .18)' : 'rgb(255 47 92 / .2)';
+    ctx.fillStyle = u.kind === 'ice' ? 'rgb(127 240 255 / .18)' : u.kind === 'zag' ? 'rgb(176 76 255 / .2)' : 'rgb(255 47 92 / .2)';
     ctx.beginPath(); ctx.arc(x, cy, pr, 0, Math.PI * 2); ctx.fill();
   }
   if (tele) {
@@ -2576,7 +2820,7 @@ function drawBoss() {
     ctx.beginPath(); ctx.ellipse(B.act.tx, gy - 3, 40, 8, 0, 0, Math.PI * 2); ctx.stroke();
   }
   drawLasers(B);
-  drawDevil(u, B, x, fy);
+  (u.kind === 'zag' ? drawZagred : drawDevil)(u, B, x, fy);
   if (B.exhaust > 0) drawDizzy(x, fy - BOSS_H - 16);
   if (B.stun > 0) drawNet(x, cy, 48);
   if (C && !C.burst) {
@@ -2623,10 +2867,10 @@ function drawHazards(B) {
     if (h.warn > 0) {
       // khung báo trước chỗ sắp trồi lên
       ctx.save(); ctx.setLineDash([8, 6]);
-      ctx.strokeStyle = blink ? (h.type === 'spike' ? '#7ff0ff' : '#ff7b39') : '#ffffff'; ctx.lineWidth = 3;
+      ctx.strokeStyle = blink ? (h.dark ? '#b04cff' : h.type === 'spike' ? '#7ff0ff' : '#ff7b39') : '#ffffff'; ctx.lineWidth = 3;
       ctx.strokeRect(x0, gy - h.h, h.w, h.h);
       ctx.restore();
-      ctx.fillStyle = h.type === 'spike' ? 'rgb(127 240 255 / .25)' : 'rgb(255 123 57 / .25)';
+      ctx.fillStyle = h.dark ? 'rgb(176 76 255 / .3)' : h.type === 'spike' ? 'rgb(127 240 255 / .25)' : 'rgb(255 123 57 / .25)';
       ctx.fillRect(x0, gy - 6, h.w, 6);
       continue;
     }
@@ -2634,22 +2878,22 @@ function drawHazards(B) {
       for (let k = 0; k < 4; k++) {
         const bx = x0 + k * h.w / 4, tip = h.h * (.75 + .25 * ((k * 7) % 3) / 2);
         ctx.beginPath(); ctx.moveTo(bx, gy); ctx.lineTo(bx + h.w / 8, gy - tip); ctx.lineTo(bx + h.w / 4, gy); ctx.closePath();
-        ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = h.dark ? '#2a1238' : '#7ff0ff'; ctx.fill(); ctx.strokeStyle = h.dark ? '#c98cff' : '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
       }
     } else if (h.type === 'pillar') {
-      ctx.fillStyle = 'rgb(255 74 28 / .55)'; ctx.fillRect(x0 - 6, gy - h.h - 10, h.w + 12, h.h + 10);
+      ctx.fillStyle = h.dark ? 'rgb(120 40 200 / .45)' : 'rgb(255 74 28 / .55)'; ctx.fillRect(x0 - 6, gy - h.h - 10, h.w + 12, h.h + 10);
       for (let y = gy; y > gy - h.h; y -= 18) {
         const wob = Math.sin(S.t * 30 + y) * 4;
-        ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.arc(h.x + wob, y - 9, h.w / 2, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(h.x + wob, y - 9, h.w / 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = h.dark ? '#1a0a26' : '#ff4a1c'; ctx.beginPath(); ctx.arc(h.x + wob, y - 9, h.w / 2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = h.dark ? '#b04cff' : '#ffd23f'; ctx.beginPath(); ctx.arc(h.x + wob, y - 9, h.w / 4, 0, Math.PI * 2); ctx.fill();
       }
     } else if (h.type === 'trail' || h.type === 'fire') {
       const fade = clamp(h.t / .4, 0, 1);
       ctx.globalAlpha = fade;
       for (let k = 0; k < 3; k++) {
         const fx = x0 + 6 + k * (h.w - 12) / 2, fh = h.h * (.7 + .3 * Math.sin(S.t * 20 + k * 2 + h.x));
-        ctx.fillStyle = '#ff4a1c'; ctx.beginPath(); ctx.moveTo(fx - 7, gy); ctx.quadraticCurveTo(fx, gy - fh * 1.4, fx + 7, gy); ctx.fill();
-        ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.moveTo(fx - 3, gy); ctx.quadraticCurveTo(fx, gy - fh * .8, fx + 3, gy); ctx.fill();
+        ctx.fillStyle = h.dark ? '#7a2ad0' : '#ff4a1c'; ctx.beginPath(); ctx.moveTo(fx - 7, gy); ctx.quadraticCurveTo(fx, gy - fh * 1.4, fx + 7, gy); ctx.fill();
+        ctx.fillStyle = h.dark ? '#e6c8ff' : '#ffd23f'; ctx.beginPath(); ctx.moveTo(fx - 3, gy); ctx.quadraticCurveTo(fx, gy - fh * .8, fx + 3, gy); ctx.fill();
       }
       ctx.globalAlpha = 1;
     } else if (h.type === 'wave') {
@@ -2708,6 +2952,11 @@ function drawBullets() {
       ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(0, -6); ctx.lineTo(-12, 0); ctx.lineTo(0, 6); ctx.closePath();
       ctx.fillStyle = '#7ff0ff'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.restore();
+    } else if (u.kind === 'dark') {
+      // cầu bóng tối của Zagred
+      ctx.fillStyle = 'rgb(176 76 255 / .35)'; ctx.beginPath(); ctx.arc(u.x, u.y, (u.r || 7) + 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1a0a26'; ctx.beginPath(); ctx.arc(u.x, u.y, (u.r || 7) + 1, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c98cff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(u.x, u.y, (u.r || 7) + 1, S.t * 8, S.t * 8 + 4); ctx.stroke();
     } else {
       // cầu lửa (ném vòng cung hoặc bắn thẳng)
       const d = Math.atan2(u.vy || 0, u.vx);
@@ -3834,7 +4083,7 @@ function drawParts() {
 function render() {
   const b = S.ball, cam = S.cam;
   const tx = clamp(b.x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
-  const ty = clamp(b.y - VIEW_H * .55, -250, 100);
+  const ty = clamp(b.y - VIEW_H * .55, CAM_Y[0], CAM_Y[1]);
   cam.x += (tx - cam.x) * .12; cam.y += (ty - cam.y) * .08;
   const cx = Math.round(cam.x), cy = Math.round(cam.y);
 
@@ -3925,22 +4174,32 @@ try {
 const TEST_MODE = lsGet(TEST_KEY, '') === '1';
 function warpToBoss() {
   if (S.won || S.lost || S.fight) return;
-  const x = CHECKPOINTS[1].x + 20;
-  Object.assign(S.ball, { x, y: f4(x) - 40, vx: 0, vy: 0 });
-  S.cp = 1; S.spawn = { x: CHECKPOINTS[1].x, y: f4(CHECKPOINTS[1].x) - 60 };
+  const c = CHECKPOINTS[CHECKPOINTS.length - 1], x = c.x + 20;
+  Object.assign(S.ball, { x, y: c.f(x) - 40, vx: 0, vy: 0 });
+  S.cp = CHECKPOINTS.length - 1; S.spawn = { x: c.x, y: c.f(c.x) - 60 }; S.safeY = S.ball.y;
   S.tipSeen = S.tipSeen.map(() => true);
   S.cam.x = clamp(x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
+  S.cam.y = clamp(S.ball.y - VIEW_H * .55, CAM_Y[0], CAM_Y[1]);
   S.pops.push({ x, y: S.ball.y - 60, t: 1, text: 'Tới đấu trường boss', c: '#fff27a' });
 }
+// Đổi màn: dựng lại địa hình, mốc trên thanh chặng đường, bảng xếp hạng riêng từng màn
+const MAP_KEY = 'bongdo.map', MAP_NAMES = { 1: 'Đồng cỏ', 2: 'Núi Quỷ' };
+function setMap(n) {
+  loadMap(n); lsSet(MAP_KEY, String(MAP));
+  $('mapBtn').textContent = `Màn ${MAP}: ${MAP_NAMES[MAP]} (N)`;
+  applyChar();
+  document.querySelectorAll('#progTrack .cp').forEach(m => m.remove());
+  for (const c of CHECKPOINTS) {
+    const m = document.createElement('span');
+    m.className = 'cp'; m.style.left = (c.x / GOAL.x * 100) + '%';
+    $('progTrack').appendChild(m);
+  }
+  reset(); loadBoard();
+}
+$('mapBtn').addEventListener('click', e => { setMap(MAP === 1 ? 2 : 1); e.currentTarget.blur(); });
 if (TEST_MODE) setTimeout(() => showTip('Chế độ thử: vô hạn mạng · phím B tới thẳng đấu trường boss · không lưu điểm. Mở link với #thuong để tắt.'), 300);
 
 fit();
-// mốc trên thanh chặng đường
-for (const c of CHECKPOINTS) {
-  const m = document.createElement('span');
-  m.className = 'cp'; m.style.left = (c.x / GOAL.x * 100) + '%';
-  $('progTrack').appendChild(m);
-}
-reset();
+setMap(Number(lsGet(MAP_KEY, '1')));
 requestAnimationFrame(loop);
 })();

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=711dae32">
+<link rel="stylesheet" href="css/style.css?v=d9ab8e88">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -22,6 +22,7 @@
     <span class="chip energy" id="energyChip" data-full="0" title="Điện năng: J tia sét 5 · Quả cầu điện 20 · L Lưới điện 30 · Shift Lao điện 25 · U 100.000 Vôn cần đầy"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="ebar"><i id="efill"></i></span><span id="energy">50</span></span>
   </div>
   <div class="btns">
+    <button class="restart" id="mapBtn" type="button">Màn 1 (N)</button>
     <button class="restart" id="charBtn" type="button">Nhân vật (P)</button>
     <button class="restart" id="mute" type="button" aria-pressed="true">Âm thanh: Bật (M)</button>
     <button class="restart" id="restart" type="button">Chơi lại (R)</button>
@@ -30,7 +31,7 @@
 
 <aside class="board" id="board" aria-label="Bảng xếp hạng">
   <button class="board-head" id="boardToggle" type="button" aria-expanded="true" aria-controls="boardBody">
-    <span>Bảng xếp hạng</span><span class="board-caret" aria-hidden="true">▾</span>
+    <span id="boardTitle">Bảng xếp hạng</span><span class="board-caret" aria-hidden="true">▾</span>
   </button>
   <div id="boardBody">
     <div class="board-cols" aria-hidden="true"><span>#</span><span>Tên</span><span>Boss</span><span>Kết quả</span></div>
@@ -146,10 +147,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=711dae32&t=' + Date.now();
+  s.src = 'js/game.js?v=d9ab8e88&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=711dae32&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=d9ab8e88&t=' + Date.now();
 })();
 </script>
 </body>
