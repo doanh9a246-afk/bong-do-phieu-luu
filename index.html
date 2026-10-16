@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=77eb3a40">
+<link rel="stylesheet" href="css/style.css?v=9706dc87">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -132,6 +132,8 @@
     <button class="tbtn gk" type="button" data-key="down" aria-label="Bay xuống" hidden>▼</button>
   </div>
   <div class="grp acts">
+    <button class="tbtn pk" type="button" data-key="dmax" aria-label="Dynamax" hidden>Max</button>
+    <button class="tbtn pk" type="button" data-key="zmove" aria-label="Tuyệt kĩ Z: Catastropika" hidden>Z</button>
     <button class="tbtn sx" type="button" data-key="regen" aria-label="Tái tạo năng lượng (giữ)" hidden>Hồi</button>
     <button class="tbtn sx" type="button" data-key="whistle" aria-label="Huýt sáo" hidden>Sáo</button>
     <button class="tbtn sx" type="button" data-key="boom" aria-label="Tự phát nổ" hidden>Nổ</button>
@@ -148,10 +150,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=77eb3a40&t=' + Date.now();
+  s.src = 'js/game.js?v=9706dc87&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=77eb3a40&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=9706dc87&t=' + Date.now();
 })();
 </script>
 </body>

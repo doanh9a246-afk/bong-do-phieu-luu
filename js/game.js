@@ -68,7 +68,7 @@ const GOAL = {}, TURRET = {}, SPAWN = {};
 let CAM_Y = [-250, 100];   // giới hạn camera theo chiều dọc
 let ENEMY_SPEED = 70;
 const MAX_LIVES = 5;      // tim hồi mạng tối đa
-const PIKA_TIP = 'Thanh ⚡ là điện năng. J: tia sét · giữ J rồi thả: Quả cầu điện (chạy càng nhanh càng mạnh) · L: Lưới điện · Shift: Lao điện · U khi đầy: 100.000 Vôn.';
+const PIKA_TIP = 'Thanh ⚡ là điện năng. J: tia sét · giữ J rồi thả: Quả cầu điện (chạy càng nhanh càng mạnh) · L: Lưới điện · Shift: Lao điện · U khi đầy: 100.000 Vôn · G: Dynamax (to ×10, bộ chiêu hack) · Z: tuyệt kĩ Z Catastropika.';
 // hố do Shinra Tensei khoét vào mặt đất (xoá khi chơi lại hoặc đổi màn)
 const CRATERS = [];
 function craterAt(x) {
@@ -240,6 +240,7 @@ function reset() {
     slashes: [], spin: 0, black: 0, ytor: [],   // Asta, Yuno
     shinra: null, chibaku: null, pull: null, pullLines: [], spikeGone: new Set(),   // Pain
     kame: null, ui: 0, uiBurst: null, tele: [],   // Goku
+    zCd: 0, zFx: 0, vbeam: null,   // Pikachu: tuyệt kĩ Z, tia 100.000 Vôn
   });
   // địa hình bị Shinra Tensei phá được dựng lại
   for (const s of SOLIDS) s.broken = 0;
@@ -352,6 +353,8 @@ function setKey(k, on) {
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
   if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : fireVolt());
   if (k === 'boom' && on && !keys.boom && CHAR === 'saiyan') selfDestruct();
+  if (k === 'dmax' && on && !keys.dmax && CHAR === 'pika') toggleDmax();
+  if (k === 'zmove' && on && !keys.zmove && CHAR === 'pika') zMove();
   if (k === 'whistle' && on && !keys.whistle && CHAR === 'saiyan') whistle();
   if (k === 'skill' && on && !keys.skill) {
     if (S.boss && S.boss.ts > 0 && !S.tsEsc && !S.dead) escapeTimeStop();
@@ -362,7 +365,7 @@ function setKey(k, on) {
 }
 const KEYMAP = {
   ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', ArrowDown: 'down', KeyS: 'down',
-  KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill', KeyJ: 'bolt', KeyX: 'bolt', KeyL: 'web', KeyC: 'web', KeyU: 'volt', KeyV: 'volt', KeyH: 'regen', KeyI: 'whistle', KeyO: 'boom',
+  KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill', KeyJ: 'bolt', KeyX: 'bolt', KeyL: 'web', KeyC: 'web', KeyU: 'volt', KeyV: 'volt', KeyH: 'regen', KeyI: 'whistle', KeyO: 'boom', KeyG: 'dmax', KeyZ: 'zmove',
 };
 function escapeTimeStop() {
   sfx('zap');
@@ -405,7 +408,7 @@ addEventListener('keydown', e => {
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
 });
 addEventListener('keyup', e => { if (typing(e)) return; const k = KEYMAP[e.code]; if (k) { e.preventDefault(); setKey(k, false); } });
-addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.down = keys.skill = keys.bolt = keys.web = keys.volt = keys.regen = false; S.charging = false; });
+addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.down = keys.skill = keys.bolt = keys.web = keys.volt = keys.regen = keys.dmax = keys.zmove = false; S.charging = false; });
 document.querySelectorAll('[data-key]').forEach(b => {
   const k = b.dataset.key;
   b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); b.classList.add('on'); setKey(k, true); });
@@ -534,7 +537,7 @@ function respawn() {
   bossBar();
   S.safeY = S.ball.y;
   S.cam.x = clamp(S.ball.x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
-  S.cam.y = clamp(S.ball.y - VIEW_H * .55, CAM_Y[0], CAM_Y[1]);
+  S.cam.y = clamp(camTargetY(), camMinY(), CAM_Y[1]);
 }
 
 function update(dt) {
@@ -730,7 +733,7 @@ function releaseCharge() {
 }
 // Tia sét (Thunder Shock): bắn thẳng, rẻ, nhanh
 function fireShock() {
-  if (S.shockCd > 0 || !spend(COST.shock)) return;
+  if (S.shockCd > 0 || !spend(cost('tap'))) return;
   const b = S.ball, d = b.face || 1;
   S.shockCd = SHOCK_CD; S.cast = .2;
   S.bolts.push({ x: b.x + d * 26, y: b.y - 10, vx: d * SHOCK_SPEED, life: SHOCK_LIFE, seed: Math.random() * 100 });
@@ -738,18 +741,20 @@ function fireShock() {
 }
 // Quả cầu điện (Electro Ball): giữ càng lâu cầu càng to; đúng nguyên tác, Pikachu chạy càng nhanh thì càng mạnh
 function fireElectroBall(hold) {
-  if (!spend(COST.ball)) return;
+  if (!spend(cost('hold'))) return;
   const b = S.ball, d = b.face || 1, k = clamp((hold - BALL_HOLD) / (BALL_FULL - BALL_HOLD), 0, 1);
   const fast = Math.abs(b.vx) >= 250;
   const dmg = 1 + (k >= .99 ? 1 : 0) + (fast ? 1 : 0);
-  S.orbs.push({ x: b.x + d * 28, y: b.y - 14, vx: d * (430 + Math.abs(b.vx) * .8), vy: -260, r: 9 + k * 9, dmg, bounced: false, life: 1.8, hit: new Set() });
+  // cầu to gấp đôi; Dynamax thì to gấp 5 và phóng ra từ má Pikachu khổng lồ
+  const big = DMAX ? 5 : 2;
+  S.orbs.push({ x: b.x + d * (DMAX ? 120 : 28), y: b.y - (DMAX ? 260 : 14), vx: d * (430 + Math.abs(b.vx) * .8), vy: DMAX ? -60 : -260, r: (9 + k * 9) * big, dmg, bounced: false, life: DMAX ? 2.4 : 1.8, hit: new Set() });
   S.cast = .25;
   sfx('orb');
   S.pops.push({ x: b.x, y: b.y - 58, t: .6, text: `Quả cầu điện ×${dmg}`, c: '#fff27a' });
 }
 // Lưới điện (Electroweb): quái và boss dính lưới đứng yên, lưới quét sạch đạn trên đường bay
 function fireWeb() {
-  if (!canAct() || S.webCd > 0 || !spend(COST.web)) return;
+  if (!canAct() || S.webCd > 0 || !spend(cost('web'))) return;
   const b = S.ball, d = b.face || 1;
   S.webCd = .6; S.cast = .25;
   S.webs.push({ x: b.x + d * 26, y: b.y - 10, vx: d * WEB_SPEED, life: WEB_LIFE, r: 24 });
@@ -766,22 +771,39 @@ function fireVolt() {
   }
   S.energy = 0;
   if (CHAR === 'asta') { S.black = 20; S.pops.push({ x: S.ball.x, y: S.ball.y - 80, t: 1.2, text: 'Hắc Hoá!', c: '#9cff7a' }); }
-  S.voltFx = U.fx; S.flash = .9; S.cast = .6; S.swing = SWING; S.ultKind = CHAR;
-  sfx(U.sfx);
   if (CHAR === 'chii') S.pops.push({ x: S.ball.x - 60, y: S.ball.y - 80, t: 1, text: 'Ura!', c: '#ffe27a' }, { x: S.ball.x + 60, y: S.ball.y - 90, t: 1, text: 'Yaha!', c: '#ffffff' });
-  const x0 = S.cam.x - 40, x1 = S.cam.x + viewW + 40, n = U.n;
-  S.voltStrikes = Array.from({ length: n }, (_, i) => x0 + (i + .5) * (x1 - x0) / n + (Math.random() - .5) * 60);
-  S.bullets = []; S.tshots = []; S.icicles = [];
+  if (CHAR === 'pika') {
+    const dir = S.ball.face || 1;
+    S.vbeam = { t: .9, dur: .9, dir };
+    const o = voltOrigin(), edge = dir > 0 ? S.cam.x + viewW + 60 : S.cam.x - 60, big = DMAX;
+    ultBlast(U, 'pika', { x0: Math.min(o.x, edge) - 10, x1: Math.max(o.x, edge) + 10, y0: o.y - (big ? 260 : 130), y1: big ? S.ball.y + R + 40 : o.y + 130 });
+  } else ultBlast(U);
+}
+// điểm phóng tia 100.000 Vôn: má Pikachu (Dynamax thì ở má của thân khổng lồ)
+function voltOrigin() {
+  const b = S.ball, dir = S.vbeam ? S.vbeam.dir : b.face || 1;
+  return DMAX ? { x: b.x + dir * 132 * MAX_K / 10, y: b.y + R - 262 * MAX_K / 10 } : { x: b.x + dir * 20, y: b.y - 12 };
+}
+// sét/sao/tia sáng khắp màn hình: hạ quái, xoá đạn, đánh và làm choáng boss
+// zone (không bắt buộc): chỉ trúng những gì trong khung { x0, x1, y0, y1 }, không có thì cả màn hình
+function ultBlast(U, kind = CHAR, zone = null) {
+  S.voltFx = U.fx; S.flash = zone ? .45 : .9; S.cast = .6; S.swing = SWING; S.ultKind = kind;
+  sfx(U.sfx);
+  const x0 = zone ? zone.x0 : S.cam.x - 40, x1 = zone ? zone.x1 : S.cam.x + viewW + 40, n = U.n;
+  const y0 = zone ? zone.y0 : -Infinity, y1 = zone ? zone.y1 : Infinity;
+  const inZ = (x, y) => x > x0 && x < x1 && y > y0 && y < y1, out = t => !inZ(t.x, t.y);
+  S.voltStrikes = zone ? [] : Array.from({ length: n }, (_, i) => x0 + (i + .5) * (x1 - x0) / n + (Math.random() - .5) * 60);
+  S.bullets = S.bullets.filter(out); S.tshots = S.tshots.filter(out); S.icicles = S.icicles.filter(out);
   const B = S.boss;
   B.hazards = B.hazards.filter(h => h.type === 'puddle');
   B.sweep = null;
-  for (const e of S.enemies) if (e.alive && e.x > x0 && e.x < x1) { e.alive = false; e.squash = 0; boltSpark(e.x, e.f(e.x) - 20, '#16181d', 12); }
-  for (const f of S.flyers) if (f.alive && f.x > x0 && f.x < x1) killFlyer(f);
+  for (const e of S.enemies) if (e.alive && inZ(e.x, e.f(e.x) - 20)) { e.alive = false; e.squash = 0; boltSpark(e.x, e.f(e.x) - 20, '#16181d', 12); }
+  for (const f of S.flyers) if (f.alive && inZ(f.x, f.y)) killFlyer(f);
   const T = S.turret;
-  if (T.alive && T.x > x0 && T.x < x1) breakTurret();
+  if (T.alive && inZ(T.x, T.f(T.x) - 26)) breakTurret();
   if (S.fight && !B.dead && !B.cut && !B.fuse) {
     const u = B.units[0];
-    if (u.x > x0 && u.x < x1) { damageBoss(u, U.dmg, 'volt'); if (!B.dead && !B.cut && !B.fuse) { B.stun = Math.max(B.stun, U.stun); B.act = null; } }
+    if (u.x > x0 && u.x < x1 && u.y - BOSS_H < y1 && u.y > y0) { damageBoss(u, U.dmg, 'volt'); if (!B.dead && !B.cut && !B.fuse) { B.stun = Math.max(B.stun, U.stun); B.act = null; } }
   }
 }
 function boltSpark(x, y, c = '#fff27a', n = 10) {
@@ -809,6 +831,10 @@ function turretAt(x, y, r) {
 }
 function killEnemy(e, c = '#16181d') { e.alive = false; e.squash = 0; boltSpark(e.x, e.f(e.x) - 20, c, 16); sfx('stomp'); gainEnergy(8); }
 function updatePikachuMoves(dt) {
+  S.zCd = Math.max(0, S.zCd - dt);
+  S.zFx = Math.max(0, S.zFx - dt);
+  if (S.vbeam && (S.vbeam.t -= dt) <= 0) S.vbeam = null;
+  if (CHAR === 'pika' && DMAX && !S.dead && !S.won) maxStomp();
   S.shockCd = Math.max(0, S.shockCd - dt);
   S.webCd = Math.max(0, S.webCd - dt);
   S.cast = Math.max(0, S.cast - dt);
@@ -851,13 +877,14 @@ function updatePikachuMoves(dt) {
     for (const t of S.bullets) if (Math.hypot(t.x - w.x, t.y - w.y) < w.r + 8) { t.dead = true; boltSpark(t.x, t.y, '#fff27a', 4); }
     for (const t of S.tshots) if (Math.hypot(t.x - w.x, t.y - w.y) < w.r + 8) t.alive = false;
     let e, f, u;
-    if ((e = enemyAt(w.x, w.y, w.r - 6))) { e.stun = WEB_STUN * 1.5; w.life = 0; sfx('web'); continue; }
-    if ((f = flyerAt(w.x, w.y, w.r - 6))) { f.stun = WEB_STUN * 1.5; f.state = 'patrol'; w.life = 0; sfx('web'); continue; }
+    const jail = !w.kind;   // Lưới điện của Pikachu: giam vĩnh viễn
+    if ((e = enemyAt(w.x, w.y, w.r - 6))) { e.stun = jail ? FOREVER : WEB_STUN * 1.5; w.life = 0; sfx('web'); continue; }
+    if ((f = flyerAt(w.x, w.y, w.r - 6))) { f.stun = jail ? FOREVER : WEB_STUN * 1.5; f.state = 'patrol'; w.life = 0; sfx('web'); continue; }
     if ((u = bossUnitAt(w.x, w.y, w.r - 6))) {
       const B = S.boss;
       if (B.ts > 0) { boltSpark(w.x, w.y, '#9aa3ad', 8); w.life = 0; continue; }
-      B.stun = WEB_STUN; B.act = null; B.sweep = null; w.life = 0; sfx('web');
-      S.pops.push({ x: u.x, y: u.y - BOSS_H - 20, t: .8, text: w.kind === 'rope' ? 'Bị trói!' : 'Dính lưới!', c: '#fff27a' });
+      B.stun = jail ? FOREVER : WEB_STUN; B.act = null; B.sweep = null; w.life = 0; sfx('web');
+      S.pops.push({ x: u.x, y: u.y - BOSS_H - 20, t: .8, text: w.kind === 'rope' ? 'Bị trói!' : 'Giam vĩnh viễn!', c: '#fff27a' });
     }
   }
   S.webs = S.webs.filter(w => w.life > 0);
@@ -867,7 +894,9 @@ function updatePikachuMoves(dt) {
 /* ---------- Nhân vật khác: Chiikawa, Rimuru, Stelle ----------
    Mọi nhân vật dùng chung các nút (J, giữ J, L, Shift, U) nhưng mỗi người một bộ chiêu. */
 const CHARS = {
-  pika:   { cost: { tackle: COST.tackle }, tackleCd: TACKLE_CD, regen: 1, speed: MAXV, airJumps: 0, dmgK: 1 },
+  pika:   { cost: { tap: COST.shock, hold: COST.ball, web: COST.web, tackle: COST.tackle }, tackleCd: TACKLE_CD, regen: 1, speed: MAXV, airJumps: 0, dmgK: 1 },
+  // Pikachu Dynamax (phím G): to gấp 10 lần, vĩnh viễn, bộ chiêu hack như Stelle
+  pikaMax: { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .35, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
   chii:   { cost: { tap: 2, hold: 15, web: 25, tackle: 20 }, tackleCd: .8, regen: 1.2, speed: 300, airJumps: 0, dmgK: 1 },
   rimuru: { cost: { tap: 4, hold: 25, web: 20, tackle: 20 }, tackleCd: .8, regen: 1.3, speed: 330, airJumps: 1, dmgK: 1 },
   // Stelle: bộ kĩ năng "hack" — mọi chiêu miễn phí, nhảy 3 lần, sát thương ×2, xuyên khiên boss
@@ -884,8 +913,55 @@ const CHARS = {
   // Goku (Dragon Ball): cheat như trên, bay tự do bằng nút di chuyển (fly), không bao giờ rơi
   goku:   { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .35, regen: 6, speed: 420, airJumps: 0, dmgK: 2, pierce: true, fly: true },
 };
-const CH = () => CHARS[CHAR];
+const CH = () => CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHARS[CHAR];
 const cost = k => CH().cost[k];
+/* ---------- Pikachu: Dynamax (G) và tuyệt kĩ Z (Z) ----------
+   Dynamax: to gấp 10 lần, vĩnh viễn (lưu trên máy tới khi bấm G lần nữa), bộ chiêu chuyển sang hack.
+   Thân khổng lồ chỉ để nhìn và nghiền quái; hitbox vẫn là quả bóng nhỏ ở chân nên vẫn lách qua được địa hình. */
+const DMAX_KEY = 'bongdo.dmax', MAX_K = 10, FOREVER = 1e9;
+let DMAX = false;
+const camTargetY = () => S.ball.y - VIEW_H * (CHAR === 'pika' && DMAX ? .9 : .55);
+const camMinY = () => CAM_Y[0] - (CHAR === 'pika' && DMAX ? 260 : 0);
+function toggleDmax() {
+  if (S.dead || S.won || S.lost) return;
+  DMAX = !DMAX;
+  lsSet(DMAX_KEY, DMAX ? '1' : '');
+  const b = S.ball;
+  S.flash = .8; S.safe = Math.max(S.safe, .6);
+  sfx(DMAX ? 'volt' : 'pikachu');
+  S.pops.push({ x: b.x, y: b.y - (DMAX ? 300 : 60), t: 1.4, text: DMAX ? 'Pikachu DYNAMAX!' : 'Pikachu trở lại bình thường', c: DMAX ? '#ff5a6e' : '#fff27a' });
+  for (let i = 0; i < 60; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 150 + Math.random() * 500;
+    S.parts.push({ x: b.x, y: b.y - (DMAX ? 200 : 20), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .9, c: ['#ff3355', '#ff9aa8', '#fff27a', '#ffffff'][i % 4], r: 6 + Math.random() * 8, g: 0 });
+  }
+  S.airJumps = CH().airJumps;
+  applyChar();
+}
+// thân khổng lồ đi tới đâu, quái nhỏ bị nghiền tới đó
+function maxStomp() {
+  const b = S.ball, feet = b.y + R;
+  for (const e of S.enemies) {
+    if (!e.alive) continue;
+    const ey = e.f(e.x) - 20;
+    if (Math.abs(e.x - b.x) < 11 * MAX_K && ey > feet - 50 * MAX_K && ey < feet + 20) killEnemy(e);
+  }
+  for (const f of S.flyers) if (f.alive && Math.abs(f.x - b.x) < 12 * MAX_K && f.y > feet - 55 * MAX_K && f.y < feet + 20) killFlyer(f);
+}
+// Tuyệt kĩ Z của Pikachu: Catastropika — lao lên trời, bọc toàn thân bằng điện rồi giáng xuống cả màn hình
+const ZMOVE = { dmg: 8, stun: 3, n: 18, fx: 1.4, sfx: 'volt' };
+function zMove() {
+  if (!canAct()) return;
+  if (S.zCd > 0) {
+    S.pops.push({ x: S.ball.x, y: S.ball.y - 60, t: .8, text: `Pha lê Z đang nạp (${Math.ceil(S.zCd)} giây)`, c: '#ff9aa8' });
+    sfx('deny');
+    return;
+  }
+  S.zCd = DMAX ? 8 : 20; S.zFx = 1.6;
+  S.power = Math.max(S.power, 1.2);
+  const b = S.ball;
+  S.pops.push({ x: b.x, y: b.y - (DMAX ? 360 : 90), t: 1.4, text: 'Tuyệt kĩ Z: CATASTROPIKA!', c: '#ffe14a' });
+  ultBlast(ZMOVE, 'pikaZ');
+}
 const MOVES = {
   pika:   { tap: fireShock, hold: fireElectroBall, web: fireWeb },
   chii:   { tap: chiiBonk, hold: chiiWeeds, web: chiiCry },
@@ -2382,7 +2458,11 @@ const CHAR_UI = {
     btn: { bolt: ['Sét', 'Tia sét'], web: ['Lưới', 'Lưới điện'], skill: ['⚡', 'Lao điện'], volt: ['100K', '100.000 Vôn'] },
     short: ['tia sét', 'Quả cầu điện', 'Lưới điện', 'Lao điện', '100.000 Vôn'],
     kit: [['J', 'Tia sét (5)'], ['Giữ J', 'Quả cầu điện: chạy càng nhanh càng mạnh (20)'], ['L', 'Lưới điện: trói quái và boss (30)'],
-      ['Shift', 'Lao điện: vô địch khi lao (25)'], ['U', '100.000 Vôn: sét khắp màn hình (cần đầy)']],
+      ['Shift', 'Lao điện: vô địch khi lao (25)'], ['U', '100.000 Vôn: 3 tia sét zíc zắc phóng ngang phía trước tới mép màn hình (cần đầy)'],
+      ['G', 'Dynamax: to gấp 10 lần, vĩnh viễn (bấm G lần nữa để thu nhỏ). Bộ chiêu chuyển sang hack: mọi chiêu miễn phí, nhảy 3 lần, chạy nhanh, sát thương ×2, xuyên khiên boss, điện năng nạp ×6, thân khổng lồ nghiền quái'],
+      ['Z', 'Tuyệt kĩ Z Catastropika: giáng điện cả màn hình, sát thương 8 lên boss, choáng 3 giây (hồi 20 giây, Dynamax 8 giây)']],
+    passive: 'Lưới điện giam quái và boss vĩnh viễn (boss chỉ thoát khi sang giai đoạn mới) · Quả cầu điện to gấp đôi (Dynamax: gấp 5).',
+    more: ' · <kbd>G</kbd> Dynamax · <kbd>Z</kbd> Catastropika', moreTap: ' · Max: Dynamax · Z: Catastropika',
     tip: PIKA_TIP },
   chii: { name: 'Chiikawa', from: 'Chiikawa', tag: 'Nhỏ mà có võ: nhổ cỏ, khóc oà, gọi bạn', energy: 'Dũng khí',
     btn: { bolt: ['Gậy', 'Gõ gậy'], web: ['Khóc', 'Khóc oà'], skill: ['Lăn', 'Lăn tròn'], volt: ['Bạn', 'Gọi bạn'] },
@@ -2474,6 +2554,7 @@ function applyChar() {
   document.querySelector('#hint .keys').innerHTML = `<kbd>←</kbd> <kbd>→</kbd> chạy · <kbd>↑</kbd>/<kbd>Space</kbd> nhảy · <kbd>J</kbd> ${s[0]}${s[1] ? ` (giữ rồi thả: ${s[1]})` : ''} · <kbd>L</kbd> ${s[2]} · <kbd>Shift</kbd> ${s[3]} · <kbd>U</kbd> ${s[4]}${u.more || ''} · <kbd>P</kbd> đổi nhân vật · <kbd>N</kbd> đổi màn · về đích trong ${TIME_LIMIT / 60} phút`;
   document.querySelector('#hint .tap').textContent = `◀ ▶ chạy · ▲ nhảy · ${u.btn.bolt[0]}${s[1] ? ` (giữ: ${s[1]})` : ''} · ${u.btn.web[0]}: ${s[2]} · ${u.btn.skill[0]}: ${s[3]} · ${u.btn.volt[0]}${CH().cost.volt != null ? `: ${s[4]}` : ' khi đầy'}${u.moreTap || ''} · về đích trong ${TIME_LIMIT / 60} phút`;
   document.querySelectorAll('.touch .sx').forEach(el => { el.hidden = CHAR !== 'saiyan'; });
+  document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
   document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !CH().fly; });
   document.querySelector('.touch [data-key="jump"]').setAttribute('aria-label', CH().fly ? 'Bay lên' : 'Nhảy');
   $('energyChip').title = `${u.energy}: ` + u.kit.map(([k, t]) => `${k} ${t}`).join(' · ');
@@ -2561,6 +2642,7 @@ $('pwForm').addEventListener('submit', e => {
 $('charBtn').addEventListener('click', openChars);
 $('charsClose').addEventListener('click', closeChars);
 CHAR = lsGet(CHAR_KEY, 'pika');
+DMAX = lsGet(DMAX_KEY, '') === '1';
 if (!CHAR_UI[CHAR] || !unlocked(CHAR)) CHAR = 'pika';
 applyChar();
 
@@ -3613,12 +3695,13 @@ function drawVolt() {
   // Pikachu: sét ngoằn ngoèo · Stelle: sao băng vàng · Rimuru: Megiddo tia sáng thẳng qua thấu kính nước
   const pal = {
     pika: [[16, 'rgb(255 242 122 / .35)'], [7, '#fff27a'], [3, '#ffffff']],
+    pikaZ: [[30, 'rgb(255 225 74 / .35)'], [12, '#ffd21f'], [4, '#ffffff']],
     stelle: [[18, 'rgb(255 214 110 / .35)'], [8, '#ffd65e'], [3, '#ffffff']],
     rimuru: [[12, 'rgb(170 240 255 / .35)'], [5, '#e8fbff'], [2, '#ffffff']],
     asta: [[26, 'rgb(15 15 18 / .5)'], [12, '#16161a'], [3, '#9cff7a']],
     yuno: [[20, 'rgb(150 240 190 / .3)'], [7, '#9cf0b4'], [2.5, '#ffffff']],
   }[kind];
-  const jag = kind === 'pika' ? 18 : kind === 'yuno' ? 26 : kind === 'asta' ? 6 : 0;
+  const jag = kind === 'pika' || kind === 'pikaZ' ? 18 : kind === 'yuno' ? 26 : kind === 'asta' ? 6 : 0;
   ctx.globalAlpha = clamp(S.voltFx / .5, 0, 1);
   for (const [i, x] of S.voltStrikes.entries()) {
     const gy = groundYAt(x) ?? S.cam.y + VIEW_H;
@@ -3812,6 +3895,7 @@ function drawBall() {
     ctx.beginPath(); ctx.ellipse(b.x, gy - 2, R * 1.1 * k, 5 * k, 0, 0, Math.PI * 2); ctx.fill();
   }
   if (S.amber > 0) drawAmber(b);
+  if (CHAR === 'pika' && DMAX) { drawMaxCore(b, pw && !blink); return; }
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
 const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20' };
@@ -4691,6 +4775,244 @@ function drawPikachu(b, charged) {
     }
   }
 }
+// Pikachu Dynamax: vẽ sau địa hình, trước quái và boss để không che mất chiêu của địch
+function drawPikaMaxLayer() {
+  if (S.dead) return;
+  if (S.safe && Math.floor(S.t * 12) % 2) return;
+  const b = S.ball, sq = b.squash, air = !S.onGround;
+  const running = !air && Math.abs(b.vx) > 30, feet = b.y + R;
+  // bóng đổ dưới chân
+  const gy = groundYAt(b.x);
+  if (gy != null && gy - feet < 400) {
+    const k = clamp(1 - (gy - feet) / 400, .3, 1);
+    ctx.fillStyle = `rgb(0 0 0 / ${(.28 * k).toFixed(2)})`;
+    ctx.beginPath(); ctx.ellipse(b.x, gy - 2, 15 * MAX_K * k, 2.6 * MAX_K * k, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.save();
+  ctx.translate(b.x, feet + R * sq * .3);
+  ctx.scale((b.face || 1) * (1 + sq * .4) * MAX_K, (1 - sq * .5) * MAX_K);
+  drawPikaHD(running, b.run, air, S.cast > 0 || S.charging || S.zFx > 0 || !!S.vbeam);
+  ctx.restore();
+}
+// Pikachu vẽ kĩ (Dynamax phóng to 10 lần): chân ở y = 0, quay mặt sang phải
+function drawPikaHD(running, ph, air, cast) {
+  const OL = '#5a3a0e', BR = '#9a5a1c', T = S.t;
+  const bob = running ? Math.abs(Math.sin(ph)) * .9 : Math.sin(T * 2.2) * .25;
+  const yel = (x, y, r) => {
+    const g = ctx.createRadialGradient(x - r * .35, y - r * .45, r * .08, x, y, r * 1.08);
+    g.addColorStop(0, '#fff7b0'); g.addColorStop(.45, '#ffd62e'); g.addColorStop(1, '#e09c08');
+    return g;
+  };
+  const ink = (w = .55) => { ctx.strokeStyle = OL; ctx.lineWidth = w; ctx.stroke(); };
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // hào quang Dynamax đỏ hồng phía sau
+  const aura = ctx.createRadialGradient(0, -26, 4, 0, -26, 42);
+  aura.addColorStop(0, 'rgb(255 60 100 / .38)'); aura.addColorStop(.6, 'rgb(255 40 90 / .16)'); aura.addColorStop(1, 'rgb(255 40 90 / 0)');
+  ctx.fillStyle = aura;
+  ctx.beginPath(); ctx.arc(0, -26, 42, 0, Math.PI * 2); ctx.fill();
+  // mây Gigantamax đỏ lượn vòng trên đầu: nửa sau vẽ trước thân, nửa trước vẽ sau cùng
+  const clouds = front => {
+    for (let i = 0; i < 8; i++) {
+      const a = T * .9 + i * Math.PI / 4, sn = Math.sin(a);
+      if ((sn > 0) !== front) continue;
+      const cx = Math.cos(a) * 21, cy = -50 + sn * 3, r = 2.8 + (i % 3) * .6;
+      const g = ctx.createRadialGradient(cx - r * .3, cy - r * .4, r * .2, cx, cy, r * 1.3);
+      g.addColorStop(0, '#ffc2cc'); g.addColorStop(.5, '#ff3d64'); g.addColorStop(1, '#a80c34');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.arc(cx + r * .9, cy + .6, r * .75, 0, Math.PI * 2); ctx.arc(cx - r * .9, cy + .7, r * .7, 0, Math.PI * 2); ctx.fill();
+    }
+  };
+  clouds(false);
+  ctx.save(); ctx.translate(0, -bob);
+  // đuôi tia sét, gốc nâu
+  ctx.save(); ctx.translate(-8, -9); ctx.rotate(-.12 + Math.sin(T * 3) * .07 + (running ? Math.sin(ph) * .06 : 0));
+  const tail = [[1.5, -.5], [-3, -3.5], [-1, -6.5], [-8, -10], [-5, -14], [-15, -19], [-10, -25], [-23, -31], [-12, -33], [-16, -27], [-6, -21], [-9, -17], [-1, -12], [-3, -9], [2.5, -4]];
+  ctx.beginPath(); tail.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+  const tg = ctx.createLinearGradient(0, 0, -18, -32);
+  tg.addColorStop(0, '#e8a40c'); tg.addColorStop(.5, '#ffd62e'); tg.addColorStop(1, '#fff3a0');
+  ctx.fillStyle = tg; ctx.fill();
+  ctx.save(); ctx.clip(); ctx.fillStyle = BR; ctx.fillRect(-6, -8, 12, 9); ctx.restore();
+  ink();
+  ctx.restore();
+  // chân sau
+  const sw = running ? Math.sin(ph) * 2.2 : 0, lift = air ? -1.5 : 0;
+  ctx.fillStyle = yel(-5, -1.5, 5);
+  ctx.beginPath(); ctx.ellipse(-5 - sw, -1.6 + lift, 4.6, 2.3, -.1, 0, Math.PI * 2); ctx.fill(); ink();
+  // thân hình quả lê
+  ctx.beginPath();
+  ctx.moveTo(-1, -23);
+  ctx.bezierCurveTo(-10, -23, -12.5, -10, -10.5, -4.5);
+  ctx.bezierCurveTo(-9, -1, 8, -1, 9.5, -4.5);
+  ctx.bezierCurveTo(12, -10, 9, -23, -1, -23);
+  ctx.fillStyle = yel(-1, -12, 12); ctx.fill();
+  // sọc nâu trên lưng, bụng sáng
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = BR;
+  ctx.beginPath(); ctx.ellipse(-11, -16, 3.2, 1.3, -.25, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-11.5, -11.5, 3, 1.2, -.15, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgb(255 248 190 / .45)';
+  ctx.beginPath(); ctx.ellipse(3.5, -10, 5, 7, .15, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ink();
+  // chân trước có ngón
+  ctx.fillStyle = yel(6, -1.5, 5);
+  ctx.beginPath(); ctx.ellipse(6 + sw, -1.6 + lift, 5, 2.4, .08, 0, Math.PI * 2); ctx.fill(); ink();
+  ctx.beginPath(); ctx.moveTo(8.5 + sw, -2.6 + lift); ctx.lineTo(9 + sw, -.9 + lift); ctx.moveTo(10.2 + sw, -2.3 + lift); ctx.lineTo(10.6 + sw, -.9 + lift); ink(.35);
+  // tay: vung khi chạy, giơ khi tung chiêu
+  const armA = cast ? -1.9 : air ? -1.4 : running ? Math.sin(ph + Math.PI) * .6 : .25;
+  for (const [ax, ay, o] of [[3, -17, -.3], [7.5, -16.5, 0]]) {
+    ctx.save(); ctx.translate(ax, ay); ctx.rotate(armA + o);
+    ctx.fillStyle = yel(0, 2.5, 3.5);
+    ctx.beginPath(); ctx.ellipse(.5, 2.8, 1.9, 3.4, -.2, 0, Math.PI * 2); ctx.fill(); ink(.45);
+    ctx.restore();
+  }
+  // tai dài chóp đen, vẫy theo nhịp
+  const hx = 2, hy = -30;
+  const earSw = running ? Math.sin(ph * 2) * .08 : Math.sin(T * 1.8) * .04;
+  for (const [ex, ey, rot] of [[-5, -38, -.5], [6, -39, .28]]) {
+    ctx.save(); ctx.translate(ex, ey); ctx.rotate(rot + earSw - (air ? .12 : 0));
+    ctx.beginPath(); ctx.moveTo(-3.2, 2); ctx.bezierCurveTo(-4.4, -7, -2, -14, 0, -18); ctx.bezierCurveTo(2, -14, 4.4, -7, 3.2, 2); ctx.closePath();
+    ctx.fillStyle = yel(0, -6, 9); ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = '#1c1612'; ctx.beginPath(); ctx.moveTo(-6, -11.5); ctx.quadraticCurveTo(0, -9.5, 6, -11.5); ctx.lineTo(6, -20); ctx.lineTo(-6, -20); ctx.fill();
+    ctx.fillStyle = 'rgb(255 255 255 / .25)'; ctx.beginPath(); ctx.ellipse(-1, -6, .9, 4.5, -.1, 0, Math.PI * 2); ctx.fill();
+    ctx.restore(); ink();
+    ctx.restore();
+  }
+  // đầu tròn, má phúng phính
+  ctx.beginPath();
+  ctx.moveTo(hx - 13, hy + 1);
+  ctx.bezierCurveTo(hx - 14, hy - 10, hx + 14, hy - 12, hx + 14, hy + 1);
+  ctx.bezierCurveTo(hx + 14.5, hy + 7, hx + 9, hy + 10, hx, hy + 10);
+  ctx.bezierCurveTo(hx - 9, hy + 10, hx - 13.5, hy + 7, hx - 13, hy + 1);
+  ctx.fillStyle = yel(hx, hy, 14); ctx.fill(); ink(.6);
+  // mắt to tròn có ánh sáng, chớp định kì
+  const blinkE = Math.floor(T * 10) % 41 === 0;
+  for (const [ex, sc] of [[hx - 2.5, .85], [hx + 7.5, 1]]) {
+    if (blinkE) { ctx.beginPath(); ctx.moveTo(ex - 2 * sc, hy - 1.5); ctx.quadraticCurveTo(ex, hy - .5, ex + 2 * sc, hy - 1.5); ink(.5); continue; }
+    ctx.fillStyle = '#17120e';
+    ctx.beginPath(); ctx.ellipse(ex, hy - 1.8, 2.2 * sc, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(ex - .6 * sc, hy - 2.8, .95, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgb(255 255 255 / .5)';
+    ctx.beginPath(); ctx.arc(ex + .7 * sc, hy - .6, .45, 0, Math.PI * 2); ctx.fill();
+  }
+  // mũi
+  ctx.fillStyle = '#17120e';
+  ctx.beginPath(); ctx.ellipse(hx + 3.2, hy + 1.4, .55, .35, 0, 0, Math.PI * 2); ctx.fill();
+  // má đỏ
+  for (const [cx, r] of [[hx - 8.6, 2.6], [hx + 11.2, 3]]) {
+    const g = ctx.createRadialGradient(cx - r * .3, hy + 4 - r * .3, r * .1, cx, hy + 4, r);
+    g.addColorStop(0, '#ff7a6a'); g.addColorStop(1, '#d8261c');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, hy + 4, r, 0, Math.PI * 2); ctx.fill();
+  }
+  // miệng: "ω" khi đứng, há to "Pika!" khi nhảy hay tung chiêu
+  if (air || cast) {
+    ctx.beginPath(); ctx.moveTo(hx + 1.2, hy + 3.2); ctx.quadraticCurveTo(hx + 3.2, hy + 8.5, hx + 5.4, hy + 3.2); ctx.closePath();
+    ctx.fillStyle = '#7a1e1a'; ctx.fill();
+    ctx.save(); ctx.clip(); ctx.fillStyle = '#ff8a8a'; ctx.beginPath(); ctx.ellipse(hx + 3.3, hy + 6.6, 1.6, 1.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ink(.4);
+  } else {
+    ctx.beginPath(); ctx.arc(hx + 2.3, hy + 2.8, 1, .1, Math.PI - .1); ctx.moveTo(hx + 5.1, hy + 2.8); ctx.arc(hx + 4.1, hy + 2.8, 1, .1, Math.PI - .1); ink(.4);
+  }
+  // má toé điện khi tung chiêu
+  if (cast) {
+    ctx.strokeStyle = Math.floor(T * 30) % 2 ? '#ffffff' : '#fff27a'; ctx.lineWidth = .5;
+    for (const [cx, d] of [[hx + 11.2, 1], [hx - 8.6, -1]]) {
+      ctx.beginPath(); ctx.moveTo(cx + d * 2.5, hy + 3); ctx.lineTo(cx + d * 5, hy + 1.5); ctx.lineTo(cx + d * 4.3, hy + 4); ctx.lineTo(cx + d * 7, hy + 3.4);
+      ctx.moveTo(cx + d * 2.5, hy + 5.5); ctx.lineTo(cx + d * 5, hy + 7.5); ctx.lineTo(cx + d * 3.6, hy + 8.6); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  clouds(true);
+}
+// hitbox thật của Pikachu Dynamax: vòng điện nhỏ ở chân
+function drawMaxCore(b, charged) {
+  const p = 1 + Math.sin(S.t * 8) * .1;
+  ctx.strokeStyle = charged ? '#ffffff' : 'rgb(255 90 110 / .85)'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(b.x, b.y, R * p, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = 'rgb(255 242 122 / .35)';
+  ctx.beginPath(); ctx.arc(b.x, b.y, R * .55 * p, 0, Math.PI * 2); ctx.fill();
+}
+// 100.000 Vôn: 3 tia sét zíc zắc phóng ngang từ má Pikachu tới mép màn hình, có nhánh rẽ, chớp đổi hình liên tục
+function drawVoltBeam() {
+  const V = S.vbeam;
+  if (!V) return;
+  const big = CHAR === 'pika' && DMAX, o = voltOrigin(), dir = V.dir;
+  const p = 1 - V.t / V.dur, reach = Math.min(1, p / .12);
+  const edge = dir > 0 ? S.cam.x + viewW + 60 : S.cam.x - 60;
+  const len = Math.max(0, (edge - o.x) * dir) * reach;
+  const amp = big ? 55 : 26, seg = big ? 56 : 30, W = big ? 2.2 : 1.2;
+  let seed = (Math.floor(S.t * 22) % 9973) * 7919 + 1;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const stroke = (pts, layers) => {
+    for (const [w, c] of layers) {
+      ctx.strokeStyle = c; ctx.lineWidth = w;
+      ctx.beginPath(); pts.forEach(([x, y], j) => j ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+    }
+  };
+  const MAIN = [[26 * W, 'rgb(255 230 80 / .22)'], [12 * W, 'rgb(255 214 40 / .55)'], [6 * W, '#ffe14a'], [2.6 * W, '#ffffff']];
+  const FORK = [[8 * W, 'rgb(255 214 40 / .45)'], [3 * W, '#fff27a'], [1.2 * W, '#ffffff']];
+  ctx.save();
+  ctx.globalAlpha = clamp(V.t / .2, 0, 1);
+  ctx.lineJoin = 'miter'; ctx.lineCap = 'round';
+  for (let k = 0; k < 3; k++) {
+    const slope = (k - 1) * (big ? .16 : .1);   // ba tia toả quạt nhẹ
+    const pts = [[o.x, o.y]];
+    let i = 0;
+    for (let d = seg * .6; d < len; d += seg * (.7 + rnd() * .6), i++) {
+      const side = i % 2 ? 1 : -1;
+      pts.push([o.x + dir * d, o.y + slope * d + side * amp * (.45 + rnd() * .55) * Math.min(1, d / (seg * 2))]);
+    }
+    pts.push([o.x + dir * len, o.y + slope * len]);
+    stroke(pts, MAIN);
+    // nhánh rẽ ngắn
+    for (let j = 2; j < pts.length - 1; j += 2) {
+      if (rnd() < .45) continue;
+      const [fx, fy] = pts[j], f = [[fx, fy]];
+      let x = fx, y = fy;
+      const up = rnd() < .5 ? -1 : 1;
+      for (let s = 0; s < 3; s++) { x += dir * seg * (.4 + rnd() * .4); y += up * seg * (.3 + rnd() * .5) * (s % 2 ? -.4 : 1); f.push([x, y]); }
+      stroke(f, FORK);
+    }
+    // toé lửa điện ở đầu tia
+    const [tx, ty] = pts[pts.length - 1];
+    ctx.fillStyle = 'rgb(255 250 200 / .8)';
+    ctx.beginPath(); ctx.arc(tx, ty, (6 + rnd() * 6) * W, 0, Math.PI * 2); ctx.fill();
+  }
+  // quả cầu điện sáng chói nơi phóng ra
+  const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, 40 * W);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.3, 'rgb(255 240 120 / .9)'); g.addColorStop(1, 'rgb(255 220 40 / 0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(o.x, o.y, 40 * W, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+// biểu tượng pha lê Z xoay toả sáng trên đầu màn hình khi dùng tuyệt kĩ Z
+function drawZMove() {
+  if (S.zFx <= 0) return;
+  const p = 1 - S.zFx / 1.6, cx = S.cam.x + viewW / 2, cy = S.cam.y + 170;
+  ctx.save();
+  ctx.globalAlpha = clamp(S.zFx / .4, 0, 1);
+  ctx.translate(cx, cy);
+  ctx.save(); ctx.rotate(S.t * 1.5);
+  for (let i = 0; i < 12; i++) {
+    ctx.rotate(Math.PI / 6);
+    ctx.fillStyle = i % 2 ? 'rgb(255 225 74 / .28)' : 'rgb(255 255 255 / .22)';
+    ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(0, -420); ctx.lineTo(14, 0); ctx.fill();
+  }
+  ctx.restore();
+  const k = (.5 + Math.min(1, p * 5) * .5) * 1.6;
+  ctx.scale(k, k);
+  ctx.fillStyle = 'rgb(255 240 150 / .35)';
+  ctx.beginPath(); ctx.arc(0, 0, 62, 0, Math.PI * 2); ctx.fill();
+  const Z = [[-40, -42], [40, -42], [40, -24], [-10, 24], [40, 24], [40, 42], [-40, 42], [-40, 24], [10, -24], [-40, -24]];
+  ctx.beginPath(); Z.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+  const g = ctx.createLinearGradient(-40, -42, 40, 42);
+  g.addColorStop(0, '#fff8c8'); g.addColorStop(.5, '#ffd21f'); g.addColorStop(1, '#e08a00');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.strokeStyle = '#7a4a00'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+}
 function drawParts() {
   for (const p of S.parts) {
     ctx.globalAlpha = Math.max(0, p.life / .9);
@@ -4702,7 +5024,7 @@ function drawParts() {
 function render() {
   const b = S.ball, cam = S.cam;
   const tx = clamp(b.x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
-  const ty = clamp(b.y - VIEW_H * .55, CAM_Y[0], CAM_Y[1]);
+  const ty = clamp(camTargetY(), camMinY(), CAM_Y[1]);
   cam.x += (tx - cam.x) * .12; cam.y += (ty - cam.y) * .08;
   const cx = Math.round(cam.x), cy = Math.round(cam.y);
 
@@ -4717,6 +5039,7 @@ function render() {
   CHECKPOINTS.forEach((c, i) => drawFlag(c.x, c.f(c.x), S.cp >= i ? '#4fcf2e' : '#c9d1db', false));
   if (S.boss.dead) drawFlag(GOAL.x, GOAL.f(GOAL.x), '#e3262b', true);
   drawSolids(x0, x1);
+  if (CHAR === 'pika' && DMAX) drawPikaMaxLayer();
   drawGate();
   drawSpikes();
   drawHellSky();
@@ -4734,6 +5057,8 @@ function render() {
   drawBall();
   drawCharge();
   drawVolt();
+  drawVoltBeam();
+  drawZMove();
   drawParts();
   drawPops();
   drawFlash();
