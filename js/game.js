@@ -239,6 +239,7 @@ function reset() {
     kfx: [], ktor: [], timers: [], kpose: null, kposeT: 0, songCd: 0, tamCd: 0, bleed: 0, bleedTick: 0,   // Kiếm khách
     slashes: [], spin: 0, black: 0, ytor: [],   // Asta, Yuno
     shinra: null, chibaku: null, pull: null, pullLines: [], spikeGone: new Set(),   // Pain
+    kame: null, ui: 0, uiBurst: null, tele: [],   // Goku
   });
   // địa hình bị Shinra Tensei phá được dựng lại
   for (const s of SOLIDS) s.broken = 0;
@@ -330,8 +331,12 @@ const SFX = {
   pull()    { tone(200, 900, .4, 'sine', .06); noise(.4, .04, 1500); },
   chibaku() { tone(60, 140, 1.5, 'sawtooth', .05); noise(1.5, .05, 400); },
   storm()   { noise(1.2, .08, 1600); [880, 1175, 1568].forEach((f, i) => tone(f, f * 1.2, .3, 'sine', .04, i * .1)); },
+  kame()    { tone(180, 1100, .9, 'sawtooth', .05); noise(1, .08, 1800, .05); tone(90, 60, .9, 'square', .04, .1); },
+  tele()    { tone(1800, 500, .12, 'sine', .06); noise(.08, .05, 6000); },
+  ki()      { tone(900, 300, .1, 'sine', .06); noise(.08, .04, 3000); },
+  ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
-const JUMP_SFX = { pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop' };
+const JUMP_SFX = { pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop' };
 function sfx(name) { if (!muted && audio()) SFX[name](); }
 function setMuted(m) {
   muted = m;
@@ -345,7 +350,7 @@ function setKey(k, on) {
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
-  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : fireVolt());
+  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : fireVolt());
   if (k === 'boom' && on && !keys.boom && CHAR === 'saiyan') selfDestruct();
   if (k === 'whistle' && on && !keys.whistle && CHAR === 'saiyan') whistle();
   if (k === 'skill' && on && !keys.skill) {
@@ -356,7 +361,7 @@ function setKey(k, on) {
   if (on && !S.moved) { S.moved = true; setTimeout(() => $('hint').classList.add('gone'), 1500); }
 }
 const KEYMAP = {
-  ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump',
+  ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', ArrowDown: 'down', KeyS: 'down',
   KeyK: 'skill', ShiftLeft: 'skill', ShiftRight: 'skill', KeyJ: 'bolt', KeyX: 'bolt', KeyL: 'web', KeyC: 'web', KeyU: 'volt', KeyV: 'volt', KeyH: 'regen', KeyI: 'whistle', KeyO: 'boom',
 };
 function escapeTimeStop() {
@@ -400,7 +405,7 @@ addEventListener('keydown', e => {
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
 });
 addEventListener('keyup', e => { if (typing(e)) return; const k = KEYMAP[e.code]; if (k) { e.preventDefault(); setKey(k, false); } });
-addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.skill = keys.bolt = keys.web = keys.volt = keys.regen = false; S.charging = false; });
+addEventListener('blur', () => { keys.left = keys.right = keys.jump = keys.down = keys.skill = keys.bolt = keys.web = keys.volt = keys.regen = false; S.charging = false; });
 document.querySelectorAll('[data-key]').forEach(b => {
   const k = b.dataset.key;
   b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); b.classList.add('on'); setKey(k, true); });
@@ -445,11 +450,22 @@ function step(h) {
   else if (input) b.vx += input * accel * h;
   else b.vx *= 1 - (S.onGround ? (slick ? .5 : 10) : 2) * h;
   if (!input && !slick && S.onGround && Math.abs(b.vx) < 12) b.vx = 0;
-  const maxv = S.dash ? TACKLE_SPEED : CH().speed * (S.ape > 0 ? 1.15 : 1) * (S.black > 0 ? 1.2 : 1);
+  const maxv = S.dash ? TACKLE_SPEED : CH().speed * (S.ape > 0 ? 1.15 : 1) * (S.black > 0 ? 1.2 : 1) * (S.ui > 0 ? 1.3 : 1);
   b.vx = clamp(b.vx, -maxv, maxv);
-  b.vy = Math.min(b.vy + G * h, 1400);
+  if (CH().fly) {
+    // Goku bay tự do: ▲ lên, ▼ xuống, không có trọng lực, thả nút thì đứng lơ lửng
+    const vin = S.dash || S.boom > 0 ? 0 : (keys.down ? 1 : 0) - (keys.jump ? 1 : 0), fly = maxv * .9;
+    if (vin) b.vy = clamp(b.vy + vin * (Math.sign(b.vy) === -vin ? 5000 : 2600) * h, -fly, fly);
+    else if (!S.dash) b.vy *= 1 - 10 * h;
+  } else b.vy = Math.min(b.vy + G * h, 1400);
   if (CHAR === 'pain' && keys.jump && b.vy > 90) b.vy = 90;   // Pain lơ lửng khi giữ nhảy
   b.x += b.vx * h; b.y += b.vy * h;
+  if (CH().fly) {
+    // không bay khỏi khung hình, không rơi xuống vực; đang đánh boss thì ở trong đấu trường
+    if (b.y < CAM_Y[0] + 40) { b.y = CAM_Y[0] + 40; b.vy = Math.max(0, b.vy); }
+    if (b.y > DEATH_Y - 140) { b.y = DEATH_Y - 140; b.vy = Math.min(0, b.vy); }
+    if (S.fight && !S.boss.dead) b.x = clamp(b.x, ARENA.l + R, ARENA.r - R);
+  }
   S.onGround = false;
   for (const s of SOLIDS) {
     if (b.x + R < s.minX || b.x - R > s.maxX || b.y + R < s.minY) continue;
@@ -464,6 +480,14 @@ function step(h) {
 const fellOff = () => S.ball.y > DEATH_Y || (MAP === 2 && S.ball.y > S.safeY + 620);
 function die() {
   if (S.dead) return;
+  // Goku ở trạng thái Bản Năng Vô Cực: cơ thể tự né mọi đòn
+  if (S.ui > 0 && !fellOff()) {
+    S.safe = Math.max(S.safe, .6);
+    S.tele.push({ x: S.ball.x, y: S.ball.y, t: .3 });
+    S.pops.push({ x: S.ball.x, y: S.ball.y - 60, t: .6, text: 'Né!', c: '#dfe8ff' });
+    sfx('tele');
+    return;
+  }
   // Rimuru (Đại Hiền Giả): chặn một đòn chí mạng mỗi 15 giây, trừ khi rơi xuống vực
   // Xayda biến khỉ: khỉ khổng lồ chịu đòn thay, mất 6 giây biến hình
   if (S.ape > 0 && !fellOff()) {
@@ -490,7 +514,7 @@ function die() {
 }
 function respawn() {
   Object.assign(S.ball, { x: S.spawn.x, y: S.spawn.y, vx: 0, vy: 0, squash: 0 });
-  S.power = 0; S.dash = null; S.charging = false; S.amber = 0;
+  S.power = 0; S.dash = null; S.charging = false; S.amber = 0; S.kame = null;
   S.timers = []; S.ktor = []; S.kfx = []; S.kpose = null; S.bleed = 0;
   S.safe = Math.max(S.safe, 1.2);   // tránh vừa hồi sinh đã chết lại
   S.tshots = []; S.icicles = [];
@@ -564,13 +588,14 @@ function update(dt) {
     S.lastGround += dt;
     S.jumpBuf -= dt;
     if (S.onGround) S.airJumps = CH().airJumps;
-    if (S.jumpBuf > 0 && S.lastGround < .1) { b.vy = -JUMP; S.jumpBuf = 0; S.lastGround = 1; sfx(JUMP_SFX[CHAR]); }
+    if (CH().fly) S.jumpBuf = 0;
+    else if (S.jumpBuf > 0 && S.lastGround < .1) { b.vy = -JUMP; S.jumpBuf = 0; S.lastGround = 1; sfx(JUMP_SFX[CHAR]); }
     else if (S.jumpBuf > 0 && S.airJumps > 0) {
       // nhảy thêm trên không (Rimuru, Stelle)
       S.airJumps--; b.vy = -JUMP * .92; S.jumpBuf = 0; S.lastGround = 1; sfx(JUMP_SFX[CHAR]);
       boltSpark(b.x, b.y + R, CHAR === 'stelle' ? '#ffd65e' : '#9ef0ff', 8);
     }
-    if (!keys.jump && b.vy < -320) b.vy = -320;   // nhả sớm → nhảy thấp
+    if (!keys.jump && b.vy < -320 && !CH().fly) b.vy = -320;   // nhả sớm → nhảy thấp
 
     const steps = 4;
     for (let i = 0; i < steps; i++) step(dt / steps);
@@ -586,7 +611,7 @@ function update(dt) {
   updatePikachuMoves(dt);
   b.squash = Math.max(0, b.squash - dt * 1.6);
 
-  if (S.onGround) S.safeY = b.y;
+  if (S.onGround || CH().fly) S.safeY = b.y;
   if (fellOff()) die();
   if (!S.power && !S.safe) {
     for (const sp of SPIKES) {
@@ -856,6 +881,8 @@ const CHARS = {
   yuno:   { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .35, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
   // Pain (Naruto): cheat như trên, Shift là khiên Ngạ Quỷ Đạo nên hồi 1,2 giây, giữ nhảy để lơ lửng
   pain:   { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 1.2, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
+  // Goku (Dragon Ball): cheat như trên, bay tự do bằng nút di chuyển (fly), không bao giờ rơi
+  goku:   { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .35, regen: 6, speed: 420, airJumps: 0, dmgK: 2, pierce: true, fly: true },
 };
 const CH = () => CHARS[CHAR];
 const cost = k => CH().cost[k];
@@ -869,6 +896,7 @@ const MOVES = {
   asta:   { tap: astaSlash, hold: magicReturn, web: blackHurricane },
   yuno:   { tap: windBlade, hold: windCrescent, web: toweringTornado },
   pain:   { tap: painRod, hold: banshoTenin, web: chibakuTensei },
+  goku:   { tap: kiBlast, hold: kamehameha, web: instantTransmission },
 };
 // chiêu U: sát thương lên boss (trước hệ số nhân vật), thời gian choáng, số tia, âm thanh
 const ULTS = {
@@ -1457,8 +1485,116 @@ function updatePain(dt) {
     if (sh.t >= sh.dur + .35) S.shinra = null;
   }
 }
+/* Goku (Dragon Ball): bay tự do, bộ chiêu cheat — Chưởng KI, Kamehameha, Thuấn Di, Lướt và Bản Năng Vô Cực */
+// J: Chưởng KI — quả cầu năng lượng bắn nhanh (Bản Năng Vô Cực bắn nhanh hơn)
+function kiBlast() {
+  if (S.shockCd > 0 || !spend(cost('tap'))) return;
+  shoot('ki', 1050, .6, 1, S.ui > 0 ? .1 : .16, -14);
+  sfx('ki');
+}
+// giữ J: Kamehameha — tia năng lượng xanh xuyên mọi thứ, giữ càng lâu càng dài và mạnh
+function kamehameha(hold) {
+  if (!spend(cost('hold'))) return;
+  const k = chargeK(hold), dmg = 3 + (k >= .99 ? 2 : 0), d = S.ball.face || 1;
+  S.kame = { t: 0, dur: .9, d, x: S.ball.x, y: S.ball.y, len: 0, max: 640 + k * 420, w: 18 + k * 14, dmg, hitBoss: false };
+  S.cast = 1.1;
+  sfx('kame');
+  S.pops.push({ x: S.ball.x, y: S.ball.y - 60, t: .8, text: `Kamehameha! ×${dmg}`, c: '#9fe0ff' });
+}
+// L: Thuấn Di — biến mất, hiện ra sát kẻ thù gần nhất rồi đấm liên hoàn 3 phát
+function instantTransmission() {
+  if (!canAct() || S.webCd > 0 || !spend(cost('web'))) return;
+  const b = S.ball, t = kkTarget(800);
+  S.webCd = .5; S.cast = .35;
+  S.tele.push({ x: b.x, y: b.y, t: .35 });
+  sfx('tele');
+  if (!t) { b.x += (b.face || 1) * 240; b.vx = b.vy = 0; S.tele.push({ x: b.x, y: b.y, t: .35 }); return; }
+  const p = tPos(t), side = b.x < p.x ? -1 : 1, half = t.kind === 'boss' ? unitW(t.ref) / 2 : 20;
+  b.x = p.x + side * (half + R + 6); b.y = p.y; b.vx = b.vy = 0; b.face = -side;
+  S.power = Math.max(S.power, .5);
+  S.tele.push({ x: b.x, y: b.y, t: .35 });
+  S.pops.push({ x: b.x, y: b.y - 60, t: .6, text: 'Thuấn Di!', c: '#ffd27a' });
+  for (let i = 0; i < 3; i++) after(.08 + i * .12, () => {
+    if (!tAlive(t)) return;
+    const q = tPos(t);
+    S.swing = SWING; boltSpark(q.x, q.y, i === 2 ? '#9fe0ff' : '#ffd27a', 10); sfx('hit');
+    if (t.kind === 'boss') {
+      const B = S.boss;
+      if (damageBoss(t.ref, 1, 'volt') && i === 2 && !B.dead && !B.cut && !B.fuse && !(B.ts > 0)) { B.stun = Math.max(B.stun, 1); B.act = null; B.sweep = null; }
+    } else if (i === 2) {
+      if (t.kind === 'enemy') killEnemy(t.ref, '#f47b20');
+      else if (t.kind === 'flyer') killFlyer(t.ref);
+      else breakTurret();
+    }
+  });
+}
+// U: Bản Năng Vô Cực (cần đầy KI) — 25 giây tóc bạc: tự né mọi đòn, nhanh hơn, sát thương ×2; khi hoá toả sóng KI khắp màn hình
+function ultraInstinct() {
+  if (!canAct()) return;
+  const b = S.ball;
+  if (S.ui > 0) { S.pops.push({ x: b.x, y: b.y - 50, t: .8, text: `Đang Bản Năng Vô Cực (${Math.ceil(S.ui)} giây)`, c: '#dfe8ff' }); return; }
+  if (S.energy < COST.volt) {
+    S.pops.push({ x: b.x, y: b.y - 50, t: .8, text: `Bản Năng Vô Cực cần đầy KI (${Math.floor(S.energy)}/100)`, c: '#fff27a' });
+    sfx('deny'); return;
+  }
+  S.energy = 0; S.ui = 25; S.flash = .9; S.cast = .8;
+  S.uiBurst = { x: b.x, y: b.y - 10, t: 0 };
+  sfx('ui');
+  S.pops.push({ x: b.x, y: b.y - 90, t: 1.6, text: 'Bản Năng Vô Cực!', c: '#ffffff' });
+  const x0 = S.cam.x - 40, x1 = S.cam.x + viewW + 40;
+  S.bullets = []; S.tshots = []; S.icicles = [];
+  const B = S.boss;
+  B.hazards = B.hazards.filter(h => h.type === 'puddle');
+  B.sweep = null;
+  for (const e of S.enemies) if (e.alive && e.x > x0 && e.x < x1) killEnemy(e, '#dfe8ff');
+  for (const f of S.flyers) if (f.alive && f.x > x0 && f.x < x1) killFlyer(f);
+  const T = S.turret;
+  if (T.alive && T.x > x0 && T.x < x1) breakTurret();
+  if (bossOpen()) {
+    const u = B.units[0];
+    if (u.x > x0 && u.x < x1) { damageBoss(u, 6, 'volt'); if (!B.dead && !B.cut && !B.fuse) { B.stun = Math.max(B.stun, 2); B.act = null; } }
+  }
+}
+function updateGoku(dt) {
+  S.ui = Math.max(0, S.ui - dt);
+  if (S.uiBurst && (S.uiBurst.t += dt) > 1) S.uiBurst = null;
+  for (const p of S.tele) p.t -= dt;
+  S.tele = S.tele.filter(p => p.t > 0);
+  const b = S.ball;
+  if (S.ui > 0 && !S.dead && Math.random() < dt * 30) {
+    S.parts.push({ x: b.x + (Math.random() - .5) * 40, y: b.y + R - Math.random() * 50, vx: (Math.random() - .5) * 30, vy: -80 - Math.random() * 120, life: .6, c: Math.random() < .5 ? '#ffffff' : '#a9c4ff', r: 2 + Math.random() * 3, g: 0 });
+  }
+  const K = S.kame;
+  if (!K) return;
+  K.t += dt;
+  // tia bám theo tay Goku
+  K.x = b.x + K.d * 24; K.y = b.y - 16;
+  K.len = Math.min(K.max, K.len + 3200 * dt);
+  if (K.t <= K.dur) {
+    const xa = Math.min(K.x, K.x + K.d * K.len), xb = Math.max(K.x, K.x + K.d * K.len);
+    const inB = (px, py, pad) => px > xa - pad && px < xb + pad && Math.abs(py - K.y) < K.w + pad;
+    for (const e of S.enemies) if (e.alive && inB(e.x, e.f(e.x) - 20, 20)) killEnemy(e, '#5fb8ff');
+    for (const f of S.flyers) if (f.alive && inB(f.x, f.y, f.r)) killFlyer(f);
+    for (const q of S.bullets) if (inB(q.x, q.y, 8)) q.dead = true;
+    for (const q of S.tshots) if (inB(q.x, q.y, 8)) q.alive = false;
+    for (const c of S.icicles) if (inB(c.x, c.y, 8)) c.dead = true;
+    const T = S.turret;
+    if (T.alive && inB(T.x, T.f(T.x) - 26, 26)) breakTurret();
+    if (!K.hitBoss && bossOpen()) for (const u of S.boss.units) {
+      const h = u.kind === 'fused' ? FH : BOSS_H;
+      if (u.hidden || u.x + unitW(u) / 2 < xa || u.x - unitW(u) / 2 > xb || K.y + K.w < u.y - h || K.y - K.w > u.y) continue;
+      K.hitBoss = true;
+      const B = S.boss;
+      if (damageBoss(u, K.dmg, 'volt') && !B.dead && !B.cut && !B.fuse && !(B.ts > 0)) { B.stun = Math.max(B.stun, 1.2); B.act = null; B.sweep = null; }
+      boltSpark(u.x, K.y, '#9fe0ff', 18);
+      break;
+    }
+  }
+  if (K.t > K.dur + .25) S.kame = null;
+}
 function updateCharMoves(dt) {
   updateKiem(dt);
+  updateGoku(dt);
   updateClover(dt);
   updatePain(dt);
   S.swing = Math.max(0, S.swing - dt);
@@ -1905,7 +2041,7 @@ function damageBoss(u, base, kind) {
     return false;
   }
   const tired = B.exhaust > 0;
-  let dmg = base * (tired ? 2 : 1) * CH().dmgK * (S.ape > 0 || S.black > 0 ? 2 : 1);
+  let dmg = base * (tired ? 2 : 1) * CH().dmgK * (S.ape > 0 || S.black > 0 || S.ui > 0 ? 2 : 1);
   if (B.phase === 4 && S.traces > 0 && kind !== 'volt') { dmg *= 2; S.traces--; }
   B.hp -= dmg;
   B.inv = kind === 'stomp' || kind === 'tackle' ? .45 : .1;
@@ -2318,6 +2454,19 @@ const CHAR_UI = {
       ['U', 'SHINRA TENSEI: quả cầu đẩy khổng lồ tiêu diệt mọi quái xung quanh, phá bục và khoét hố mặt đất nó quét qua, 8 sát thương lên boss (cần đầy, nạp siêu nhanh)']],
     passive: 'giữ nhảy để lơ lửng · cheat: nhảy 3 lần, chạy nhanh, sát thương ×2, xuyên khiên boss, chakra nạp ×6. Bục bị phá tự hồi sau 6 giây.',
     tip: 'Pain: J Hắc Bổng · giữ J Vạn Tượng Thiên Dẫn · L Địa Bộc Thiên Tinh · Shift Ngạ Quỷ Đạo · U khi đầy: SHINRA TENSEI phá huỷ mọi thứ xung quanh. Giữ nhảy để lơ lửng.' },
+  goku: { name: 'Goku', from: 'Dragon Ball', tag: 'Bay tự do, Kamehameha, Bản Năng Vô Cực (cheat)', energy: 'KI',
+    btn: { bolt: ['KI', 'Chưởng KI'], web: ['Thuấn', 'Thuấn Di'], skill: ['Lướt', 'Lướt'], volt: ['UI', 'Bản Năng Vô Cực'] },
+    short: ['Chưởng KI', 'Kamehameha', 'Thuấn Di', 'Lướt', 'Bản Năng Vô Cực'],
+    more: ' · <kbd>↑</kbd>/<kbd>↓</kbd> (<kbd>W</kbd>/<kbd>S</kbd>) bay lên/xuống',
+    moreTap: ' · ▲▼ bay lên/xuống',
+    kit: [['↑ ↓ ← →', 'Bay tự do theo mọi hướng, thả nút là đứng lơ lửng, không bao giờ rơi xuống vực'],
+      ['J', 'Chưởng KI: bắn nhanh (miễn phí)'],
+      ['Giữ J', 'Kamehameha: tia năng lượng xanh xuyên mọi thứ, giữ càng lâu càng dài, 3–5 sát thương (miễn phí)'],
+      ['L', 'Thuấn Di: biến mất, hiện ra sát kẻ thù gần nhất và đấm liên hoàn 3 phát, làm choáng boss (miễn phí, hồi 0,5 giây)'],
+      ['Shift', 'Lướt: lao tới, vô địch (miễn phí, hồi 0,35 giây)'],
+      ['U', 'Bản Năng Vô Cực 25 giây: tóc bạc, tự né mọi đòn, nhanh hơn, sát thương ×4; khi hoá toả sóng KI quét sạch màn hình (cần đầy KI, nạp siêu nhanh)']],
+    passive: 'bay tự do, không rơi · cheat: chạy và bay nhanh, sát thương ×2, xuyên khiên boss, KI nạp ×6.',
+    tip: 'Goku: ↑ ↓ ← → bay tự do · J Chưởng KI · giữ J Kamehameha · L Thuấn Di · Shift lướt · U khi đầy: BẢN NĂNG VÔ CỰC (tự né mọi đòn). Cheat: mọi chiêu miễn phí, sát thương ×2.' },
 };
 function applyChar() {
   const u = CHAR_UI[CHAR], s = u.short;
@@ -2325,6 +2474,8 @@ function applyChar() {
   document.querySelector('#hint .keys').innerHTML = `<kbd>←</kbd> <kbd>→</kbd> chạy · <kbd>↑</kbd>/<kbd>Space</kbd> nhảy · <kbd>J</kbd> ${s[0]}${s[1] ? ` (giữ rồi thả: ${s[1]})` : ''} · <kbd>L</kbd> ${s[2]} · <kbd>Shift</kbd> ${s[3]} · <kbd>U</kbd> ${s[4]}${u.more || ''} · <kbd>P</kbd> đổi nhân vật · <kbd>N</kbd> đổi màn · về đích trong ${TIME_LIMIT / 60} phút`;
   document.querySelector('#hint .tap').textContent = `◀ ▶ chạy · ▲ nhảy · ${u.btn.bolt[0]}${s[1] ? ` (giữ: ${s[1]})` : ''} · ${u.btn.web[0]}: ${s[2]} · ${u.btn.skill[0]}: ${s[3]} · ${u.btn.volt[0]}${CH().cost.volt != null ? `: ${s[4]}` : ' khi đầy'}${u.moreTap || ''} · về đích trong ${TIME_LIMIT / 60} phút`;
   document.querySelectorAll('.touch .sx').forEach(el => { el.hidden = CHAR !== 'saiyan'; });
+  document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !CH().fly; });
+  document.querySelector('.touch [data-key="jump"]').setAttribute('aria-label', CH().fly ? 'Bay lên' : 'Nhảy');
   $('energyChip').title = `${u.energy}: ` + u.kit.map(([k, t]) => `${k} ${t}`).join(' · ');
   for (const [k, [label, aria]] of Object.entries(u.btn)) {
     const el = document.querySelector(`.touch [data-key="${k}"]`);
@@ -3256,6 +3407,13 @@ function drawShot(q) {
     ctx.fillStyle = '#1a1a22'; ctx.fillRect(-14, -2, 26, 4);
     ctx.beginPath(); ctx.arc(-14, 0, 4, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#6a6a7a'; ctx.lineWidth = 1; ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(-8 + i * 5, -2); ctx.lineTo(-6 + i * 5, 2); } ctx.stroke();
+  } else if (q.kind === 'ki') {
+    // Chưởng KI của Goku: cầu năng lượng xanh trắng kéo vệt
+    ctx.scale(d, 1);
+    ctx.fillStyle = 'rgb(120 190 255 / .35)'; ctx.beginPath(); ctx.moveTo(-36, -4); ctx.lineTo(0, -9); ctx.lineTo(0, 9); ctx.lineTo(-36, 4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgb(120 190 255 / .5)'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#bfe4ff'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
   } else if (q.kind === 'wind') {
     // Lưỡi Gió của Yuno: lưỡi liềm gió xanh kéo vệt
     ctx.scale(d, 1);
@@ -3398,6 +3556,7 @@ function drawCharFx() {
     ctx.globalAlpha = 1;
   }
   drawPainFx();
+  drawGokuFx();
   // Kiếm khách: ảnh hiệu ứng gốc và ba cơn lốc Tam kiếm
   for (const o of S.ktor) drawKK('loc', Math.floor(o.ft * 30) % KK.loc.n, o.x, o.y, 80 * KE, 80 * KE, 1);
   for (const f of S.kfx) {
@@ -3416,6 +3575,13 @@ function drawCharge() {
     const x = b.x + (b.face || 1) * 22, y = b.y - 22;
     ctx.strokeStyle = 'rgb(255 190 120 / .8)'; ctx.lineWidth = 2;
     for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x, y, 6 + ((S.t * 60 + i * 12) % 36) * (1 - k * .3), 0, Math.PI * 2); ctx.stroke(); }
+  }
+  else if (CHAR === 'goku') {
+    // Kamehameha đang tụ: quả cầu xanh giữa hai bàn tay khum ở hông
+    const x = b.x - (b.face || 1) * 8, y = b.y - 20, r = 5 + k * 9;
+    ctx.fillStyle = 'rgb(90 170 255 / .35)'; ctx.beginPath(); ctx.arc(x, y, r * 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#5fb8ff'; ctx.beginPath(); ctx.arc(x, y, r * 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e6f6ff'; ctx.beginPath(); ctx.arc(x, y, r * .6, 0, Math.PI * 2); ctx.fill();
   }
   else if (CHAR === 'asta' || CHAR === 'yuno') {
     // Asta: kiếm tụ ma lực đen · Yuno: gió xoáy trên tay
@@ -3648,8 +3814,8 @@ function drawBall() {
   if (S.amber > 0) drawAmber(b);
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
-const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c' };
-const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain };
+const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20' };
+const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku };
 // Khiên Hổ Phách của Stelle: vỏ lục giác màu hổ phách
 function drawAmber(b) {
   const r = R * 1.9 + Math.sin(S.t * 6) * 2, fade = S.amber < .8 && Math.floor(S.t * 14) % 2;
@@ -4298,6 +4464,135 @@ function drawPainFx() {
     }
     ctx.globalAlpha = 1;
   }
+}
+// Goku: tia Kamehameha, vệt Thuấn Di, sóng KI bạc khi hoá Bản Năng Vô Cực
+function drawGokuFx() {
+  for (const p of S.tele) {
+    const k = p.t / .35;
+    ctx.globalAlpha = clamp(k, 0, 1);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    for (let i = 0; i < 7; i++) {
+      const x = p.x + (i - 3) * 6, h = 30 + (i % 3) * 14;
+      ctx.beginPath(); ctx.moveTo(x, p.y + R - (1 - k) * 40); ctx.lineTo(x, p.y + R - h - (1 - k) * 40); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+  const K = S.kame;
+  if (K && K.len > 0) {
+    const fade = K.t > K.dur ? clamp(1 - (K.t - K.dur) / .25, 0, 1) : 1, w = K.w * (1 + Math.sin(S.t * 45) * .07) * (.4 + .6 * fade);
+    ctx.save(); ctx.translate(K.x, K.y); ctx.scale(K.d, 1);
+    ctx.globalAlpha = fade;
+    for (const [s, c] of [[1.7, 'rgb(90 170 255 / .3)'], [1, '#5fb8ff'], [.5, '#e6f6ff']]) {
+      const ww = w * s;
+      ctx.fillStyle = c;
+      ctx.beginPath(); ctx.moveTo(0, -ww * .7); ctx.lineTo(K.len, -ww); ctx.arc(K.len, 0, ww, -Math.PI / 2, Math.PI / 2); ctx.lineTo(0, ww * .7); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, ww * 1.1, 0, Math.PI * 2); ctx.fill();
+    }
+    // vệt năng lượng chạy dọc tia
+    ctx.strokeStyle = 'rgb(255 255 255 / .7)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const x = ((S.t * 1400 + i * 137) % Math.max(1, K.len)), y = Math.sin(i * 2.3 + S.t * 20) * w * .7;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 40, y); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+  const U = S.uiBurst;
+  if (U) {
+    const r = 30 + U.t * 1000;
+    ctx.globalAlpha = clamp(1 - U.t, 0, 1);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.arc(U.x, U.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgb(170 200 255 / .8)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(U.x, U.y, r * .8, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+// ngọn lửa hào quang quanh người: cung trên lởm chởm, chập chờn
+function drawAura(x, y, w, h, fill, seed) {
+  ctx.fillStyle = fill; ctx.beginPath();
+  ctx.moveTo(x - w * .6, y);
+  const n = 14;
+  for (let i = 0; i <= n; i++) {
+    const a = Math.PI * (1 - i / n), tip = i % 2 ? .78 : 1 + .25 * Math.sin(S.t * 14 + i * 1.7 + seed);
+    ctx.lineTo(x + Math.cos(a) * w * tip, y - h * .35 - Math.sin(a) * h * .65 * tip);
+  }
+  ctx.lineTo(x + w * .6, y);
+  ctx.quadraticCurveTo(x, y + h * .2, x - w * .6, y);
+  ctx.fill();
+}
+// Goku (fan art hình khối): tóc đen nhiều chỏm nhọn, võ phục cam, áo lót + đai + bao cổ tay + ủng xanh.
+// Bản Năng Vô Cực: tóc và mắt bạc, hào quang bạc xanh cháy quanh người. Đang bay thì nghiêng người, chân co ra sau.
+function drawGoku(b, charged) {
+  const sq = b.squash, air = !S.onGround, running = !air && Math.abs(b.vx) > 30, ph = b.run, ui = S.ui > 0;
+  const flying = air && Math.abs(b.vx) > 80;
+  const bob = running ? Math.abs(Math.sin(ph)) * 2.5 : air ? Math.sin(S.t * 4) * 1.5 : 0;
+  const HAIR = ui ? '#e4e9f4' : '#17171d', HAIRD = ui ? '#8d9ab6' : '#000000', SKIN = '#ffd9b8', GI = '#f47b20', GID = '#b5520c', BLUE = '#1d4fae', DK = '#14141a';
+  const d = b.face || 1;
+  if (ui) {
+    drawAura(b.x, b.y + R, 30, 78, 'rgb(150 180 255 / .28)', 0);
+    drawAura(b.x, b.y + R, 21, 62, 'rgb(235 242 255 / .45)', 2);
+  } else if (charged || S.cast > 0) drawAura(b.x, b.y + R, 24, 66, 'rgb(255 236 140 / .3)', 0);
+  ctx.save();
+  ctx.translate(b.x, b.y + R - 2 + R * sq * .3);
+  ctx.scale(d * (1 + sq * .4), 1 - sq * .5);
+  ctx.translate(0, -bob);
+  if (flying) { ctx.translate(0, -24); ctx.rotate(.3); ctx.translate(0, 24); }
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // tay sau (Kamehameha thì hai tay cùng đẩy ra trước)
+  const kame = S.kame && S.kame.t < S.kame.dur;
+  const arm = (x, a) => {
+    ctx.save(); ctx.translate(x, -33); ctx.rotate(a);
+    ctx.fillStyle = SKIN; ctx.strokeStyle = '#a0704a'; ctx.lineWidth = 1;
+    ctx.fillRect(-2.4, -10, 4.8, 10); ctx.strokeRect(-2.4, -10, 4.8, 10);
+    ctx.fillStyle = BLUE; ctx.fillRect(-2.7, -9.5, 5.4, 3);
+    ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(0, -11, 2.7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  };
+  const armA = kame || S.cast > 0 || charged ? -1.55 : flying ? -1.7 : air ? 2.3 : running ? Math.sin(ph + Math.PI) * .7 + 3 : 2.9;
+  arm(-4, kame ? -1.45 : flying ? 2.6 : air ? 2.6 : running ? Math.sin(ph) * .7 + 3 : 3.1);
+  // chân: quần võ cam rộng, ủng xanh; bay thì co chân ra sau
+  const legs = air ? [[-3, flying ? 1.1 : .5], [3, flying ? .6 : -.2]] : [[-3, Math.sin(ph) * .8], [3, Math.sin(ph + Math.PI) * .8]];
+  for (const [lx, ang] of legs) {
+    ctx.save(); ctx.translate(lx, -17); ctx.rotate(ang);
+    ctx.fillStyle = GI; ctx.strokeStyle = GID; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-3.6, 0); ctx.lineTo(3.6, 0); ctx.lineTo(3, 10); ctx.lineTo(-3, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = BLUE; ctx.fillRect(-3, 9.5, 6, 5); ctx.fillRect(-3, 13, 7.5, 2);
+    ctx.fillStyle = '#d23a2a'; ctx.fillRect(-3, 9.5, 6, 1.4);
+    ctx.restore();
+  }
+  // thân: võ phục cam cổ chữ V lộ áo lót xanh, đai xanh, kí hiệu trên ngực
+  ctx.fillStyle = GI; ctx.strokeStyle = GID; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-9.5, -37); ctx.lineTo(9.5, -37); ctx.lineTo(8.5, -17); ctx.lineTo(-8.5, -17); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = BLUE;
+  ctx.beginPath(); ctx.moveTo(-3, -37); ctx.lineTo(5, -37); ctx.lineTo(1, -28); ctx.closePath(); ctx.fill();
+  ctx.fillRect(-9, -20.5, 18, 3.8);
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(5.2, -31.5, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = DK; ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(4, -32.5); ctx.lineTo(6.4, -32.5); ctx.moveTo(5.2, -33.5); ctx.lineTo(5.2, -29.8); ctx.stroke();
+  // tay trước
+  arm(5, armA);
+  // đầu: chỏm tóc nhọn phía sau trước, rồi mặt, rồi mái
+  const hx = 1, hy = -46;
+  ctx.fillStyle = HAIR; ctx.strokeStyle = HAIRD; ctx.lineWidth = 1.2;
+  const back = [[8, -6], [7, -17], [2, -11], [-1, -23], [-5, -12], [-12, -20], [-10, -8], [-19, -12], [-12, -2], [-20, 1], [-11, 4], [-16, 10], [-7, 7], [-2, 2]];
+  ctx.beginPath(); back.forEach(([x, y], i) => i ? ctx.lineTo(hx + x, hy + y) : ctx.moveTo(hx + x, hy + y)); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = SKIN; ctx.strokeStyle = '#a0704a'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(hx, hy, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = HAIR; ctx.strokeStyle = HAIRD; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(hx, hy - 1, 11, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.lineTo(hx + 11, hy + 1); ctx.lineTo(hx + 8, hy - 4); ctx.lineTo(hx + 6, hy + 2); ctx.lineTo(hx + 3, hy - 4); ctx.lineTo(hx, hy); ctx.lineTo(hx - 5, hy - 5); ctx.lineTo(hx - 10, hy + 1);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // chỏm tóc rủ trước trán đặc trưng
+  ctx.beginPath(); ctx.moveTo(hx + 2, hy - 7); ctx.lineTo(hx + 7, hy + 3); ctx.lineTo(hx + 7.5, hy - 6); ctx.closePath(); ctx.fill();
+  // mắt (Bản Năng Vô Cực: mắt bạc), mày nhíu, miệng cười
+  ctx.fillStyle = ui ? '#cfd9f2' : '#ffffff'; ctx.beginPath(); ctx.ellipse(hx + 6, hy + 2, 2, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = ui ? '#6d7fa8' : DK; ctx.beginPath(); ctx.arc(hx + 6.6, hy + 2.2, 1.1, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = DK; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(hx + 3.5, hy - 1.8); ctx.lineTo(hx + 9, hy - .4); ctx.stroke();
+  ctx.strokeStyle = '#7a4a3a'; ctx.lineWidth = 1.1; ctx.beginPath();
+  if (ui || kame) { ctx.moveTo(hx + 5, hy + 7); ctx.lineTo(hx + 8, hy + 6.8); }
+  else ctx.arc(hx + 6.5, hy + 5.5, 2, .3, Math.PI - .3);
+  ctx.stroke();
+  ctx.restore();
 }
 // Pikachu chibi (fan art vẽ bằng hình khối). Gốc toạ độ ở tâm hitbox, +x là hướng mặt.
 function drawPikachu(b, charged) {
