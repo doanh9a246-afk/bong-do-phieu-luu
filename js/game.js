@@ -3869,10 +3869,10 @@ const APE_POSE = {
   roar:  [['ah2', -20, -54], ['al', -13, -16], ['ab', -19, -35]],
   dash:  [['ah2', -20, -54], ['al2', -36, -20], ['ab2', -41, -34]],
 };
-function drawApeSprite(x, fy, dir, pose) {
+function drawApeSprite(x, fy, dir, pose, s = 1) {
   const P = APE_POSE[pose];
   if (!P.every(([k]) => nroOk(k))) return false;
-  ctx.save(); ctx.translate(x, fy); ctx.scale(dir * APE_K, APE_K);
+  ctx.save(); ctx.translate(x, fy); ctx.scale(dir * APE_K * s, APE_K * s);
   for (const [k, dx, dy] of P) { const im = NRO_IMG[k]; ctx.drawImage(im, dx, dy, im.naturalWidth / 4, im.naturalHeight / 4); }
   ctx.restore();
   return true;
@@ -3974,8 +3974,17 @@ function drawVegeta(u, B, x, fy) {
   const T = B.trans, grow = T ? clamp((T.t - TRANS.grow) / (TRANS.burst - TRANS.grow), 0, 1) : 0;
   const pose = a && a.type === 'galick' ? (a.t < W ? 'wind' : 'punch') : a && (a.type === 'antomic' || a.type === 'troi') ? 'cast'
     : (a && a.type === 'khien') || B.shield > 0 ? 'guard' : T ? 'roar' : run || air ? 'move' : 'idle';
-  const k = 1.75 * (1 + grow * .6), d = u.dir || 1;
-  const SKIN = '#ffd9b0', SUIT = '#1f3c9c', ARMOR = u.hurt > 0 ? '#ffd0d0' : '#f4f4f0', GOLD = '#e6b422', DK = '#121218';
+  const d = u.dir || 1;
+  drawVegetaFig(x, fy, d, 1.75 * (1 + grow * .6), pose, { air, run, ph, hurt: u.hurt > 0, red: !!T, flash: grow > 0 });
+  // Galick: nắm đấm toả sáng tím; Antomic: cầu năng lượng lớn dần trên tay
+  if (a && a.type === 'galick' && a.t < W) { ctx.fillStyle = 'rgb(200 120 255 / .55)'; ctx.beginPath(); ctx.arc(x - d * 14, fy - 46, 10 + a.t / W * 10, 0, Math.PI * 2); ctx.fill(); }
+  if (a && a.type === 'antomic' && a.t < W && nroOk('orb')) { const s = 30 + a.t / W * 40; ctx.drawImage(NRO_IMG.orb, x + d * 34 - s / 2, fy - 60 - s / 2, s, s); }
+}
+// Thân Vegeta dùng chung cho boss màn 3 và nhân vật Xayda của người chơi. Gốc ở chân, k = độ phóng to.
+// pose: idle (khoanh tay), move, punch, wind (vung tay lấy đà), cast (hai tay đẩy ra), guard/roar (giơ tay)
+function drawVegetaFig(x, fy, d, k, pose, o) {
+  const { air, run, ph } = o;
+  const SKIN = '#ffd9b0', SUIT = '#1f3c9c', ARMOR = o.hurt ? '#ffd0d0' : '#f4f4f0', GOLD = '#e6b422', DK = '#121218';
   ctx.save(); ctx.translate(x, fy); ctx.scale(d * k, k);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const legs = air ? [[-4, -.4], [4, .5]] : run ? [[-3, Math.sin(ph) * .7], [3, Math.sin(ph + Math.PI) * .7]] : [[-4, -.12], [4, .12]];
@@ -4019,7 +4028,7 @@ function drawVegeta(u, B, x, fy) {
   ctx.fillStyle = DK;
   ctx.beginPath(); ctx.moveTo(hx - 8.5, hy - 4); ctx.lineTo(hx - 7, hy - 9.5); ctx.lineTo(hx + 9.5, hy - 9.5); ctx.lineTo(hx + 10, hy - 4);
   ctx.lineTo(hx + 6, hy - 6); ctx.lineTo(hx + 3.5, hy - 2.5); ctx.lineTo(hx + 1, hy - 6.5); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = T ? '#ff2020' : DK; ctx.fillRect(hx + 5, hy - .5, 2.6, 2.2);
+  ctx.fillStyle = o.red ? '#ff2020' : DK; ctx.fillRect(hx + 5, hy - .5, 2.6, 2.2);
   ctx.strokeStyle = DK; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(hx + 3, hy - 3.5); ctx.lineTo(hx + 9, hy - 1.5); ctx.stroke();
   ctx.lineWidth = 1.1; ctx.beginPath();
@@ -4029,11 +4038,8 @@ function drawVegeta(u, B, x, fy) {
   ctx.fillStyle = 'rgb(90 255 130 / .55)'; ctx.fillRect(hx + 4, hy - 3, 6.5, 4.5);
   ctx.fillStyle = '#f2f2f2'; ctx.fillRect(hx - 4, hy - 2, 3, 5);
   // nhìn trăng: thân nháy trắng liên hồi
-  if (grow > 0 && Math.floor(S.t * 16) % 2) { ctx.fillStyle = 'rgb(255 255 255 / .45)'; ctx.beginPath(); ctx.ellipse(0, -30, 16, 34, 0, 0, Math.PI * 2); ctx.fill(); }
+  if (o.flash && Math.floor(S.t * 16) % 2) { ctx.fillStyle = 'rgb(255 255 255 / .45)'; ctx.beginPath(); ctx.ellipse(0, -30, 16, 34, 0, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
-  // Galick: nắm đấm toả sáng tím; Antomic: cầu năng lượng lớn dần trên tay
-  if (a && a.type === 'galick' && a.t < W) { ctx.fillStyle = 'rgb(200 120 255 / .55)'; ctx.beginPath(); ctx.arc(x - d * 14, fy - 46, 10 + a.t / W * 10, 0, Math.PI * 2); ctx.fill(); }
-  if (a && a.type === 'antomic' && a.t < W && nroOk('orb')) { const s = 30 + a.t / W * 40; ctx.drawImage(NRO_IMG.orb, x + d * 34 - s / 2, fy - 60 - s / 2, s, s); }
 }
 function drawOozaru(u, B, x, fy) {
   const a = B.act, W = a ? ACT_WARN[a.type] : 0, d = u.dir || 1;
@@ -4692,6 +4698,10 @@ function drawShot(q) {
     ctx.rotate(S.t * 14 * d);
     starPath(0, 0, 12); ctx.fillStyle = '#ffd65e'; ctx.fill();
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+  } else if (q.kind === 'antomic' && nroOk('at0')) {
+    // Antomic: ảnh gốc 438/440 của Ngọc Rồng Online, cùng hình với Antomic của boss Vegeta
+    const im = NRO_IMG[Math.floor(S.t * 12) % 2 ? 'at1' : 'at0'];
+    ctx.scale(d, 1); ctx.drawImage(im, -41, -17.5, 66, 35);
   } else if (q.kind === 'antomic') {
     // Antomic: cầu năng lượng tím kéo vệt
     ctx.fillStyle = 'rgb(190 120 255 / .35)'; ctx.fillRect(Math.min(0, -d * 40), -6, 40, 12);
@@ -4767,6 +4777,10 @@ function drawCharFx() {
     ctx.beginPath(); ctx.arc(S.blast.x, S.blast.y, 40 + k * 300, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 8;
     ctx.beginPath(); ctx.arc(S.blast.x, S.blast.y, 30 + k * 340, 0, Math.PI * 2); ctx.stroke();
+    // lửa nổ gốc của game (497–499), như vụ tự phát nổ của Vegeta
+    const key = 'ex' + Math.min(2, Math.floor(k * 3)), sz = 200 + k * 260;
+    ctx.globalAlpha = clamp(1.2 - k, 0, 1);
+    if (nroOk(key)) ctx.drawImage(NRO_IMG[key], S.blast.x - sz / 2, S.blast.y - sz / 2, sz, sz);
     ctx.globalAlpha = 1;
   }
   // Chiikawa khóc oà: vòng nước lan ra
@@ -5137,90 +5151,39 @@ function drawAmber(b) {
   ctx.strokeStyle = edge; ctx.lineWidth = 3; ctx.stroke();
   ctx.strokeStyle = 'rgb(255 240 200 / .7)'; ctx.lineWidth = 1.5; ctx.stroke();
 }
-// Chiến binh Xayda (fan art hình khối): tóc đen dựng, giáp Xayda trắng vai vàng, đồ bó xanh, đuôi khỉ.
-// Biến Khỉ thì thành khỉ đột khổng lồ lông nâu mắt đỏ.
+// Xayda của người chơi: cùng hình Vegeta với boss màn 3 (cỡ người thường). Biến Khỉ dùng sprite khỉ cấp 7 của Ngọc Rồng Online;
+// Tự phát nổ gồng bằng quả cầu năng lượng và tia sét gốc của game (2175/2176, 971–974).
 function drawSaiyan(b, charged) {
-  const sq = b.squash, air = !S.onGround, running = !air && Math.abs(b.vx) > 30, ph = b.run;
-  const bob = running ? Math.abs(Math.sin(ph)) * 2.5 : 0, ape = S.ape > 0;
-  // Tái tạo năng lượng: hào quang xanh bốc lên; Tự phát nổ: quả cầu sáng phình to
-  if (S.regenOn || S.boom > 0) {
-    const big = S.boom > 0 ? 1 + (1.5 - S.boom) * 1.4 : 1;
-    ctx.fillStyle = S.boom > 0 ? (Math.floor(S.t * 20) % 2 ? 'rgb(255 255 255 / .55)' : 'rgb(255 220 120 / .5)') : 'rgb(120 200 255 / .3)';
-    ctx.beginPath(); ctx.ellipse(b.x, b.y - 10, R * 1.5 * big, R * 2 * big, 0, 0, Math.PI * 2); ctx.fill();
-    if (S.regenOn) {
-      ctx.fillStyle = '#bfe6ff';
-      for (let i = 0; i < 5; i++) { const y = b.y + 10 - ((S.t * 90 + i * 17) % 70); ctx.fillRect(b.x - 24 + i * 12, y, 3, 8); }
+  const sq = b.squash, air = !S.onGround, running = !air && Math.abs(b.vx) > 30, ph = b.run, d = b.face || 1;
+  const bob = running ? Math.abs(Math.sin(ph)) * 2.5 : 0, fy = b.y + R - 2 + R * sq * .3 - bob;
+  if (S.regenOn) {
+    // Tái tạo năng lượng: hào quang xanh bốc lên
+    ctx.fillStyle = 'rgb(120 200 255 / .3)';
+    ctx.beginPath(); ctx.ellipse(b.x, b.y - 10, R * 1.5, R * 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#bfe6ff';
+    for (let i = 0; i < 5; i++) { const y = b.y + 10 - ((S.t * 90 + i * 17) % 70); ctx.fillRect(b.x - 24 + i * 12, y, 3, 8); }
+  }
+  const boomK = S.boom > 0 ? (1.5 - S.boom) / 1.5 : -1;
+  if (S.ape > 0) {
+    const pose = S.swing > 0 ? 'dash' : S.cast > 0 || S.charging || S.boom > 0 ? 'roar' : 'stand';
+    if (!drawApeSprite(b.x, fy, d, pose, .5)) { ctx.fillStyle = '#6e3f1f'; ctx.beginPath(); ctx.ellipse(b.x, fy - 50, 30, 52, 0, 0, Math.PI * 2); ctx.fill(); }
+  } else {
+    const pose = S.boom > 0 ? 'roar' : S.swing > 0 ? 'punch' : S.cast > 0 || (S.charging && S.chargeT > BALL_HOLD) ? 'cast' : S.amber > 0 ? 'guard' : running || air ? 'move' : 'idle';
+    drawVegetaFig(b.x, fy, d, (1 + sq * .4) * (charged ? 1.04 : 1), pose, { air, run: running, ph, flash: boomK > 0 });
+    // giữ J: cầu Antomic lớn dần trên tay
+    if (S.charging && S.chargeT > BALL_HOLD && nroOk('orb')) {
+      const s = 18 + chargeK(S.chargeT) * 26;
+      ctx.drawImage(NRO_IMG.orb, b.x + d * 20 - s / 2, fy - 34 - s / 2, s, s);
     }
   }
-  ctx.save();
-  ctx.translate(b.x, b.y + R - 2 + R * sq * .3);
-  const k = ape ? 1.6 : 1;
-  ctx.scale((b.face || 1) * (1 + sq * .4) * k, (1 - sq * .5) * k);
-  ctx.translate(0, -bob);
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  if (ape) { drawApe(running, ph, air); ctx.restore(); return; }
-  const SKIN = '#ffd9b0', SUIT = '#2a3f8f', ARM = charged ? '#ffffff' : '#f2f2f2', GOLD = '#e6b422', DK = '#14141a';
-  // đuôi khỉ nâu
-  ctx.strokeStyle = '#7a4a2a'; ctx.lineWidth = 3.5;
-  ctx.beginPath(); ctx.moveTo(-6, -17); ctx.quadraticCurveTo(-20, -18 + Math.sin(S.t * 5) * 3, -17, -6); ctx.stroke();
-  // chân: đồ bó xanh, ủng trắng mũi vàng
-  const legs = air ? [[-4, -.5], [4, .5]] : [[-3, Math.sin(ph) * .8], [3, Math.sin(ph + Math.PI) * .8]];
-  for (const [lx, ang] of legs) {
-    ctx.save(); ctx.translate(lx, -16); ctx.rotate(ang);
-    ctx.fillStyle = SUIT; ctx.fillRect(-3, 0, 6, 10);
-    ctx.fillStyle = '#f4f4f4'; ctx.fillRect(-3.2, 9, 6.4, 5);
-    ctx.fillStyle = GOLD; ctx.fillRect(-3.2, 13, 6.4, 1.6);
-    ctx.restore();
+  if (boomK >= 0) {
+    const size = 70 + boomK * 230, key = Math.floor(S.t * 16) % 2 ? 'orb' : 'orb0', cy = b.y - 10;
+    if (nroOk(key)) { ctx.globalAlpha = .5 + .35 * Math.abs(Math.sin(S.t * 18)); ctx.drawImage(NRO_IMG[key], b.x - size / 2, cy - size / 2, size, size); ctx.globalAlpha = 1; }
+    for (let i = 0; i < 2; i++) {
+      const lk = 'lz' + ((Math.floor(S.t * 20) + i) % 4);
+      if (nroOk(lk)) { const a = S.t * 7 + i * 3, r = size * .3; ctx.drawImage(NRO_IMG[lk], b.x + Math.cos(a) * r - 40, cy + Math.sin(a) * r - 40, 80, 80); }
+    }
   }
-  // thân: đồ bó xanh + giáp ngực trắng, cầu vai vàng
-  ctx.fillStyle = SUIT; ctx.fillRect(-7, -34, 14, 18);
-  ctx.fillStyle = ARM; ctx.strokeStyle = '#8a8f98'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(-8, -34); ctx.lineTo(8, -34); ctx.lineTo(7, -20); ctx.lineTo(-7, -20); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = GOLD;
-  ctx.beginPath(); ctx.ellipse(-8, -33, 4, 3, -.3, 0, Math.PI * 2); ctx.ellipse(8, -33, 4, 3, .3, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(-8, -21, 16, 3);
-  // tay: đấm thẳng khi ra đòn
-  const punch = S.swing > 0 || S.cast > 0;
-  ctx.save(); ctx.translate(5, -30); ctx.rotate(punch ? 1.57 : air ? -.4 : running ? Math.sin(ph + Math.PI) * .7 + 3 : 2.9);
-  ctx.fillStyle = SUIT; ctx.fillRect(-2.2, -11, 4.4, 11);
-  ctx.fillStyle = '#f4f4f4'; ctx.beginPath(); ctx.arc(0, -12, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-  // đầu + tóc đen dựng nhọn
-  const hx = 1, hy = -41;
-  ctx.fillStyle = DK;
-  ctx.beginPath();
-  ctx.moveTo(hx - 10, hy + 2); ctx.lineTo(hx - 14, hy - 10); ctx.lineTo(hx - 7, hy - 9); ctx.lineTo(hx - 8, hy - 20);
-  ctx.lineTo(hx - 1, hy - 12); ctx.lineTo(hx + 2, hy - 23); ctx.lineTo(hx + 5, hy - 12); ctx.lineTo(hx + 11, hy - 18);
-  ctx.lineTo(hx + 10, hy - 7); ctx.lineTo(hx + 11, hy); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = SKIN; ctx.strokeStyle = '#8a5a3a'; ctx.lineWidth = 1.4;
-  ctx.beginPath(); ctx.arc(hx + 1, hy, 9.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = DK;
-  ctx.beginPath(); ctx.moveTo(hx - 9, hy - 3); ctx.lineTo(hx - 4, hy - 11); ctx.lineTo(hx + 3, hy - 7); ctx.lineTo(hx + 7, hy - 11); ctx.lineTo(hx + 10, hy - 2); ctx.lineTo(hx + 6, hy - 6); ctx.lineTo(hx + 1, hy - 3); ctx.closePath(); ctx.fill();
-  // mắt sắc, lông mày nhíu, miệng
-  ctx.fillStyle = DK; ctx.fillRect(hx + 5, hy, 2.4, 2.4);
-  ctx.strokeStyle = DK; ctx.lineWidth = 1.4;
-  ctx.beginPath(); ctx.moveTo(hx + 3.5, hy - 2.5); ctx.lineTo(hx + 8.5, hy - 1); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(hx + 5, hy + 5.5); ctx.lineTo(hx + 8, hy + 5); ctx.stroke();
-  ctx.restore();
-}
-function drawApe(running, ph, air) {
-  const FUR = '#6b3f22', DK = '#2a160a', SKIN = '#d9a877';
-  // chân, thân to tròn, tay dài
-  const legs = air ? [[-6, -.4], [6, .4]] : [[-6, Math.sin(ph) * .6], [6, Math.sin(ph + Math.PI) * .6]];
-  for (const [lx, ang] of legs) { ctx.save(); ctx.translate(lx, -10); ctx.rotate(ang); ctx.fillStyle = FUR; ctx.fillRect(-4, 0, 8, 10); ctx.restore(); }
-  ctx.fillStyle = FUR; ctx.strokeStyle = DK; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.ellipse(0, -20, 13, 13, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = SKIN; ctx.beginPath(); ctx.ellipse(2, -18, 7, 8, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.save(); ctx.translate(8, -26); ctx.rotate(S.swing > 0 || S.cast > 0 ? -1.5 : running ? Math.sin(ph) * .6 : .4);
-  ctx.fillStyle = FUR; ctx.fillRect(-3, 0, 6, 14); ctx.restore();
-  // đầu khỉ: tai, mõm, mắt đỏ, răng nanh
-  const hy = -38;
-  ctx.fillStyle = FUR;
-  ctx.beginPath(); ctx.arc(-6, hy - 6, 3.5, 0, Math.PI * 2); ctx.arc(8, hy - 6, 3.5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(1, hy, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = SKIN; ctx.beginPath(); ctx.ellipse(5, hy + 3, 6, 4.5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ff2020'; ctx.fillRect(3, hy - 4, 2.5, 2); ctx.fillRect(7.5, hy - 4, 2.5, 2);
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(3.5, hy + 4, 1.5, 2); ctx.fillRect(7.5, hy + 4, 1.5, 2);
 }
 // Chiikawa (fan art hình khối): tròn trắng, tai nhỏ, má hồng. Gốc toạ độ ở chân, +x là hướng mặt.
 function drawChiikawa(b, charged) {
