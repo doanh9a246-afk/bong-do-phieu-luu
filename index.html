@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=0fc29a5a">
+<link rel="stylesheet" href="css/style.css?v=ee3d28cc">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -139,6 +139,13 @@
     <button class="tbtn sx" type="button" data-key="boom" aria-label="Tự phát nổ" hidden>Nổ</button>
     <button class="tbtn nm" type="button" data-key="egg" aria-label="Đẻ trứng" hidden>Trứng</button>
     <button class="tbtn nm" type="button" data-key="heal" aria-label="Trị thương" hidden>Hồi</button>
+    <button class="tbtn sx" type="button" data-key="learn" aria-label="Dùng chiêu học từ quái" hidden>Học</button>
+    <button class="tbtn sx" type="button" data-key="heal" aria-label="Đổi chiêu học" hidden>Đổi</button>
+    <button class="tbtn lf" type="button" data-key="gear" aria-label="Đổi Gear" hidden>Gear</button>
+    <button class="tbtn lf" type="button" data-key="regen" aria-label="Haki quan sát" hidden>QS</button>
+    <button class="tbtn lf" type="button" data-key="whistle" aria-label="Haki vũ trang" hidden>VT</button>
+    <button class="tbtn lf" type="button" data-key="boom" aria-label="Haki bá vương" hidden>BV</button>
+    <button class="tbtn lf" type="button" data-key="terra" aria-label="Mặt đất cao su" hidden>Đất</button>
     <button class="tbtn web" type="button" data-key="web" aria-label="Lưới điện">Lưới</button>
     <button class="tbtn volt" id="voltBtn" type="button" data-key="volt" aria-label="100.000 Vôn">100K</button>
     <button class="tbtn power" id="skillBtn" type="button" data-key="skill" aria-label="Lao điện">⚡</button>
@@ -152,10 +159,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=0fc29a5a&t=' + Date.now();
+  s.src = 'js/game.js?v=ee3d28cc&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=0fc29a5a&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=ee3d28cc&t=' + Date.now();
 })();
 </script>
 </body>
