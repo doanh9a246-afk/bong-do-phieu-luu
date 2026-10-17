@@ -2983,6 +2983,25 @@ function showKit(id) {
   $('outfit').hidden = id !== 'kiem';
   if (id === 'kiem') drawOutfitPreview();
 }
+function drawCharPreviews() {
+  const list = document.querySelectorAll('#charList canvas.charprev');
+  if (!list.length || $('chars').hidden) return;
+  const keep = CHAR, og = S.onGround, W = 160, H = 120;
+  S.onGround = true;
+  for (const c of list) {
+    const id = c.charId;
+    if (!CHAR_DRAW[id]) continue;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
+    // model thu nhỏ, chân đặt sát đáy khung, nhún nhẹ như đang thở
+    const k = .95 + Math.sin(S.t * 2 + id.length) * .015;
+    ctx.setTransform(k, 0, 0, k, W / 2, H - 10);
+    CHAR = id;
+    try { CHAR_DRAW[id]({ x: 0, y: -R, vx: 0, vy: 0, face: 1, rot: 0, squash: 0, run: 0 }, false); } catch (e) {}
+    const g = c.getContext('2d'); g.clearRect(0, 0, W, H); g.drawImage(cv, 0, 0, W, H, 0, 0, W, H);
+  }
+  CHAR = keep; S.onGround = og;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
 function buildCharList() {
   const list = $('charList');
   list.textContent = '';
@@ -2990,9 +3009,11 @@ function buildCharList() {
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'charopt'; btn.dataset.char = id;
     btn.setAttribute('aria-pressed', String(id === CHAR));
+    const pv = document.createElement('canvas'); pv.className = 'charprev'; pv.width = 160; pv.height = 120; pv.charId = id;
     const nm = document.createElement('span'); nm.textContent = u.name + (unlocked(id) ? '' : ' 🔒');
-    const sm = document.createElement('small'); sm.textContent = `${u.from} · ${u.tag}`;
-    btn.append(nm, sm);
+    const sm = document.createElement('small'); sm.textContent = u.from;
+    if (!unlocked(id)) btn.classList.add('locked');
+    btn.append(pv, nm, sm);
     btn.addEventListener('click', () => pickChar(id));
     btn.addEventListener('mouseenter', () => showKit(id));
     btn.addEventListener('focus', () => showKit(id));
@@ -3014,6 +3035,7 @@ function closeChars() {
   $('charBtn').blur();
 }
 function setChar(id) {
+  $('charsTitle').textContent = 'Chọn nhân vật';
   CHAR = id; lsSet(CHAR_KEY, id);
   applyChar(); reset(); closeChars();
 }
@@ -10991,6 +11013,8 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(.033, (now - last) / 1000); last = now;
   if (!paused) update(dt);
+  else S.t += dt;   // bảng chọn nhân vật: model xem trước vẫn cử động
+  try { drawCharPreviews(); } catch (e) {}
   try { render(); } catch (e) { console.error(e); ctx.restore(); }
   const sec = Math.floor(S.time);
   if (sec !== lastSec) {
@@ -11056,5 +11080,7 @@ if (TEST_MODE) setTimeout(() => showTip('Chế độ thử: vô hạn mạng · 
 
 fit();
 setMap(Number(lsGet(MAP_KEY, '1')));
+// trước khi bắt đầu: màn hình chọn nhân vật
+if (!TEST_MODE) { openChars(); $('charsTitle').textContent = 'Chọn nhân vật để bắt đầu'; }
 requestAnimationFrame(loop);
 })();
