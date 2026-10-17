@@ -282,7 +282,7 @@ function buildMap3() {
     { x: 1100, f: f1, text: 'Màn 3 — Hành tinh Xayda: đêm không trăng. Boss Vegeta ở cuối màn học cách bạn chạy, nhảy và ra chiêu.' },
     { x: 3000, f: f2, text: 'Bục đá qua vực: giữ ↑ để nhảy xa.' },
     { x: 5050, f: f3, text: 'Ụ băng phía trước: nhảy qua đạn hoặc phá ụ.' },
-    { x: 6600, f: f4, text: 'Vegeta bắt chước bạn: chiêu nào bạn dùng nhiều, hắn dùng nhiều. Bị Trói thì nhấn Shift/K. Biến khỉ và còn 50% máu thì tự phát nổ — chắc chắn mất 1 mạng!' });
+    { x: 6600, f: f4, text: 'Vegeta bắt chước bạn: chiêu nào bạn dùng nhiều, hắn dùng nhiều. Bị Trói thì nhấn Shift/K. Biến khỉ và còn 50% máu thì tự phát nổ — không né được, mất 60% máu!' });
   FLYER_DEF.push({ type: 'bat', x: 2000, y: 250 }, { type: 'bat', x: 3300, y: 280 }, { type: 'bat', x: 5400, y: 280 },
     { type: 'ghost', x: 2700, y: 300 }, { type: 'ghost', x: 4700, y: 250 },
     { type: 'bird', x: 4300, y: 250, x0: 4100, x1: 4500 });
@@ -694,7 +694,7 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
   }
   const fell = fellOff();
   if (!force && !fell && S.hurtT > S.t) { S.hitAtk = 0; return; }   // vừa trúng đòn: 1 giây không nhận thêm
-  const dmg = force ? S.hp : fell ? Math.ceil(S.maxHp * .25) : incomingDmg();
+  const dmg = force === 'nova' ? Math.max(0, Math.min(S.hp - 1, Math.ceil(S.maxHp * .6))) : force ? S.hp : fell ? Math.ceil(S.maxHp * .25) : incomingDmg();
   S.hitAtk = 0;
   if (!TEST_MODE) S.hp = Math.max(0, S.hp - dmg);
   S.pops.push({ x: S.ball.x, y: S.ball.y - 56, t: 1, text: `-${dmg}`, c: '#ff4d55', big: true });
@@ -3953,12 +3953,12 @@ function gokuMaster(B, u) {
   S.pops.push({ x: u.x, y: u.y - BOSS_H - 50, t: 1.8, text: 'Bản Năng Vô Cực Hoàn Thiện!', c: '#ffffff' });
   bossBar();
 }
-// Khỉ cấp 7 còn 50% máu: gồng NOVA_T giây rồi tự phát nổ, mất 20% máu còn lại; vụ nổ phủ kín đấu trường nên bạn chắc chắn mất 1 mạng
+// Khỉ cấp 7 còn 50% máu: gồng NOVA_T giây rồi tự phát nổ, mất 20% máu còn lại; vụ nổ phủ kín đấu trường, không gì đỡ được: bạn mất 60% máu tối đa (không chết)
 function startNova(B, u) {
   Object.assign(B, { novaDone: true, nova: { t: 0 }, act: null, shield: 0, exhaust: 0, stun: 0 });
   S.bossKills = Math.max(S.bossKills, 2);
   sfx('charge');
-  cutBanner('VEGETA TỰ PHÁT NỔ! Không thể né — chắc chắn mất 1 mạng', true);
+  cutBanner('VEGETA TỰ PHÁT NỔ! Không thể né — mất 60% máu', true);
   bossBar();
 }
 function updateNova(B, u, b, dt) {
@@ -3973,7 +3973,7 @@ function updateNova(B, u, b, dt) {
   S.pops.push({ x: u.x, y: u.y - unitH(u) - 40, t: 1.8, text: `Tự phát nổ: -${cost} máu (20% máu còn lại)`, c: '#ff8a5a' });
   cutBanner('');
   // không chiêu, khiên, biến hình hay né nào cứu được
-  if (!S.dead) { S.safe = 0; S.power = 0; S.amber = 0; S.ui = 0; S.ape = 0; die(true); }
+  if (!S.dead) { S.safe = 0; S.power = 0; S.amber = 0; S.ui = 0; S.ape = 0; die('nova'); }   // không gì đỡ được, mất 60% máu tối đa (còn ít nhất 1 máu)
   if (B.hp <= 0) bossDown(B, u); else bossBar();
 }
 function updateSaiyanBoss(B, b, dt) {
@@ -8269,7 +8269,7 @@ function updateZoroShots(B, b, dt) {
 }
 // đòn nào trúng cũng chỉ mất 1 máu, 0,25 giây sau mới trúng tiếp; không bao giờ dưới 1 máu
 function zoroHit(B, u) {
-  if (B.cine || B.dead || B.inv > 0) return false;
+  if (B.cine || B.dead || (B.inv > 0 && !(CHAR === 'zenitsu' && S.zn.ult))) return false;   // 50 nhát của Zenitsu nhát nào cũng trúng (vẫn chỉ 1 máu)
   B.hp = Math.max(1, B.hp - 1); B.inv = .25; u.hurt = .2; S.lastDmg = 1;
   S.pops.push({ x: u.x + (Math.random() - .5) * 30, y: u.y - unitH(u) - 10, t: .7, text: '-1', c: '#ffffff' });
   boltSpark(u.x, u.y - 60, '#9affc0', 8); sfx('anti');
@@ -8619,7 +8619,7 @@ function znHit(t, dmg, p) {
   if (!tAlive(t)) return;
   const k = S.zn.sleep > 0 ? 2 : 1;
   boltSpark(p.x, p.y, '#ffe14a', 6);
-  if (t.kind === 'boss') { LAST_PROBE = { x: S.ball.x, y: S.ball.y, t: S.t }; damageBoss(t.ref, dmg * k, 'volt'); }
+  if (t.kind === 'boss') { LAST_PROBE = { x: S.ball.x, y: S.ball.y, t: S.t }; damageBoss(t.ref, dmg * k, 'crim'); }   // xuyên khiên, không bị khoảng bất động chặn
   else if (t.kind === 'enemy') { const e = t.ref; e.inv = 0; e.bub = 0; if (e.role === 'khien') e.dir = -(Math.sign(S.ball.x - e.x) || 1); if (dmg * k >= 3) e.hp = 1; killEnemy(e, '#ffe14a'); }
   else if (t.kind === 'flyer') killFlyer(t.ref);
   else { const T = S.turret; T.hp -= dmg * k; T.flash = .15; if (T.hp <= 0) breakTurret(); }
@@ -8759,8 +8759,14 @@ function updateZenitsu(dt) {
     U.t -= dt; S.safe = Math.max(S.safe, .3); b.vx = 0; b.vy = 0;
     while (U.t <= 0 && U.n < 50) {
       U.t += U.every;
-      const alive = U.tg.filter(tAlive);
-      if (!alive.length) { U.n = 50; break; }
+      const ok = t2 => tAlive(t2) && (t2.kind !== 'boss' || (bossVulnerable(S.boss, 'crim') && !S.boss.cine));
+      const alive = U.tg.filter(ok);
+      if (!alive.length) {
+        // boss đang chuyển dạng (biến khỉ, hợp thể, thức tỉnh…): đứng chờ rồi chém tiếp cho đủ 50 nhát
+        if (U.tg.some(t2 => t2.kind === 'boss') && !S.boss.dead && !S.boss.cine && (U.wait = (U.wait || 0) + dt) < 5) { U.t = U.every; break; }
+        U.n = 50; break;
+      }
+      U.wait = 0;
       const t = alive[U.n % alive.length], p = tPos(t), a = U.n * 2.39996 + Math.random() * .4, r = 70 + (U.n % 3) * 30;
       const xa = p.x + Math.cos(a) * r, ya = p.y + Math.sin(a) * r * .8, xb = p.x - Math.cos(a) * r, yb = p.y - Math.sin(a) * r * .8;
       znTrail(xa, ya, xb, yb, 3.5, .3);
