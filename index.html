@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=018f0458">
+<link rel="stylesheet" href="css/style.css?v=49bdd289">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -16,7 +16,7 @@
 <div class="hud">
   <div class="stats">
     <span class="chip"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5"/></svg><span id="stars">0/0</span></span>
-    <span class="chip lives" title="Số mạng"><span id="lives">♥♥♥</span></span>
+    <span class="chip lives" title="Máu · Tấn công · Phòng thủ"><span id="lives">HP</span></span>
     <span class="chip" id="traceChip" title="Vết tích: Vô địch + vết tích = sát thương gấp đôi" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3l4 9-4 9-4-9z" fill="#7ff0ff" stroke="#14301c" stroke-width="1.2"/><path d="M17 4c4 5 4 9 0 16-4-7-4-11 0-16z" fill="#ff4a1c" stroke="#14301c" stroke-width="1.2"/></svg><span id="traces">0</span></span>
     <span class="chip" id="time" title="Thời gian còn lại">5:00</span>
     <span class="chip energy" id="energyChip" data-full="0" title="Điện năng: J tia sét 5 · Quả cầu điện 20 · L Lưới điện 30 · Shift Lao điện 25 · U 100.000 Vôn cần đầy"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#ffc21a" stroke="#14301c" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="ebar"><i id="efill"></i></span><span id="energy">50</span></span>
@@ -162,10 +162,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=018f0458&t=' + Date.now();
+  s.src = 'js/game.js?v=49bdd289&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=018f0458&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=49bdd289&t=' + Date.now();
 })();
 </script>
 </body>

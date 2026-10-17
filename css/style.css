@@ -64,7 +64,13 @@ kbd { font: 800 14px var(--f-display); background: var(--paper); color: var(--in
 .touch .grp { display: flex; gap: 12px; }
 .tbtn { pointer-events: auto; width: 68px; height: 68px; border-radius: 50%; border: 3px solid rgb(255 255 255 / .7); background: rgb(20 48 28 / .35); color: var(--paper); font: 800 26px var(--f-display); touch-action: none; }
 .tbtn.on { background: rgb(20 48 28 / .6); }
-.chip.lives { color: #ff4d55; font-size: 22px; letter-spacing: .1em; }
+.chip.lives { color: #ffffff; font-size: 14px; }
+#lives { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+#lives b { color: #ff6b6b; }
+#lives .hpb { display: inline-block; width: 110px; height: 10px; border-radius: 5px; background: rgb(0 0 0 / .45); overflow: hidden; }
+#lives .hpb i { display: block; height: 100%; border-radius: 5px; transition: width .2s; }
+#lives small { opacity: .8; font-size: 11px; }
+@media (max-width: 640px) { #lives .hpb { width: 60px; } #lives small { display: none; } }
 .prog { position: fixed; top: calc(60px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 32px)); pointer-events: none; }
 .track { position: relative; height: 12px; border-radius: 6px; background: rgb(20 48 28 / .55); border: 2px solid rgb(255 255 255 / .7); }
 .track .fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 4px; background: var(--grass); }
