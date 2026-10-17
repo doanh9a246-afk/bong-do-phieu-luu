@@ -508,7 +508,8 @@ function activateSkill() {
   if (shield) S.amber = shield;
   const B = S.boss;
   if (B.cut && B.cut.appear && !B.cut.struck) B.cut.blocked = true;   // chặn cú đánh úp của Naamah
-  if (!frozenNow() && !shield) S.dash = { dir: S.ball.face || 1, t: TACKLE_DASH };
+  // lướt theo phím hướng đang bấm (bị dồn vào góc: bấm ← hoặc → cùng K để lướt ra), không bấm thì theo hướng mặt
+  if (!frozenNow() && !shield) S.dash = { dir: (keys.right ? 1 : 0) - (keys.left ? 1 : 0) || S.ball.face || 1, t: TACKLE_DASH };
   sfx(CHAR === 'pika' ? 'pikachu' : shield ? 'amber' : 'dash');
   const b = S.ball;
   for (let i = 0; i < 20; i++) {
@@ -641,7 +642,7 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
 }
 function respawn() {
   Object.assign(S.ball, { x: S.spawn.x, y: S.spawn.y, vx: 0, vy: 0, squash: 0 });
-  S.power = 0; S.dash = null; S.charging = false; S.amber = 0; S.kame = null; S.bound = 0; S.ghost = 0; S.nk.p = null; S.lf.arms = []; S.lf.gat = null;
+  S.power = 0; S.dash = null; S.charging = false; S.amber = 0; S.kame = null; S.bound = 0; S.ghost = 0; S.ghostIn = false; S.nk.p = null; S.lf.arms = []; S.lf.gat = null;
   S.timers = []; S.ktor = []; S.kfx = []; S.kpose = null; S.bleed = 0;
   S.safe = Math.max(S.safe, 1.2);   // tránh vừa hồi sinh đã chết lại
   S.tshots = []; S.icicles = [];
@@ -1950,7 +1951,15 @@ function bossBar() {
   $('hpfill').style.width = (Math.max(0, B.hp) / B.maxHp * 100) + '%';
 }
 const devilColors = u => u.kind === 'veg' ? ['#7cc8ff', '#ffffff', '#1a2340'] : u.kind === 'vape' ? ['#ffcc33', '#7a4a26', '#2a160a'] : u.kind === 'gku' ? ['#cfd9f2', '#9fb4ff', '#1d2340'] : u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : u.kind === 'zag' ? ['#b04cff', '#e6c8ff', '#14081c'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
-const arenaLo = w => ARENA.l + w / 2 + 40, arenaHi = w => ARENA.r - w / 2 - 10;
+// boss luôn chừa khe 70 ở hai đầu đấu trường (bóng rộng 44) để bạn không bị kẹt giữa boss và tường/cổng
+const arenaLo = w => ARENA.l + w / 2 + 70, arenaHi = w => ARENA.r - w / 2 - 70;
+// đẩy bóng ra khỏi thân boss; nếu phía đó là tường thì hất bóng bay qua đầu boss sang phía bên kia
+function pushOut(b, u, side, w) {
+  const x = u.x + side * (w / 2 + R + 1);
+  if (x > ARENA.l + R && x < ARENA.r - R) { b.x = x; return false; }
+  b.vx = -side * 300; b.vy = -900;
+  return true;
+}
 const unitW = u => u.kind === 'fused' ? FW : u.kind === 'vape' ? 130 : BOSS_W;
 const unitH = u => u.kind === 'fused' ? FH : u.kind === 'vape' ? 220 : BOSS_H;
 
@@ -2244,12 +2253,18 @@ function bossContact(B, b, stopped) {
     const fused = u.kind === 'fused', w = unitW(u), h = unitH(u), top = u.y - h;
     const nx = clamp(b.x, u.x - w / 2, u.x + w / 2), ny = clamp(b.y, top, u.y);
     if ((b.x - nx) ** 2 + (b.y - ny) ** 2 >= R * R) continue;
-    if (S.ghost > 0) { if (S.power > 0 && !stopped) damageBoss(u, 2, 'tackle'); continue; }   // đang xuyên qua boss (K)
+    if (S.ghost > 0 || S.ghostIn) {
+      // đang xuyên qua boss (K): giữ trạng thái xuyên cho tới khi ra khỏi thân boss, không bao giờ kẹt lại bên trong
+      S.ghostIn = true; S.ghost = Math.max(S.ghost, .05);
+      if (S.power > 0 && !stopped) damageBoss(u, 2, 'tackle');
+      return;
+    }
     const side = Math.sign(b.x - u.x) || 1;
     if (S.power > 0) {
       // Lao điện đâm trúng
       if (!stopped) damageBoss(u, 2, 'tackle');
-      b.x = u.x + side * (w / 2 + R + 1); b.vx = side * 300; b.vy = -340; S.dash = null;
+      if (!pushOut(b, u, side, w)) { b.vx = side * 300; b.vy = -340; }
+      S.dash = null;
       return;
     }
     if (b.vy > 0 && b.y < top + 10 && (!fused || B.exhaust > 0)) {
@@ -2258,13 +2273,14 @@ function bossContact(B, b, stopped) {
       if (!stopped) damageBoss(u, 2, 'stomp');
       return;
     }
-    if (B.stun > 0 || S.safe || B.inv > .2) { b.x = u.x + side * (w / 2 + R + 1); b.vx = side * 380; b.vy = -320; return; }
+    if (B.stun > 0 || S.safe || B.inv > .2) { if (!pushOut(b, u, side, w)) { b.vx = side * 380; b.vy = -320; } return; }
     die(); return;
   }
+  S.ghostIn = false;   // đã ra khỏi thân boss
 }
 function bossVulnerable(B, kind) {
-  if (kind === 'makanko') return !(B.dead || B.cut || B.fuse || B.trans);
-  if (kind === 'haki') return !(B.dead || B.cut || B.fuse || B.trans || B.nova || B.ts > 0);   // Haki vũ trang xuyên Khiên năng lượng   // Makankosappo xuyên mọi khiên
+  if (kind === 'makanko') return !(B.dead || B.cut || B.fuse || B.trans);   // Makankosappo xuyên mọi khiên
+  if (kind === 'haki') return !(B.dead || B.cut || B.fuse || B.trans || B.nova || B.ts > 0);   // Haki vũ trang xuyên Khiên năng lượng
   if (B.shield > 0 || B.trans || B.nova) return false;   // Khiên năng lượng, đang biến khỉ, đang gồng tự phát nổ
   if (B.dead || B.cut || B.fuse || B.ts > 0) return false;
   if (B.phase === 4) return !!CH().pierce || kind === 'volt' || kind === 'anti' || S.power > 0 || B.exhaust > 0;
