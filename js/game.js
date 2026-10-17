@@ -2623,7 +2623,7 @@ function lose(reason) {
   S.lost = true;
   $('tsBanner').hidden = true;
   $('loseTitle').textContent = reason === 'zoro' ? '“Về luyện thêm 100 năm nữa đi.”' : reason === 'time' ? 'Hết giờ!' : 'Hết máu!';
-  $('loseProg').textContent = reason === 'zoro' ? 'Roronoa Zoro đã chém bạn bay về đầu màn. Biển Hải Tặc là màn không thể thắng.' : `Bạn đã đi được ${Math.round(progress() * 100)}% chặng đường`;
+  $('loseProg').textContent = reason === 'zoro' ? 'Roronoa Zoro đã chém bạn bay về đầu màn. Bạn quá gà.' : `Bạn đã đi được ${Math.round(progress() * 100)}% chặng đường`;
   $('lose').hidden = false;
   openSubmit('lose');
 }
