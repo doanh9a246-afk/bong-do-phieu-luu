@@ -100,7 +100,7 @@ const CHAR_STATS = {
 const stat = () => CHAR_STATS[CHAR] || CHAR_STATS.chii;
 const DMG_K = 10;   // 1 điểm sát thương gốc của chiêu = 10 máu
 // sức đánh của quái / bẫy theo màn và của boss từng màn
-const MOB_ATK = [0, 60, 80, 100, 120, 150, 180], BOSS_ATK = [0, 120, 150, 180, 220, 380, 520];
+const MOB_ATK = [0, 60, 80, 100, 120, 150, 180, 200], BOSS_ATK = [0, 120, 150, 180, 220, 380, 520, 300];
 function dmgRoll(base) {
   const crit = Math.random() < .15;
   S.lastCrit = crit;
@@ -328,13 +328,13 @@ function buildMap4() {
   Object.assign(TURRET, { x: 5700, f: f4, every: 2.2, speed: 300, range: 720, hp: 3 });
 }
 function loadMap(n) {
-  MAP = [1, 2, 3, 4, 5, 6].includes(n) ? n : 1;
+  MAP = [1, 2, 3, 4, 5, 6, 7].includes(n) ? n : 1;
   CRATERS.length = 0; RUBBER.length = 0;
   for (const a of [SOLIDS, SPIKES, STAR_POS, ENEMY_DEF, FLOWERS, SIGNS, CHECKPOINTS, TIPS, FLYER_DEF, GROUNDS, HEARTS, TRAP_DEF, SWITCHES]) a.length = 0;
-  [null, buildMap1, buildMap2, buildMap3, buildMap4, buildMap5, buildMap6][MAP]();
+  [null, buildMap1, buildMap2, buildMap3, buildMap4, buildMap5, buildMap6, buildMap7][MAP]();
   addCourse(MAP);   // chướng ngại vật, lối mê cung, quái nhóm
   ARENA_MID = (ARENA.l + ARENA.r) / 2;
-  PHASES = [null, PHASES_LN, PHASES_Z, PHASES_V, PHASES_G, PHASES_W, PHASES_J][MAP];
+  PHASES = [null, PHASES_LN, PHASES_Z, PHASES_V, PHASES_G, PHASES_W, PHASES_J, PHASES_ZR][MAP];
   ACT_LIST = MAP === 2 ? ACT_LIST_Z : ACT_LIST_LN;
 }
 const newFlyer = d => ({ ...d, ax: d.x, ay: d.y, t: Math.random() * 6, alive: true, stun: 0, state: 'patrol', cd: 0, dir: 1, dropT: 1.2, dieT: 0, r: d.type === 'ghost' ? 18 : 16 });
@@ -374,6 +374,7 @@ function reset() {
     ghost: 0, ghostCd: 0,   // K/Shift: xuyên qua boss
     alert: {}, eshots: [],   // nhóm quái đang báo động, tên của cung thủ
     wt: 0,                   // đồng hồ thế giới (bẫy, bục di chuyển); đứng yên khi ngưng đọng thời gian
+    zoom: null,              // cảnh phim: phóng to quanh một điểm
     mr: newMr(),             // Mereoleona: cánh tay lửa, Mana Zone, Hoả Táng
     ku: newKu(),             // Kurumi: đạn, phân thân, Zafkiel, Rasiel
     nk: newNk(),            // Namek: chiêu đang phát, hiệu ứng, đạn, thú, khiên
@@ -489,6 +490,7 @@ function setMuted(m) {
 
 function setKey(k, on) {
   audio();
+  if (S.boss && S.boss.cine) { keys[k] = false; return; }   // cảnh kết của Zoro
   if (CH().simple && (k === 'web' || k === 'volt')) return;   // Chiikawa không có L và U
   if (on && !keys[k] && (k === 'web' || k === 'volt' || k === 'skill')) noteLearn(k);   // boss màn 3, 4 học chiêu của bạn
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
@@ -575,7 +577,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP') { if (paused) closeChars(); else openChars(); return; }
   if (paused) return;
   if (e.code === 'KeyR') { reset(); return; }
-  if (e.code === 'KeyN') { setMap(MAP % 6 + 1); return; }
+  if (e.code === 'KeyN') { setMap(MAP % 7 + 1); return; }
   if (e.code === 'KeyM') { setMuted(!muted); return; }
   if (e.code === 'KeyB' && TEST_MODE) { warpToBoss(); return; }
   const k = KEYMAP[e.code];
@@ -763,7 +765,9 @@ function update(dt) {
   if (S.won || S.lost) return;
   if (!worldStopped()) S.time += dt;   // ngưng đọng thời gian: đồng hồ màn chơi cũng dừng
   if (S.time >= TIME_LIMIT) { lose('time'); return; }
-  if (!worldStopped()) updateBoss(dt);
+  zoroClock(dt);   // màn 7: 10 giây rồi cảnh kết
+  if (!worldStopped() || S.boss.cine) updateBoss(dt);
+  if (S.boss.cine) { if (!S.boss.cine.fly) { S.ball.vx = 0; S.ball.vy = 0; } return; }   // đang chiếu cảnh: không điều khiển được
   if (S.dead) {
     S.dead -= dt;
     if (S.dead <= 0) { S.dead = 0; if (S.hp <= 0) lose(); else respawn(); }
@@ -2017,6 +2021,7 @@ function updateFlyers(dt) {
 /* ---------- Boss: Lilith (băng) → Naamah (lửa) → Hợp thể ---------- */
 function newUnits() {
   if (MAP === 5) return [{ kind: 'wolf', x: ARENA_MID + 200, y: ARENA.floor, dir: -1, squash: 0, flash: 0, hurt: 0, mt: 0, vy: 0, vx: 0, alpha: 1 }];
+  if (MAP === 7) return [{ kind: 'zoro', x: ARENA_MID + 200, y: ARENA.floor, dir: -1, squash: 0, flash: 0, hurt: 0, mt: 0, vy: 0, vx: 0, alpha: 1 }];
   if (MAP === 6) return [{ kind: 'jw', x: ARENA_MID + 200, y: ARENA.floor, dir: -1, squash: 0, flash: 0, hurt: 0, mt: 0, vy: 0, vx: 0, alpha: 1 }];
   if (MAP === 3) return [{ kind: 'veg', x: ARENA_MID + 200, y: ARENA.floor, dir: -1, squash: 0, flash: 0, hurt: 0, mt: 0, vy: 0, vx: 0 }];
   if (MAP === 4) return [{ kind: 'gku', x: ARENA_MID + 200, y: ARENA.floor - 60, dir: -1, squash: 0, flash: 0, hurt: 0, mt: 0, vy: 0, vx: 0 }];
@@ -2032,8 +2037,8 @@ function newBoss() {
     units: newUnits(),
   };
 }
-const BOSS_NAMES = { 1: 'LILITH × NAAMAH', 2: 'ZAGRED', 3: 'VEGETA', 4: 'SONGOKU', 5: 'KANG SEORIN', 6: 'SUNG JIN-WOO' };
-const devilName = B => MAP === 5 ? 'KANG SEORIN' : MAP === 6 ? (B.phase > 1 ? 'SUNG JIN-WOO · QUÂN VƯƠNG BÓNG TỐI' : 'SUNG JIN-WOO') : MAP === 3 ? (B.units[0].kind === 'vape' ? 'VEGETA · KHỈ CẤP 7' : 'VEGETA') : MAP === 4 ? 'SONGOKU' : MAP === 2 ? 'ZAGRED' : B.phase === 4 || B.fuse ? 'LILITH × NAAMAH' : B.units[0].kind === 'ice' ? 'LILITH' : 'NAAMAH';
+const BOSS_NAMES = { 1: 'LILITH × NAAMAH', 2: 'ZAGRED', 3: 'VEGETA', 4: 'SONGOKU', 5: 'KANG SEORIN', 6: 'SUNG JIN-WOO', 7: 'RORONOA ZORO' };
+const devilName = B => MAP === 7 ? 'RORONOA ZORO' : MAP === 5 ? 'KANG SEORIN' : MAP === 6 ? (B.phase > 1 ? 'SUNG JIN-WOO · QUÂN VƯƠNG BÓNG TỐI' : 'SUNG JIN-WOO') : MAP === 3 ? (B.units[0].kind === 'vape' ? 'VEGETA · KHỈ CẤP 7' : 'VEGETA') : MAP === 4 ? 'SONGOKU' : MAP === 2 ? 'ZAGRED' : B.phase === 4 || B.fuse ? 'LILITH × NAAMAH' : B.units[0].kind === 'ice' ? 'LILITH' : 'NAAMAH';
 function bossBar() {
   const B = S.boss, P = PHASES[B.phase];
   $('bossbar').hidden = !(S.fight || B.dead);
@@ -2045,7 +2050,7 @@ function bossBar() {
   $('hpbar').hidden = B.dead || !!B.fuse || !!B.cut || !!B.trans;
   $('hpfill').style.width = (Math.max(0, B.hp) / B.maxHp * 100) + '%';
 }
-const devilColors = u => u.kind === 'wolf' ? ['#ffffff', '#c4c9d6', '#1b1d26'] : u.kind === 'jw' ? ['#8fe4ff', '#b48aff', '#0d0e14'] : u.kind === 'veg' ? ['#7cc8ff', '#ffffff', '#1a2340'] : u.kind === 'vape' ? ['#ffcc33', '#7a4a26', '#2a160a'] : u.kind === 'gku' ? ['#cfd9f2', '#9fb4ff', '#1d2340'] : u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : u.kind === 'zag' ? ['#b04cff', '#e6c8ff', '#14081c'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
+const devilColors = u => u.kind === 'zoro' ? ['#5af0a0', '#ffffff', '#21402a'] : u.kind === 'wolf' ? ['#ffffff', '#c4c9d6', '#1b1d26'] : u.kind === 'jw' ? ['#8fe4ff', '#b48aff', '#0d0e14'] : u.kind === 'veg' ? ['#7cc8ff', '#ffffff', '#1a2340'] : u.kind === 'vape' ? ['#ffcc33', '#7a4a26', '#2a160a'] : u.kind === 'gku' ? ['#cfd9f2', '#9fb4ff', '#1d2340'] : u.kind === 'ice' ? ['#7ff0ff', '#d8fbff', '#0f2430'] : u.kind === 'zag' ? ['#b04cff', '#e6c8ff', '#14081c'] : ['#ff2f5c', '#ffa0b4', '#1c0c12'];
 // boss luôn chừa khe 70 ở hai đầu đấu trường (bóng rộng 44) để bạn không bị kẹt giữa boss và tường/cổng
 const arenaLo = w => ARENA.l + w / 2 + 70, arenaHi = w => ARENA.r - w / 2 - 70;
 // đẩy bóng ra khỏi thân boss; nếu phía đó là tường thì hất bóng bay qua đầu boss sang phía bên kia
@@ -2384,6 +2389,7 @@ function bossVulnerable(B, kind) {
 }
 function damageBoss(u, base, kind) {
   const B = S.boss;
+  if (MAP === 7) return zoroHit(B, u);   // Zoro: đòn nào cũng chỉ 1 máu
   if (B.inv > 0 && kind !== 'volt' && kind !== 'makanko' && kind !== 'crim') return false;
   const h = unitH(u);
   if (!bossVulnerable(B, kind)) {
@@ -2616,8 +2622,8 @@ function tsBanner() {
 function lose(reason) {
   S.lost = true;
   $('tsBanner').hidden = true;
-  $('loseTitle').textContent = reason === 'time' ? 'Hết giờ!' : 'Hết máu!';
-  $('loseProg').textContent = `Bạn đã đi được ${Math.round(progress() * 100)}% chặng đường`;
+  $('loseTitle').textContent = reason === 'zoro' ? '“Về luyện thêm 100 năm nữa đi.”' : reason === 'time' ? 'Hết giờ!' : 'Hết máu!';
+  $('loseProg').textContent = reason === 'zoro' ? 'Roronoa Zoro đã chém bạn bay về đầu màn. Biển Hải Tặc là màn không thể thắng.' : `Bạn đã đi được ${Math.round(progress() * 100)}% chặng đường`;
   $('lose').hidden = false;
   openSubmit('lose');
 }
@@ -3042,6 +3048,7 @@ function drawBackground() {
     ctx.globalAlpha = 1;
   }
   if (T.style === 'dungeon') { drawDungeonBg(); return; }
+  if (T.style === 'pirate') { drawPirateBgSun(T); drawPirateBg(); return; }
   // mặt trời có quầng sáng (thị sai rất nhỏ); màn 3 là trăng tròn, chỉ mọc lên khi Vegeta gục lần đầu
   const moonK = T.moonRise ? S.boss.moon || 0 : 1;
   const sx0 = viewW * .78 - cam.x * .02, sy0 = 110 - cam.y * .05 + (1 - moonK) * 320;
@@ -3111,6 +3118,11 @@ const THEMES = {
     sunG: ['rgb(0 0 0 / 0)', 'rgb(0 0 0 / 0)', 'rgb(0 0 0 / 0)'],
     cloud: ['rgb(0 0 0 / 0)', 'rgb(0 0 0 / 0)'], r1: ['#121226', '#0a0a18'], r2: ['#181a30', '#0b0b16'],
     dirt: '#1d1f2e', dirt2: '#151724', grass: ['#3b3f58', '#4a4f6c', '#6a7096'] },
+  // màn 7: biển hải tặc lúc hoàng hôn — boong tàu, cầu cảng, thuyền buồm đen
+  7: { style: 'pirate', sky: ['#1d3e7a', '#e8845a', '#ffd9a0'], sun: '#fff2c8', sunR: 44,
+    sunG: ['rgb(255 240 200 / .95)', 'rgb(255 170 100 / .5)', 'rgb(255 170 100 / 0)'],
+    cloud: ['rgb(200 110 110 / .45)', 'rgb(255 200 170 / .8)'], r1: ['#5a4a6a', '#3a2e4a'], r2: ['#2a1a14', '#1a1414'],
+    dirt: '#5a3620', dirt2: '#4e2e1a', grass: ['#b07a42', '#c88a4a', '#e0aa6a'] },
 };
 function tracePts(p) {
   ctx.beginPath(); ctx.moveTo(p[0], p[1]);
@@ -3119,7 +3131,7 @@ function tracePts(p) {
 function drawSolids(x0, x1) {
   for (const s of SOLIDS) {
     if (s.gate || s.broken || s.door || s.maxX < x0 || s.minX > x1) continue;   // cổng có hình riêng (drawGate)
-    if (THEMES[MAP].style) { styledSolid(s, x0, x1); continue; }   // màn 5–6: sân thượng / gạch đá hầm ngục
+    if (THEMES[MAP].style) { (THEMES[MAP].style === 'pirate' ? pirateSolid : styledSolid)(s, x0, x1); continue; }   // màn 5–6: sân thượng / gạch đá hầm ngục
     tracePts(s.pts); ctx.closePath();
     const T = THEMES[MAP];
     ctx.fillStyle = T.dirt; ctx.fill();
@@ -7186,6 +7198,8 @@ function updateMhBoss(B, b, dt) {
   for (const f of B.fx) { f.t += dt; if (f.vx !== undefined) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 1 - dt * 2; f.vy *= 1 - dt * 2; } }
   B.fx = B.fx.filter(f => f.t < f.max);
   if (MAP === 6) updateDaggers(B, b, dt);
+  if (MAP === 7) updateZoroShots(B, b, dt);
+  if (B.cine) { mhPhys(u, dt, true); mhBlend(u, dt); return; }   // cảnh kết của Zoro
   if (B.rise > 0) {
     // Quân Vương Bóng Tối thức tỉnh: đứng gồng, bóng tối cuộn quanh người
     B.rise -= dt; u.pose = 'arise'; u.vx = 0; mhPhys(u, dt, true); mhBlend(u, dt);
@@ -7193,8 +7207,8 @@ function updateMhBoss(B, b, dt) {
     if (B.rise <= 0) { u.pose = null; B.atkT = .4; }
     return;
   }
-  if (B.act) (MAP === 5 ? wolfAct : jwAct)(B, u, b, dt, B.act);
-  else (MAP === 5 ? wolfIdle : jwIdle)(B, u, b, dt);
+  if (B.act) (MAP === 5 ? wolfAct : MAP === 7 ? zrAct : jwAct)(B, u, b, dt, B.act);
+  else (MAP === 5 ? wolfIdle : MAP === 7 ? zrIdle : jwIdle)(B, u, b, dt);
   mhPhys(u, dt, !!B.act && !B.act.dash);
   mhBlend(u, dt);
   if (!S.dead) bossContact(B, b, false);
@@ -7504,6 +7518,7 @@ function mhPose(pose, u, jw) {
     case 'crouch': return { hy: -42, lean: .45, bl: [-.2, -1], fl: [.9, -.6], ba: [-.6, .2], fa: [.4, 1.6] };
     case 'lunge': return { hy: -50, lean: .6, bl: [-1, -1.3], fl: [.9, .3], ba: [-1.2, -1], fa: jw ? [1.3, 1.9] : [1.5, 1.5] };
     case 'land': return { hy: -38, lean: .35, bl: [-.3, -1.1], fl: [1, -.5], ba: [-.4, .6], fa: [.9, 1.2] };
+    case 'walk': { const s = Math.sin(t * 7); return { hy: -54 + Math.abs(Math.cos(t * 7)) * 1.5, lean: .04, bl: [-.4 * s, -.4 * s - .15 - .4 * Math.max(0, s)], fl: [.4 * s, .4 * s - .15 - .4 * Math.max(0, -s)], ba: [.25 * s, .25 * s + .3], fa: [-.25 * s, -.25 * s + .3] }; }
     case 'air': return { hy: -54, lean: .1, bl: [.3, -.9], fl: [1.1, -.2], ba: [-.8, -.3], fa: [.9, 2.3] };
     case 'upper': return { hy: -54, lean: -.2, bl: [-.1, -.1], fl: [2.6, 2.8], ba: [-1, -.4], fa: [.8, 2.4] };
     case 'ready': return { hy: -46, lean: .4, bl: [-.4, -.9], fl: [.8, -.3], ba: [.3, 1.9], fa: [.9, 1.3] };
@@ -7526,7 +7541,7 @@ function mhPose(pose, u, jw) {
 }
 // tay chân chuyển dần sang tư thế mới (không giật cục): ra đòn nhanh, thu về và đứng thủ chậm hơn
 function mhBlend(u, dt) {
-  const T = mhPose(u.pose, u, MAP === 6), run = !u.pose && u.ground && Math.abs(u.vx) > 60;
+  const T = mhPose(u.pose, u, MAP >= 6), run = !u.pose && u.ground && Math.abs(u.vx) > 60;
   if (!u.cur) { u.cur = JSON.parse(JSON.stringify(T)); return; }
   const strike = u.pose && u.pose !== 'crouch' && u.pose !== 'ready', k = 1 - Math.exp(-(run ? 40 : strike ? 30 : 12) * dt), C = u.cur;
   C.hy += (T.hy - C.hy) * k; C.lean += (T.lean - C.lean) * k;
@@ -7684,7 +7699,7 @@ function drawMhBoss(B) {
   // bóng mờ khi lao
   for (const f of B.fx) if (f.k === 'ghost') {
     ctx.save(); ctx.globalAlpha = .35 * (1 - f.t / f.max);
-    drawMhFig(u, f.x, f.y, f.dir, f.pose, 1, jw, mon);
+    (MAP === 7 ? drawZoroFig : drawMhFig)(u, f.x, f.y, f.dir, f.pose, 1, jw, mon);
     ctx.restore();
   }
   if (mon) drawMonarchAura(u.x, u.y);
@@ -7692,11 +7707,18 @@ function drawMhBoss(B) {
     ctx.save();
     if (B.inv > 0 && Math.floor(S.t * 20) % 2) ctx.globalAlpha = .6;
     if (u.hurt > 0) { ctx.globalAlpha *= .8; }
-    drawMhFig(u, u.x, u.y, u.dir, u.pose, u.alpha ?? 1, jw, mon, u.cur);
+    (MAP === 7 ? drawZoroFig : drawMhFig)(u, u.x, u.y, u.dir, u.pose, u.alpha ?? 1, jw, mon, u.cur);
     ctx.restore();
   }
+  if (MAP === 7) drawZoroCine(B);
   // dao bay
   for (const q of B.shots) {
+    if (q.crescent) {
+      // 36 Pound Hō: vầng trăng chém xanh lục
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (const [w, c] of [[16, 'rgb(60 220 140 / .4)'], [7, 'rgb(150 255 200 / .8)'], [2, '#ffffff']]) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(q.x, q.y, 22, 60, 0, q.vx > 0 ? -1.3 : Math.PI - 1.3, q.vx > 0 ? 1.3 : Math.PI + 1.3); ctx.stroke(); }
+      ctx.restore(); continue;
+    }
     const a = Math.atan2(q.vy, q.vx);
     ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(a); ctx.globalCompositeOperation = 'lighter';
     const gr = ctx.createLinearGradient(-50, 0, 14, 0); gr.addColorStop(0, 'rgb(80 160 255 / 0)'); gr.addColorStop(1, mon ? 'rgb(190 140 255 / .8)' : 'rgb(140 220 255 / .8)');
@@ -8017,6 +8039,400 @@ function drawMereo(b, charged) {
   arm(P.fa, true);
   ctx.restore();
   if (charged) { ctx.strokeStyle = 'rgb(255 140 40 / .6)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 18, 34 + Math.sin(S.t * 12) * 3, 0, Math.PI * 2); ctx.stroke(); }
+}
+/* ---------- Màn 7 "Biển Hải Tặc": boss Roronoa Zoro (sau timeskip, Wano, đã cởi áo) — MÀN KHÔNG THỂ THẮNG ----------
+   Cuối màn sau rất nhiều bãi chông gai. Zoro có 50 máu nhưng đòn nào trúng cũng chỉ mất đúng 1 máu, và sau mỗi đòn có
+   0,25 giây không trúng thêm được (tối đa ~40 đòn trong 10 giây — không bao giờ đủ 50). Sau 10 giây: zoom vào Zoro, hắn tra
+   kiếm, đi bộ về cuối màn hình, nói “Về luyện thêm 100 năm nữa đi.” rồi tung một nhát chém xanh khổng lồ hất bạn bay về đầu
+   màn — trận đấu kết thúc. */
+const PHASES_ZR = [null,
+  { tag: 'Tam Kiếm Phái', hp: 50, every: 1, seal: 0,
+    note: 'Roronoa Zoro: đòn nào trúng cũng chỉ mất 1 máu. Oni Giri, 36 Pound Hō, Tatsumaki… Hắn chỉ cho bạn 10 giây.' },
+];
+const ZR_NAMES = { onigiri: 'Tam Kiếm: Oni Giri!', pound: 'Sanjūroku Pound Hō!', tatsumaki: 'Tatsumaki!' };
+const ZR_LINE = 'Về luyện thêm 100 năm nữa đi.';
+
+function buildMap7() {
+  LEVEL_W = 8200; DEATH_Y = 900; TIME_LIMIT = 420; CAM_Y = [-250, 100]; ENEMY_SPEED = 95;
+  Object.assign(ARENA, { l: 7340, r: 8140, gateX: 7310, floor: 420 });
+  Object.assign(SPAWN, { x: 120, y: 440 });
+  // boong tàu, cầu cảng gỗ nối nhau giữa biển; rơi xuống biển = mất 25% máu
+  const f1 = addGround(0, 1300, () => 460);
+  addBox(1350, 420, 90, 40);                       // thùng hàng
+  const f2 = addGround(1500, 2700, x => 430 - 30 * Math.sin((x - 1500) / 1200 * Math.PI));
+  addBox(2760, 400, 90, 40); addBox(2900, 340, 90, 40);
+  const f3 = addGround(3060, 4300, () => 450);
+  addBox(3500, 330, 100, 22); addBox(3900, 300, 100, 22);
+  addBox(4360, 420, 90, 40);
+  const f4 = addGround(4500, 5800, x => 440 - Math.min(40, Math.max(0, x - 4900) * .1));
+  addBox(5000, 300, 100, 22); addBox(5400, 280, 100, 22);
+  addBox(5860, 380, 90, 40);
+  const f5 = addGround(6020, LEVEL_W, () => 420);
+  addBox(6500, 300, 100, 22); addBox(6900, 280, 100, 22);
+  addBox(7480, 300, 110, 22); addBox(7685, 210, 120, 22); addBox(7900, 300, 110, 22);
+  addArenaWalls();
+  // rất nhiều bãi chông: dải dài, xen kẽ chỗ đặt chân
+  for (const [a, b, f] of [[500, 620, f1], [760, 880, f1], [1020, 1180, f1], [1650, 1800, f2], [1900, 2040, f2], [2160, 2300, f2], [2420, 2600, f2],
+    [3200, 3460, f3], [3560, 3860, f3], [3960, 4240, f3], [4620, 4900, f4], [5050, 5350, f4], [5450, 5760, f4],
+    [6120, 6460, f5], [6560, 6860, f5], [6960, 7200, f5]]) SPIKES.push({ x0: a, x1: b, f });
+  STAR_POS.push([300, 410], [690, 400], [1395, 370], [1850, 340], [2350, 340], [2945, 290], [3550, 280], [3950, 250],
+    [5050, 250], [5450, 230], [6550, 250], [6950, 230]);
+  ENEMY_DEF.push({ min: 200, max: 480, f: f1 }, { min: 1520, max: 1640, f: f2 }, { min: 3080, max: 3190, f: f3 }, { min: 6030, max: 6110, f: f5 });
+  SIGNS.push([250, f1], [3100, f3]);
+  CHECKPOINTS.push({ x: 3100, f: f3 }, { x: 7240, f: f5 });
+  Object.assign(GOAL, { x: 8060, f: f5 });
+  TIPS.push(
+    { x: 420, f: f1, text: PIKA_TIP },
+    { x: 1250, f: f1, text: 'Màn 7 — Biển Hải Tặc: boong tàu đầy chông gai. Nhảy lên thùng hàng, bục gỗ để vượt qua. Rơi xuống biển mất 25% máu.' },
+    { x: 7240, f: f5, text: 'Phía trước là Roronoa Zoro. Đòn nào trúng hắn cũng chỉ mất 1 máu… và hắn chỉ cho bạn 10 giây.' });
+  FLYER_DEF.push({ type: 'bird', x: 2000, y: 230, x0: 1800, x1: 2300 }, { type: 'bird', x: 4000, y: 220, x0: 3700, x1: 4200 },
+    { type: 'bat', x: 5200, y: 240 }, { type: 'bird', x: 6700, y: 220, x0: 6500, x1: 6950 });
+  HEARTS.push([2945, 260], [5450, 200], [6950, 200]);
+  Object.assign(TURRET, { x: 4100, f: f3, every: 2.2, speed: 320, range: 700, hp: 3 });
+}
+
+/* ----- nền biển: hoàng hôn, đảo xa, thuyền hải tặc buồm đen, hải âu, mặt biển lấp lánh ----- */
+function paintShips(g, W, H) {
+  for (let i = 0; i * 700 < W; i++) {
+    const x = i * 700 + 200 + mhHash(i) * 200, y = H - 70, s = .8 + mhHash(i + 4) * .5;
+    g.save(); g.translate(x, y); g.scale(s, s);
+    g.fillStyle = '#2a1a14';
+    g.beginPath(); g.moveTo(-120, -20); g.lineTo(120, -20); g.lineTo(90, 20); g.lineTo(-95, 20); g.closePath(); g.fill();   // thân tàu
+    g.fillRect(-122, -34, 40, 16); g.fillRect(84, -30, 40, 12);
+    g.fillRect(-4, -190, 6, 172); g.fillRect(-64, -150, 5, 132); g.fillRect(56, -140, 5, 122);   // cột buồm
+    g.fillStyle = '#1a1414';
+    for (const [mx, top, w] of [[0, -180, 70], [-62, -140, 50], [58, -130, 46]]) { g.beginPath(); g.moveTo(mx - w / 2, top); g.quadraticCurveTo(mx + 8, top + 40, mx - w / 2, top + 80); g.lineTo(mx + w / 2, top + 80); g.quadraticCurveTo(mx + w / 2 + 8, top + 40, mx + w / 2, top); g.closePath(); g.fill(); }
+    g.fillStyle = '#e8e2d0'; g.beginPath(); g.arc(4, -138, 9, 0, Math.PI * 2); g.fill();   // đầu lâu trên buồm
+    g.fillStyle = '#1a1414'; g.fillRect(0, -140, 3, 3); g.fillRect(6, -140, 3, 3);
+    g.fillStyle = '#8a1a14'; g.beginPath(); g.moveTo(0, -190); g.lineTo(26, -184); g.lineTo(0, -178); g.fill();   // cờ
+    g.restore();
+  }
+}
+function paintIslands(g, W, H) {
+  for (let i = 0; i * 900 < W; i++) {
+    const x = i * 900 + mhHash(i + 11) * 300, w = 260 + mhHash(i + 2) * 200, h = 60 + mhHash(i + 7) * 90;
+    g.fillStyle = '#5a4a6a'; g.beginPath(); g.moveTo(x, H); g.quadraticCurveTo(x + w * .3, H - h, x + w * .5, H - h * .9); g.quadraticCurveTo(x + w * .75, H - h * 1.1, x + w, H); g.fill();
+    // cây dừa
+    g.strokeStyle = '#3a2e4a'; g.lineWidth = 4; g.beginPath(); g.moveTo(x + w * .45, H - h * .85); g.quadraticCurveTo(x + w * .5, H - h - 30, x + w * .55, H - h - 50); g.stroke();
+    g.fillStyle = '#3a2e4a'; for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + (k - 2) * .6; g.beginPath(); g.ellipse(x + w * .55 + Math.cos(a) * 16, H - h - 50 + Math.sin(a) * 8, 20, 5, a, 0, Math.PI * 2); g.fill(); }
+  }
+}
+function drawPirateBg() {
+  const cam = S.cam, sea = 470 - cam.y * .5;   // đường chân trời
+  const isl = bgLayer('p1', 2700, 200, paintIslands), ships = bgLayer('p2', 2800, 260, paintShips);
+  tileLayer(isl, .05, VIEW_H + 150 - sea - 4);
+  tileLayer(ships, .15, VIEW_H + 150 - sea - 30 + 14);
+  // mặt biển: dải màu chuyển xanh sâu, gợn sóng và vệt nắng lấp lánh
+  const gr = ctx.createLinearGradient(0, sea, 0, VIEW_H);
+  gr.addColorStop(0, '#3a6aa8'); gr.addColorStop(.4, '#1e4a80'); gr.addColorStop(1, '#0e2a50');
+  ctx.fillStyle = gr; ctx.fillRect(0, sea, viewW, VIEW_H - sea);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 70; i++) {
+    const y = sea + 6 + mhHash(i) * (VIEW_H - sea), w = 10 + mhHash(i + 3) * 40 * (1 + (y - sea) / 200);
+    const x = ((mhHash(i + 7) * viewW * 1.3 - cam.x * (.3 + (y - sea) / 600) + S.t * 12) % (viewW + 80) + viewW + 80) % (viewW + 80) - 40;
+    const sun = Math.max(0, 1 - Math.abs(x - viewW * .72) / 260);
+    ctx.fillStyle = `rgb(255 ${200 + sun * 40} ${150 + sun * 80} / ${(.15 + sun * .5) * (.5 + .5 * Math.sin(S.t * 3 + i))})`;
+    ctx.fillRect(x, y, w, 2);
+  }
+  ctx.restore();
+  // hải âu
+  ctx.strokeStyle = '#2a2a3a'; ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    const x = ((mhHash(i + 20) * viewW + S.t * (30 + i * 8) - cam.x * .1) % (viewW + 60) + viewW + 60) % (viewW + 60) - 30, y = 80 + mhHash(i + 30) * 160 + Math.sin(S.t * 2 + i) * 8, f = Math.sin(S.t * 8 + i) * 4;
+    ctx.beginPath(); ctx.moveTo(x - 10, y - f); ctx.quadraticCurveTo(x - 5, y - 6, x, y); ctx.quadraticCurveTo(x + 5, y - 6, x + 10, y - f); ctx.stroke();
+  }
+}
+// boong tàu / cầu cảng: ván gỗ ngang, đinh, mạn tàu có ô cửa tròn; thùng hàng có nẹp chéo
+function pirateSolid(s, x0, x1) {
+  const ground = !!s.gd, ax = Math.max(s.minX, x0) - 40, bx = Math.min(s.maxX, x1) + 40, yb = S.cam.y + VIEW_H + 20;
+  tracePts(s.pts); ctx.closePath();
+  ctx.fillStyle = ground ? '#5a3620' : '#8a5a2e'; ctx.fill();
+  ctx.save(); ctx.clip();
+  if (ground) {
+    for (let gy = s.minY + 18, r = 0; gy < yb; gy += 22, r++) {
+      ctx.fillStyle = r % 2 ? '#4e2e1a' : '#5e3a22'; ctx.fillRect(ax, gy, bx - ax, 20);
+      ctx.fillStyle = '#2e1a0e'; ctx.fillRect(ax, gy + 20, bx - ax, 2);
+      for (let px = Math.floor(ax / 120) * 120 + (r % 2) * 60; px < bx; px += 120) { ctx.fillRect(px, gy, 2, 20); ctx.fillStyle = '#9a8a6a'; ctx.fillRect(px + 5, gy + 9, 2, 2); ctx.fillStyle = '#2e1a0e'; }
+    }
+    // ô cửa tròn trên mạn tàu
+    for (let px = Math.floor(ax / 260) * 260 + 130; px < bx; px += 260) {
+      const py = s.minY + 90;
+      ctx.fillStyle = '#2a1a0e'; ctx.beginPath(); ctx.arc(px, py, 15, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c8a050'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = 'rgb(255 200 120 / .35)'; ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI * 2); ctx.fill();
+    }
+  } else {
+    const w = s.maxX - s.minX, h = s.pts[5] - s.minY;
+    if (h > 30) {
+      // thùng hàng: khung và nẹp chéo
+      ctx.strokeStyle = '#4a2e14'; ctx.lineWidth = 4; ctx.strokeRect(s.minX + 2, s.minY + 2, w - 4, h - 4);
+      ctx.beginPath(); ctx.moveTo(s.minX + 4, s.minY + 4); ctx.lineTo(s.maxX - 4, s.pts[5] - 4); ctx.moveTo(s.maxX - 4, s.minY + 4); ctx.lineTo(s.minX + 4, s.pts[5] - 4); ctx.stroke();
+    } else for (let px = s.minX; px < s.maxX; px += 26) { ctx.fillStyle = '#5a3a1c'; ctx.fillRect(px, s.minY, 2, h); }
+  }
+  ctx.restore();
+  // mép trên: ván sàn sáng, lan can dây thừng trên boong
+  tracePts(s.top); ctx.strokeStyle = '#b07a42'; ctx.lineWidth = 10; ctx.lineCap = 'butt'; ctx.stroke();
+  ctx.save(); ctx.translate(0, -3); tracePts(s.top); ctx.strokeStyle = '#e0aa6a'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+}
+
+/* ----- Zoro ----- */
+function zrIdle(B, u, b, dt) {
+  const dx = b.x - u.x, adx = Math.abs(dx);
+  u.dir = Math.sign(dx) || u.dir;
+  if (u.ground) u.vx = adx > 200 ? u.dir * 170 : u.vx * .8;   // Zoro bước thong thả
+  if ((B.atkT -= dt) > 0 || S.dead || !u.ground) return;
+  const r = Math.random(), type = adx < 150 ? (r < .5 ? 'tatsumaki' : 'onigiri') : (r < .55 ? 'pound' : 'onigiri');
+  B.act = { type, t: 0, ph: 0 }; u.vx = 0;
+  S.pops.push({ x: u.x, y: u.y - 150, t: .9, text: ZR_NAMES[type], c: '#7af0a0' });
+}
+function zrAct(B, u, b, dt, A) {
+  A.t += dt;
+  const d = u.dir;
+  if (A.type === 'onigiri') {
+    if (A.ph === 0) { u.pose = 'ready'; if (A.t > .4) { A.ph = 1; A.t = 0; A.dash = true; sfx('dash'); } return; }
+    if (A.ph === 1) {
+      u.pose = 'lunge'; u.vx = d * 1300;
+      if ((A.gt = (A.gt || 0) - dt) <= 0) { A.gt = .03; mhFx({ k: 'ghost', x: u.x, y: u.y, dir: d, pose: 'lunge', max: .25 }); }
+      if (!A.hit && ballIn(u.x - 50, u.y - 124, u.x + 50, u.y)) { A.hit = true; if (mhStrike(400)) mhSpark(b.x, b.y, '#9affc0', 14); }
+      if (A.t > .35 || u.x <= arenaLo(56) + 1 || u.x >= arenaHi(56) - 1) {
+        A.ph = 2; A.t = 0; A.dash = false; u.vx = 0; sfx('hit');
+        for (const a of [-.8, 0, .8]) mhFx({ k: 'arc', x: u.x - d * 60, y: u.y - 70, dir: d, r: 90, max: .35, c: '#5af0a0', a0: a - .9, a1: a + .9 });
+      }
+      return;
+    }
+    u.pose = 'slashB';
+    if (A.t > .4) return endMh(B, 1);
+  } else if (A.type === 'pound') {
+    if (A.t < .3) { u.pose = 'throwWind'; return; }
+    u.pose = 'throw';
+    if (!A.done) { A.done = true; sfx('bolt'); B.shots.push({ x: u.x + d * 40, y: u.y - 70, vx: d * 900, vy: 0, t: 0, crescent: true }); }
+    if (A.t > .6) return endMh(B, 1);
+  } else if (A.type === 'tatsumaki') {
+    u.pose = A.t % .2 < .1 ? 'slashA' : 'slashB'; u.dir = A.t % .2 < .1 ? 1 : -1;
+    if (Math.random() < dt * 30) mhSpark(u.x + (Math.random() - .5) * 120, u.y - Math.random() * 140, '#9affc0', 1, 80);
+    if (!A.hit && Math.abs(b.x - u.x) < 130 && b.y > u.y - 180) { A.hit = true; if (mhStrike(320)) b.vy = -700; }
+    if (A.t > .8) { u.dir = Math.sign(b.x - u.x) || 1; return endMh(B, 1.1); }
+  }
+}
+// đạn chém (36 Pound Hō): vầng trăng xanh bay ngang
+function updateZoroShots(B, b, dt) {
+  for (const q of B.shots) {
+    q.t += dt; q.x += q.vx * dt;
+    if (Math.abs(q.x - b.x) < 30 && Math.abs(q.y - b.y) < 70) { q.dead = true; if (mhStrike(350)) mhSpark(b.x, b.y, '#9affc0', 12); }
+    if (q.x < ARENA.l || q.x > ARENA.r || q.t > 2) q.dead = true;
+  }
+  B.shots = B.shots.filter(q => !q.dead);
+}
+// đòn nào trúng cũng chỉ mất 1 máu, 0,25 giây sau mới trúng tiếp; không bao giờ dưới 1 máu
+function zoroHit(B, u) {
+  if (B.cine || B.dead || B.inv > 0) return false;
+  B.hp = Math.max(1, B.hp - 1); B.inv = .25; u.hurt = .2; S.lastDmg = 1;
+  S.pops.push({ x: u.x + (Math.random() - .5) * 30, y: u.y - unitH(u) - 10, t: .7, text: '-1', c: '#ffffff' });
+  boltSpark(u.x, u.y - 60, '#9affc0', 8); sfx('anti');
+  bossBar();
+  return true;
+}
+// đồng hồ 10 giây (chạy cả khi bạn ngưng đọng thời gian) rồi cảnh kết
+function zoroClock(dt) {
+  const B = S.boss;
+  if (MAP !== 7 || !S.fight || B.dead || S.lost || S.won) return;
+  if (!B.cine) {
+    B.zt = (B.zt || 0) + dt;
+    if (B.zt >= 10 && !S.dead) {
+      const u = B.units[0];
+      B.cine = { t: 0, ph: 0 }; B.act = null; B.shots = []; u.vx = 0; u.pose = 'ready';
+      if (CHAR === 'kurumi' && S.ku.stop) { S.ku.stop = false; applyChar(); }
+      S.charging = false; S.dash = null; S.power = 0; S.safe = 99;
+      // xoá hiệu ứng chiêu của người chơi để cảnh phim sạch sẽ
+      S.bolts = []; S.orbs = []; S.webs = []; S.voltStrikes = [];
+      if (S.ku) Object.assign(S.ku, { pyre: null, meteors: [], cbeam: null, infernoT: 0, flames: [], booms: [], shots: [], clones: [], holes: [], burn: null, fate: null, apoc: null, city: null, yud: null });
+      if (S.mr) Object.assign(S.mr, { arms: [], fists: [], purg: null, zone: 0, burial: 0, trail: [] });
+      for (const k in keys) keys[k] = false;
+      cutBanner('');
+    }
+    return;
+  }
+  const C = B.cine, u = B.units[0], b = S.ball;
+  C.t += dt;
+  const zoom = z => { S.zoom = S.zoom || { z: 1, fx: u.x, fy: u.y - 70 }; S.zoom.z += (z - S.zoom.z) * Math.min(1, dt * 3); S.zoom.fx += (u.x - S.zoom.fx) * Math.min(1, dt * 4); S.zoom.fy += (u.y - 70 - S.zoom.fy) * Math.min(1, dt * 4); };
+  if (C.ph === 0) {
+    // zoom vào Zoro, hắn tra kiếm vào vỏ
+    zoom(1.8); u.pose = null; u.sheath = C.t > .5;
+    if (C.t > 1) { C.ph = 1; C.t = 0; u.dir = 1; }
+  } else if (C.ph === 1) {
+    // quay lưng, đi bộ về cuối màn hình
+    zoom(1.8); u.sheath = true; u.dir = 1; u.pose = 'walk';
+    u.x = Math.min(ARENA.r - 100, u.x + 95 * dt);
+    if (u.x >= ARENA.r - 101 || C.t > 3.2) { C.ph = 2; C.t = 0; u.pose = null; }
+  } else if (C.ph === 2) {
+    // đứng lại, nói
+    zoom(2); u.pose = null; C.say = Math.min(ZR_LINE.length, Math.floor(C.t * 16));
+    if (C.t > 3) { C.ph = 3; C.t = 0; u.dir = Math.sign(b.x - u.x) || -1; }
+  } else if (C.ph === 3) {
+    // rút kiếm, thủ thế, zoom ra
+    zoom(1.1); u.sheath = false; u.pose = C.t < .5 ? 'throwWind' : 'slashA';
+    if (C.t > .7) { C.ph = 4; C.t = 0; C.sx = u.x; S.flash = Math.max(S.flash, .5); sfx('kame'); }
+  } else if (C.ph === 4) {
+    // nhát chém xanh khổng lồ quét qua màn hình
+    zoom(1); u.pose = 'slashA';
+    C.sx -= 2600 * dt;
+    if (!C.hit && C.sx <= b.x + 40) { C.hit = true; C.fly = { t: 0, x0: b.x, y0: b.y }; S.flash = 1; sfx('boom'); }
+    if (C.fly) {
+      // hất bay về đầu màn
+      const F = C.fly; F.t += dt;
+      const k = Math.min(1, F.t / 1.8), e = 1 - (1 - k) ** 2;
+      b.x = F.x0 + (SPAWN.x - F.x0) * e; b.y = F.y0 + (SPAWN.y - F.y0) * e - Math.sin(k * Math.PI) * 320; b.vx = -1; b.vy = 0; b.rot -= dt * 20;
+      if (Math.random() < .6) S.parts.push({ x: b.x, y: b.y, vx: 200, vy: (Math.random() - .5) * 100, life: .5, c: Math.random() < .5 ? '#5af0a0' : '#ffffff', r: 4, g: 0 });
+      if (k >= 1) { S.zoom = null; S.safe = 0; lose('zoro'); }
+    }
+  }
+}
+function drawZoroCine(B) {
+  const C = B.cine, u = B.units[0];
+  if (!C) return;
+  if (C.ph === 2 && C.say) {
+    // bóng thoại
+    const text = ZR_LINE.slice(0, C.say), x = u.x - 40, y = u.y - 170;
+    ctx.font = '700 15px "Baloo 2", sans-serif'; ctx.textAlign = 'center';
+    const w = Math.max(60, ctx.measureText(ZR_LINE).width + 24);
+    ctx.fillStyle = 'rgb(255 255 255 / .95)'; ctx.strokeStyle = '#14141a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x - w / 2, y - 22, w, 32, 10) : ctx.rect(x - w / 2, y - 22, w, 32); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 20, y + 10); ctx.lineTo(x + 34, y + 26); ctx.lineTo(x + 34, y + 10); ctx.fill();
+    ctx.fillStyle = '#14141a'; ctx.fillText(text, x, y);
+  }
+  if (C.ph === 4 && C.sx > S.cam.x - 400) {
+    // nhát chém: vầng trăng xanh lục cao cả màn hình, lõi trắng, tia lấp lánh
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const x = C.sx, y = ARENA.floor - 150;
+    for (const [w, c] of [[90, 'rgb(40 200 120 / .3)'], [50, 'rgb(90 240 160 / .55)'], [22, 'rgb(200 255 220 / .85)'], [8, 'rgb(255 255 255 / 1)']]) {
+      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(x + 120, y, 140, 420, 0, Math.PI * .62, Math.PI * 1.38); ctx.stroke();
+    }
+    for (let i = 0; i < 30; i++) { const a = Math.PI * (.62 + mhHash(i) * .76), px = x + 120 + Math.cos(a) * 140 + mhHash(i + 5) * 120, py = y + Math.sin(a) * 420; ctx.fillStyle = i % 2 ? '#c8ffe0' : '#ffffff'; ctx.fillRect(px, py, 3, 3); }
+    ctx.restore();
+  }
+}
+// Zoro Wano, đã cởi áo: mình trần cơ bắp, sẹo chéo ngực, băng quấn bụng, áo kimono xanh rủ ở thắt lưng, đai đỏ,
+// khăn đen buộc đầu, mắt trái nhắm có sẹo dọc, 3 khuyên tai vàng; Enma (chuôi tím đen) và Sandai Kitetsu (chuôi đỏ) hai tay,
+// Wadō Ichimonji (chuôi trắng) ngậm miệng; khi tra kiếm thì ba vỏ kiếm đeo bên hông.
+function drawZoroFig(u, x, y, dir, pose, alpha, _jw, _mon, cur) {
+  const P = cur || mhPose(pose, u, true);
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.globalAlpha *= alpha; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const SK = '#d99a6c', SK2 = '#b07448', SKH = '#f0bc8e', HAIR = '#3fa04a', HAIR2 = '#22702e', KIMONO = '#2f5a3a', KIM2 = '#21402a', SASH = '#a8241e', PANTS = '#2a2d2a', BOOT = '#141414';
+  const hy = P.hy, sx = Math.sin(P.lean) * 36, sy = hy - Math.cos(P.lean) * 36, sheath = u.sheath;
+  const sway = Math.sin(u.mt * 4) * 1.5 - clamp(u.vx / 300, -3, 3);
+  // kiếm katana: lưỡi hơi cong, sống sẫm, lưỡi sáng, chắn kiếm, chuôi quấn dây hình thoi
+  const katana = (hx, hy2, ang, hilt, wrap, aura) => {
+    ctx.save(); ctx.translate(hx, hy2); ctx.rotate(ang);
+    if (aura) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = aura; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(4, 0); ctx.quadraticCurveTo(30, -3, 58, -7); ctx.stroke(); ctx.restore(); }
+    ctx.strokeStyle = '#8a929e'; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(4, 0); ctx.quadraticCurveTo(30, -3, 58, -7); ctx.stroke();
+    ctx.strokeStyle = '#f2f6fa'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(5, 1.2); ctx.quadraticCurveTo(30, -1.6, 57, -5.6); ctx.stroke();
+    ctx.fillStyle = '#c8a040'; ctx.beginPath(); ctx.ellipse(3, 0, 1.6, 4, 0, 0, Math.PI * 2); ctx.fill();   // chắn kiếm
+    ctx.strokeStyle = hilt; ctx.lineWidth = 3.6; ctx.beginPath(); ctx.moveTo(1, 0); ctx.lineTo(-12, .8); ctx.stroke();
+    ctx.strokeStyle = wrap; ctx.lineWidth = 1; for (let i = -10; i < 0; i += 3) { ctx.beginPath(); ctx.moveTo(i, -1.6); ctx.lineTo(i + 1.5, 1.6); ctx.stroke(); }
+    ctx.restore();
+  };
+  const arm = (a, front) => {
+    const ox = sx + (front ? 5 : -5), oy = sy + 4;
+    const kx = ox + Math.sin(a[0]) * 20, ky = oy + Math.cos(a[0]) * 20;
+    const [hx, hy2, fa] = limb(ox, oy, a[0], 20, a[1], 19, 11, 9, front ? SK : SK2);
+    // bắp tay, cẳng tay nổi cơ
+    ctx.fillStyle = front ? SKH : SK; ctx.beginPath(); ctx.ellipse((ox + kx) / 2, (oy + ky) / 2, 6.5, 4.2, a[0] + Math.PI / 2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = SK2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo((kx + hx) / 2, (ky + hy2) / 2); ctx.stroke();
+    ctx.fillStyle = front ? SK : SK2; ctx.beginPath(); ctx.arc(hx, hy2, 4.6, 0, Math.PI * 2); ctx.fill();
+    if (!sheath) katana(hx, hy2, fa - 1.35, front ? '#2a1a3a' : '#7a1a1a', front ? '#8a5ad0' : '#e8c070', front ? 'rgb(150 80 255 / .35)' : null);   // Enma tay trước, Sandai Kitetsu tay sau
+  };
+  const leg = (a, back) => {
+    const [fx, fy] = limb(back ? -4 : 4, hy, a[0], 28, a[1], 28, 13, 10, back ? '#1e201e' : PANTS);
+    ctx.fillStyle = BOOT; ctx.beginPath(); ctx.ellipse(fx + 4, fy - 1, 8.5, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  };
+  arm(P.ba, false);
+  leg(P.bl, true);
+  leg(P.fl, false);
+  // áo kimono đã cởi phần trên: vải xanh rủ quanh hông, hai tay áo thõng xuống
+  ctx.fillStyle = KIMONO; ctx.beginPath(); ctx.moveTo(-14, hy - 6); ctx.lineTo(14, hy - 6); ctx.lineTo(16 + sway, hy + 26); ctx.lineTo(-18 + sway, hy + 28); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = KIM2; ctx.lineWidth = 1.5; for (const fx of [-8, 0, 8]) { ctx.beginPath(); ctx.moveTo(fx, hy - 2); ctx.lineTo(fx + sway, hy + 26); ctx.stroke(); }
+  ctx.fillStyle = KIM2; ctx.beginPath(); ctx.moveTo(-13, hy - 4); ctx.quadraticCurveTo(-24 + sway, hy + 10, -20 + sway * 2, hy + 30); ctx.lineTo(-12, hy + 20); ctx.fill();   // tay áo thõng
+  // vỏ kiếm đeo bên hông
+  if (sheath) for (const [i, c, h] of [[0, '#1a1418', '#2a1a3a'], [1, '#e8e4dc', '#f4f4f4'], [2, '#5a1a1a', '#7a1a1a']]) {
+    ctx.save(); ctx.translate(-6 + i * 3, hy - 4 + i * 2); ctx.rotate(2.75 - i * .08);
+    ctx.strokeStyle = c; ctx.lineWidth = 3.6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(54, 0); ctx.stroke();
+    ctx.strokeStyle = h; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-13, 0); ctx.stroke();
+    ctx.restore();
+  }
+  // thân trần: vai rộng, eo thon (hình chữ V)
+  const tor = () => { ctx.beginPath(); ctx.moveTo(sx - 13, sy + 1); ctx.quadraticCurveTo(sx, sy - 3, sx + 13, sy + 1); ctx.lineTo(sx + 12, sy + 10); ctx.lineTo(9, hy - 4); ctx.lineTo(-9, hy - 4); ctx.lineTo(sx - 12, sy + 10); ctx.closePath(); };
+  ctx.fillStyle = SK; tor(); ctx.fill();
+  ctx.save(); tor(); ctx.clip();
+  // khối cơ: vai (cơ delta), ngực, sáu múi, cơ liên sườn
+  ctx.fillStyle = SKH;
+  ctx.beginPath(); ctx.ellipse(sx - 10, sy + 5, 5, 6, 0, 0, Math.PI * 2); ctx.ellipse(sx + 10, sy + 5, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(sx - 4, sy + 10, 7, 5, .1, 0, Math.PI * 2); ctx.ellipse(sx + 6, sy + 10, 7, 5, -.1, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = SK2; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(sx - 10, sy + 14); ctx.quadraticCurveTo(sx - 3, sy + 17, sx + 1, sy + 14); ctx.quadraticCurveTo(sx + 6, sy + 17, sx + 12, sy + 13); ctx.stroke();   // chân ngực
+  ctx.beginPath(); ctx.moveTo(sx + 1, sy + 4); ctx.lineTo(sx + .5, sy + 14); ctx.stroke();                                                             // rãnh giữa ngực
+  const mx = (sx + 1) * .5;
+  for (let i = 0; i < 3; i++) { const yy = sy + 17 + i * 5; ctx.fillStyle = SKH; ctx.beginPath(); ctx.ellipse(mx - 3 + sx * .2, yy, 2.6, 2.2, 0, 0, Math.PI * 2); ctx.ellipse(mx + 3 + sx * .2, yy, 2.6, 2.2, 0, 0, Math.PI * 2); ctx.fill(); }   // sáu múi
+  ctx.beginPath(); ctx.moveTo(sx - 11, sy + 16); ctx.lineTo(-8, hy - 8); ctx.moveTo(sx + 12, sy + 16); ctx.lineTo(9, hy - 8); ctx.stroke();               // liên sườn
+  // băng trắng quấn quanh bụng
+  ctx.fillStyle = '#eeeae0'; ctx.fillRect(-14, hy - 9, 30, 6);
+  ctx.strokeStyle = '#c8c2b4'; ctx.lineWidth = 1; for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.moveTo(-14, hy - 8 + i * 3); ctx.lineTo(16, hy - 9.5 + i * 3); ctx.stroke(); }
+  // vết sẹo lớn chéo ngực (từ vai trái xuống hông phải), có vết khâu
+  ctx.strokeStyle = '#8a3a34'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(sx - 12, sy + 3); ctx.quadraticCurveTo(sx - 2, sy + 14, 10, hy - 9); ctx.stroke();
+  ctx.strokeStyle = '#d07a6a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx - 12, sy + 2.4); ctx.quadraticCurveTo(sx - 2, sy + 13.4, 10, hy - 9.6); ctx.stroke();
+  ctx.strokeStyle = '#6a2a24'; ctx.lineWidth = 1;
+  for (let i = 1; i < 6; i++) { const k = i / 6, px = (1 - k) ** 2 * (sx - 12) + 2 * (1 - k) * k * (sx - 2) + k * k * 10, py = (1 - k) ** 2 * (sy + 3) + 2 * (1 - k) * k * (sy + 14) + k * k * (hy - 9); ctx.beginPath(); ctx.moveTo(px - 2, py + 2); ctx.lineTo(px + 2, py - 2); ctx.stroke(); }
+  ctx.restore();
+  // đai đỏ thắt ngang hông
+  ctx.fillStyle = SASH; ctx.fillRect(-11, hy - 6, 22, 5); ctx.beginPath(); ctx.moveTo(-9, hy - 2); ctx.lineTo(-13 + sway, hy + 10); ctx.lineTo(-6, hy); ctx.fill();
+  // cổ dày, đầu
+  const cx = sx + Math.sin(P.lean) * 15, cy = sy - Math.cos(P.lean) * 15;
+  ctx.fillStyle = SK; ctx.beginPath(); ctx.moveTo(sx - 5, sy + 1); ctx.lineTo(sx - 4, sy - 8); ctx.lineTo(sx + 5, sy - 8); ctx.lineTo(sx + 6, sy + 1); ctx.fill();
+  ctx.strokeStyle = SK2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx - 3, sy - 6); ctx.lineTo(sx - 9, sy + 1); ctx.stroke();   // cơ cổ
+  // tóc xanh lá ngắn dựng (phía sau, lộ dưới khăn)
+  ctx.fillStyle = HAIR; ctx.beginPath(); ctx.moveTo(cx - 10, cy + 2); ctx.lineTo(cx - 12, cy - 6); ctx.lineTo(cx - 9, cy - 13); ctx.lineTo(cx + 2, cy - 15); ctx.lineTo(cx + 10, cy - 10); ctx.lineTo(cx + 3, cy - 4); ctx.lineTo(cx - 4, cy + 4); ctx.closePath(); ctx.fill();
+  // mặt: hàm vuông, gò má
+  ctx.fillStyle = SK; ctx.beginPath(); ctx.moveTo(cx - 6, cy - 7); ctx.quadraticCurveTo(cx + 6, cy - 10, cx + 10, cy - 3); ctx.lineTo(cx + 10.5, cy + 4); ctx.lineTo(cx + 8, cy + 9); ctx.lineTo(cx + 3, cy + 11); ctx.lineTo(cx - 3, cy + 9); ctx.lineTo(cx - 6, cy + 3); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = SK2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 3, cy + 8.5); ctx.lineTo(cx + 3, cy + 10.5); ctx.stroke();   // đường hàm
+  // tai và 3 khuyên vàng (tai trái)
+  ctx.fillStyle = SK2; ctx.beginPath(); ctx.ellipse(cx - 4, cy + 1, 2, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f2c84a'; for (let i = 0; i < 3; i++) { ctx.fillRect(cx - 4.6 + i * .5, cy + 3.5 + i * 1.6, 1.2, 3); }
+  // mắt trái nhắm, vết sẹo dọc chạy qua; mắt phải mở sắc
+  ctx.strokeStyle = '#1a1414'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(cx + 1.5, cy); ctx.quadraticCurveTo(cx + 3.5, cy + 1, cx + 5.5, cy); ctx.stroke();
+  ctx.strokeStyle = '#8a3a34'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(cx + 3.6, cy - 5.5); ctx.lineTo(cx + 3.4, cy + 5); ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(cx + 7, cy - .4); ctx.lineTo(cx + 10, cy - .8); ctx.lineTo(cx + 9.6, cy + 1); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1a1414'; ctx.fillRect(cx + 8.4, cy - .6, 1.3, 1.5);
+  ctx.strokeStyle = '#1a1414'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx + 6.4, cy - 2.6); ctx.lineTo(cx + 10.6, cy - 3.4); ctx.moveTo(cx + 1, cy - 3); ctx.lineTo(cx + 5.2, cy - 2.6); ctx.stroke();   // lông mày rậm
+  ctx.strokeStyle = SK2; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 10.4, cy + 1); ctx.lineTo(cx + 11.4, cy + 4); ctx.lineTo(cx + 10, cy + 4.4); ctx.stroke();   // mũi
+  // miệng: ngậm Wadō Ichimonji khi đánh, nhếch mép khi tra kiếm
+  if (!sheath) {
+    katana(cx + 6, cy + 6.8, -.05, '#f4f4f4', '#a8a8b0', null);
+    ctx.strokeStyle = '#3a1a14'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(cx + 4, cy + 6.5); ctx.lineTo(cx + 9, cy + 6.5); ctx.stroke();
+  } else { ctx.strokeStyle = '#3a1a14'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 5, cy + 7); ctx.quadraticCurveTo(cx + 7.5, cy + 7.6, cx + 9.6, cy + 6); ctx.stroke(); }
+  // khăn đen buộc đầu (khi đánh), đuôi khăn bay sau gáy; tra kiếm thì tháo khăn, lộ tóc xanh
+  if (!sheath) {
+    ctx.fillStyle = '#15151a'; ctx.beginPath(); ctx.moveTo(cx - 10, cy - 1); ctx.quadraticCurveTo(cx - 9, cy - 16, cx + 3, cy - 15); ctx.quadraticCurveTo(cx + 11, cy - 12, cx + 11, cy - 5); ctx.lineTo(cx + 9, cy - 4); ctx.quadraticCurveTo(cx + 1, cy - 9, cx - 6, cy - 1); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx - 9, cy - 4); ctx.lineTo(cx - 20 + sway * 2, cy - 2 + Math.sin(u.mt * 9) * 2); ctx.lineTo(cx - 17 + sway * 2, cy + 3); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#2e2e36'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 6, cy - 12); ctx.quadraticCurveTo(cx + 2, cy - 14, cx + 9, cy - 9); ctx.stroke();
+  } else {
+    ctx.fillStyle = HAIR; ctx.beginPath(); ctx.moveTo(cx - 9, cy - 4); ctx.lineTo(cx - 6, cy - 15); ctx.lineTo(cx - 1, cy - 12); ctx.lineTo(cx + 2, cy - 17); ctx.lineTo(cx + 5, cy - 12); ctx.lineTo(cx + 10, cy - 14); ctx.lineTo(cx + 10, cy - 5); ctx.quadraticCurveTo(cx + 2, cy - 9, cx - 5, cy - 2); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = HAIR2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 3, cy - 10); ctx.lineTo(cx + 1, cy - 13); ctx.moveTo(cx + 3, cy - 9); ctx.lineTo(cx + 6, cy - 12); ctx.stroke();
+  }
+  arm(P.fa, true);
+  ctx.restore();
+}
+
+// mặt trời lặn sát mặt biển, mây hồng
+function drawPirateBgSun(T) {
+  const sx0 = viewW * .72 - S.cam.x * .02, sy0 = 400 - S.cam.y * .4;
+  const sun = ctx.createRadialGradient(sx0, sy0, 10, sx0, sy0, 260);
+  sun.addColorStop(0, T.sunG[0]); sun.addColorStop(.25, T.sunG[1]); sun.addColorStop(1, T.sunG[2]);
+  ctx.fillStyle = sun; ctx.fillRect(sx0 - 270, sy0 - 270, 540, 540);
+  ctx.fillStyle = T.sun; ctx.beginPath(); ctx.arc(sx0, sy0, T.sunR, 0, Math.PI * 2); ctx.fill();
+  for (const c of CLOUDS) {
+    const x = ((c.x - S.cam.x * .15) % 4700 + 4700) % 4700 - 200, y = c.y - S.cam.y * .1;
+    if (x > viewW + 200) continue;
+    ctx.fillStyle = T.cloud[1]; ctx.beginPath(); ctx.ellipse(x + 40 * c.s, y, 80 * c.s, 12 * c.s, 0, 0, Math.PI * 2); ctx.ellipse(x + 90 * c.s, y + 8 * c.s, 60 * c.s, 9 * c.s, 0, 0, Math.PI * 2); ctx.fill();
+  }
 }
 function drawKurumi(b, charged) {
   const K = S.ku, d = b.face || 1, air = true, hover = 10 + Math.sin(S.t * 2.2) * 4, lean = clamp(b.vx / 450, -1, 1) * d, fy = b.y + R - 2 - hover;   // lơ lửng, không chạy bộ
@@ -9995,7 +10411,12 @@ function render() {
   ctx.setTransform(PX, 0, 0, PX, 0, 0);
   ctx.imageSmoothingEnabled = true;
   drawBackground();
-  ctx.setTransform(PX, 0, 0, PX, -cx * PX, -cy * PX);
+  const Z = S.zoom;
+  if (Z && Z.z > 1.001) {
+    // cảnh phim: phóng to quanh (fx, fy), kéo điểm đó dần về giữa khung hình
+    const k = Math.min(1, (Z.z - 1) / .8), px = (Z.fx - cx) * (1 - k) + viewW / 2 * k, py = (Z.fy - cy) * (1 - k) + VIEW_H * .55 * k;
+    ctx.setTransform(PX * Z.z, 0, 0, PX * Z.z, (px - Z.fx * Z.z) * PX, (py - Z.fy * Z.z) * PX);
+  } else ctx.setTransform(PX, 0, 0, PX, -cx * PX, -cy * PX);
   const x0 = cx - 100, x1 = cx + viewW + 100;
   for (const [x, f, s] of FLOWERS) if (x > x0 && x < x1) drawFlower(x, f(x), s);
   for (const [x, f] of SIGNS) if (x > x0 && x < x1) drawSign(x, f(x));
@@ -10094,7 +10515,7 @@ function warpToBoss() {
   S.pops.push({ x, y: S.ball.y - 60, t: 1, text: 'Tới đấu trường boss', c: '#fff27a' });
 }
 // Đổi màn: dựng lại địa hình, mốc trên thanh chặng đường, bảng xếp hạng riêng từng màn
-const MAP_KEY = 'bongdo.map', MAP_NAMES = { 1: 'Đồng cỏ', 2: 'Núi Quỷ', 3: 'Hành tinh Xayda', 4: 'Võ đài Sức mạnh', 5: 'Thành phố đêm', 6: 'Hầm ngục Cổng Xanh' };
+const MAP_KEY = 'bongdo.map', MAP_NAMES = { 1: 'Đồng cỏ', 2: 'Núi Quỷ', 3: 'Hành tinh Xayda', 4: 'Võ đài Sức mạnh', 5: 'Thành phố đêm', 6: 'Hầm ngục Cổng Xanh', 7: 'Biển Hải Tặc' };
 function setMap(n) {
   loadMap(n); lsSet(MAP_KEY, String(MAP));
   $('mapBtn').textContent = `Màn ${MAP}: ${MAP_NAMES[MAP]} (N)`;
@@ -10107,7 +10528,7 @@ function setMap(n) {
   }
   reset(); loadBoard();
 }
-$('mapBtn').addEventListener('click', e => { setMap(MAP % 6 + 1); e.currentTarget.blur(); });
+$('mapBtn').addEventListener('click', e => { setMap(MAP % 7 + 1); e.currentTarget.blur(); });
 if (TEST_MODE) setTimeout(() => showTip('Chế độ thử: vô hạn mạng · phím B tới thẳng đấu trường boss · không lưu điểm. Mở link với #thuong để tắt.'), 300);
 
 fit();
