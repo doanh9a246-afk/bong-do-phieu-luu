@@ -7543,7 +7543,7 @@ function mhPose(pose, u, jw) {
 function mhBlend(u, dt) {
   const T = mhPose(u.pose, u, MAP >= 6), run = !u.pose && u.ground && Math.abs(u.vx) > 60;
   if (!u.cur) { u.cur = JSON.parse(JSON.stringify(T)); return; }
-  const strike = u.pose && u.pose !== 'crouch' && u.pose !== 'ready', k = 1 - Math.exp(-(run ? 40 : strike ? 30 : 12) * dt), C = u.cur;
+  const strike = u.pose && u.pose !== 'crouch' && u.pose !== 'ready', k = 1 - Math.exp(-(run ? 40 : strike ? (MAP === 7 ? 20 : 30) : (MAP === 7 ? 8 : 12)) * dt), C = u.cur;
   C.hy += (T.hy - C.hy) * k; C.lean += (T.lean - C.lean) * k;
   for (const L of ['bl', 'fl', 'ba', 'fa']) for (let i = 0; i < 2; i++) C[L][i] += (T[L][i] - C[L][i]) * k;
 }
@@ -8273,12 +8273,18 @@ function zoroClock(dt) {
     zoom(1.1); u.sheath = false; u.pose = C.t < .5 ? 'throwWind' : 'slashA';
     if (C.t > .7) { C.ph = 4; C.t = 0; C.sx = u.x; S.flash = Math.max(S.flash, .5); sfx('kame'); }
   } else if (C.ph === 4) {
-    // nhát chém xanh khổng lồ quét qua màn hình
+    // nhát chém xanh khổng lồ: lao tới, áp vào người chơi và đẩy trượt theo lưỡi kiếm, rồi hất bay về đầu màn
     zoom(1); u.pose = 'slashA';
-    C.sx -= 2600 * dt;
-    if (!C.hit && C.sx <= b.x + 40) { C.hit = true; C.fly = { t: 0, x0: b.x, y0: b.y }; S.flash = 1; sfx('boom'); }
+    if (!C.fly) C.sx -= 2300 * dt; else C.sx -= 1600 * dt;
+    C.trail = (C.trail || []); C.trail.unshift(C.sx); if (C.trail.length > 6) C.trail.pop();
+    if (!C.hit && C.sx - ZR_SL.w <= b.x + R) { C.hit = true; C.carry = .5; S.flash = .7; sfx('boom'); }
+    if (C.carry > 0) {
+      C.carry -= dt;
+      b.x = C.sx - ZR_SL.w - R + 8; b.y += (ARENA.floor - 120 - b.y) * Math.min(1, dt * 6); b.rot -= dt * 30;
+      if (Math.random() < .8) S.parts.push({ x: b.x + R, y: b.y + (Math.random() - .5) * 40, vx: 300 + Math.random() * 300, vy: (Math.random() - .5) * 300, life: .4, c: Math.random() < .5 ? '#9affc8' : '#ffffff', r: 3 + Math.random() * 3, g: 0 });
+      if (C.carry <= 0) C.fly = { t: 0, x0: b.x, y0: b.y };
+    }
     if (C.fly) {
-      // hất bay về đầu màn
       const F = C.fly; F.t += dt;
       const k = Math.min(1, F.t / 1.8), e = 1 - (1 - k) ** 2;
       b.x = F.x0 + (SPAWN.x - F.x0) * e; b.y = F.y0 + (SPAWN.y - F.y0) * e - Math.sin(k * Math.PI) * 320; b.vx = -1; b.vy = 0; b.rot -= dt * 20;
@@ -8300,127 +8306,245 @@ function drawZoroCine(B) {
     ctx.beginPath(); ctx.moveTo(x + 20, y + 10); ctx.lineTo(x + 34, y + 26); ctx.lineTo(x + 34, y + 10); ctx.fill();
     ctx.fillStyle = '#14141a'; ctx.fillText(text, x, y);
   }
-  if (C.ph === 4 && C.sx > S.cam.x - 400) {
-    // nhát chém: vầng trăng xanh lục cao cả màn hình, lõi trắng, tia lấp lánh
+  if (C.ph === 4 && C.sx > S.cam.x - 600 && !(C.fly && C.fly.t > .6)) {
+    const y = ARENA.floor - 130, fade = C.fly ? Math.max(0, 1 - C.fly.t / .6) : 1;
+    ctx.save(); ctx.globalAlpha = fade;
+    // vệt tốc độ phía sau lưỡi chém
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const x = C.sx, y = ARENA.floor - 150;
-    for (const [w, c] of [[90, 'rgb(40 200 120 / .3)'], [50, 'rgb(90 240 160 / .55)'], [22, 'rgb(200 255 220 / .85)'], [8, 'rgb(255 255 255 / 1)']]) {
-      ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(x + 120, y, 140, 420, 0, Math.PI * .62, Math.PI * 1.38); ctx.stroke();
-    }
-    for (let i = 0; i < 30; i++) { const a = Math.PI * (.62 + mhHash(i) * .76), px = x + 120 + Math.cos(a) * 140 + mhHash(i + 5) * 120, py = y + Math.sin(a) * 420; ctx.fillStyle = i % 2 ? '#c8ffe0' : '#ffffff'; ctx.fillRect(px, py, 3, 3); }
+    for (let i = 0; i < 26; i++) { const yy = y + (mhHash(i) - .5) * ZR_SL.h * 1.7, len = 120 + mhHash(i + 3) * 260; ctx.strokeStyle = `rgb(150 255 200 / ${(.15 + mhHash(i + 6) * .35).toFixed(2)})`; ctx.lineWidth = 1 + mhHash(i + 9) * 3; ctx.beginPath(); ctx.moveTo(C.sx + 20, yy); ctx.lineTo(C.sx + 20 + len, yy); ctx.stroke(); }
+    // bóng mờ những vị trí trước
+    (C.trail || []).forEach((tx, k) => { if (k) zrSlash(tx + k * 18, y, .18 / k); });
+    ctx.restore();
+    zrSlash(C.sx, y, 1);
     ctx.restore();
   }
 }
-// Zoro Wano, đã cởi áo: mình trần cơ bắp, sẹo chéo ngực, băng quấn bụng, áo kimono xanh rủ ở thắt lưng, đai đỏ,
-// khăn đen buộc đầu, mắt trái nhắm có sẹo dọc, 3 khuyên tai vàng; Enma (chuôi tím đen) và Sandai Kitetsu (chuôi đỏ) hai tay,
-// Wadō Ichimonji (chuôi trắng) ngậm miệng; khi tra kiếm thì ba vỏ kiếm đeo bên hông.
-function drawZoroFig(u, x, y, dir, pose, alpha, _jw, _mon, cur) {
-  const P = cur || mhPose(pose, u, true);
-  ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.globalAlpha *= alpha; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  const SK = '#d99a6c', SK2 = '#b07448', SKH = '#f0bc8e', HAIR = '#3fa04a', HAIR2 = '#22702e', KIMONO = '#2f5a3a', KIM2 = '#21402a', SASH = '#a8241e', PANTS = '#2a2d2a', BOOT = '#141414';
-  const hy = P.hy, sx = Math.sin(P.lean) * 36, sy = hy - Math.cos(P.lean) * 36, sheath = u.sheath;
-  const sway = Math.sin(u.mt * 4) * 1.5 - clamp(u.vx / 300, -3, 3);
-  // kiếm katana: lưỡi hơi cong, sống sẫm, lưỡi sáng, chắn kiếm, chuôi quấn dây hình thoi
-  const katana = (hx, hy2, ang, hilt, wrap, aura) => {
-    ctx.save(); ctx.translate(hx, hy2); ctx.rotate(ang);
-    if (aura) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = aura; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(4, 0); ctx.quadraticCurveTo(30, -3, 58, -7); ctx.stroke(); ctx.restore(); }
-    ctx.strokeStyle = '#8a929e'; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(4, 0); ctx.quadraticCurveTo(30, -3, 58, -7); ctx.stroke();
-    ctx.strokeStyle = '#f2f6fa'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(5, 1.2); ctx.quadraticCurveTo(30, -1.6, 57, -5.6); ctx.stroke();
-    ctx.fillStyle = '#c8a040'; ctx.beginPath(); ctx.ellipse(3, 0, 1.6, 4, 0, 0, Math.PI * 2); ctx.fill();   // chắn kiếm
-    ctx.strokeStyle = hilt; ctx.lineWidth = 3.6; ctx.beginPath(); ctx.moveTo(1, 0); ctx.lineTo(-12, .8); ctx.stroke();
-    ctx.strokeStyle = wrap; ctx.lineWidth = 1; for (let i = -10; i < 0; i += 3) { ctx.beginPath(); ctx.moveTo(i, -1.6); ctx.lineTo(i + 1.5, 1.6); ctx.stroke(); }
-    ctx.restore();
+// hình lưỡi chém: hai cung tròn chung hai mũi nhọn (trăng khuyết), bụng phình về phía trước; lõi trắng, thân xanh ngọc, viền sáng
+const ZR_SL = { w: 110, h: 250 };
+function zrSlash(x, y, a) {
+  const { w, h } = ZR_SL, path = (o) => { ctx.beginPath(); ctx.moveTo(x + 40, y - h); ctx.quadraticCurveTo(x - w * 1.25 - o, y, x + 40, y + h); ctx.quadraticCurveTo(x - w * .35 - o * .4, y, x + 40, y - h); ctx.closePath(); };
+  ctx.save(); ctx.globalAlpha *= a;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  path(18); ctx.fillStyle = 'rgb(40 200 120 / .35)'; ctx.fill();
+  ctx.restore();
+  const g = ctx.createLinearGradient(x - w, 0, x + 40, 0);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.18, '#dfffee'); g.addColorStop(.45, '#5af0a0'); g.addColorStop(1, 'rgb(20 140 80 / .2)');
+  path(0); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 40, y - h); ctx.quadraticCurveTo(x - w * 1.25, y, x + 40, y + h); ctx.stroke();
+  ctx.strokeStyle = 'rgb(20 120 70 / .8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + 40, y - h); ctx.quadraticCurveTo(x - w * .35, y, x + 40, y + h); ctx.stroke();
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 16; i++) { const t = mhHash(i + 40), py = y + (t - .5) * 2 * h * .9, px = x - w * .9 * (1 - ((py - y) / h) ** 2) + mhHash(i + 50) * 30; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(px - 5, py); ctx.lineTo(px, py - 1.2); ctx.lineTo(px + 5, py); ctx.lineTo(px, py + 1.2); ctx.fill(); }
+  ctx.restore();
+  ctx.restore();
+}
+// Zoro Wano, đã cởi áo — vẽ kiểu anime đổ bóng 2 tông: viền tối, mặt sáng/mặt tối, cơ bắp bằng nét.
+// Mình trần, sẹo lớn chéo ngực có vết khâu, băng quấn bụng, kimono xanh rủ ở thắt lưng, đai đỏ, khăn đen buộc đầu,
+// mắt trái nhắm có sẹo dọc, 3 khuyên tai vàng; Enma (chuôi tím, hào quang tím) tay trước, Sandai Kitetsu (chuôi đỏ) tay sau,
+// Wadō Ichimonji (chuôi trắng) ngậm miệng; khi tra kiếm thì ba vỏ kiếm đeo bên hông, tháo khăn lộ tóc xanh.
+const ZC = { SK: '#dca07a', SKH: '#f2c49c', SKD: '#b8774f', SHD: 'rgb(120 60 30 / .45)', OUT: '#2a1610', LINE: '#7a4026',
+  HAIR: '#4aa84e', HAIRH: '#8ad87a', HAIRD: '#256a2c', KIM: '#2f5e3c', KIMD: '#1e3e28', KIMH: '#4a8058', SASH: '#b0281e', SASHD: '#7a1610',
+  PANTS: '#2c302c', PANTSD: '#1a1c1a', BOOT: '#141414' };
+// một đoạn chi thuôn: phình ở giữa (cơ), đổ bóng một bên, viền tối
+function zSeg(x0, y0, x1, y1, w0, wm, w1, fill, shade, out) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, mx = x0 + dx * .42, my = y0 + dy * .42;
+  const path = () => {
+    ctx.beginPath(); ctx.moveTo(x0 + nx * w0 / 2, y0 + ny * w0 / 2);
+    ctx.quadraticCurveTo(mx + nx * wm * .62, my + ny * wm * .62, x1 + nx * w1 / 2, y1 + ny * w1 / 2);
+    ctx.lineTo(x1 - nx * w1 / 2, y1 - ny * w1 / 2);
+    ctx.quadraticCurveTo(mx - nx * wm * .62, my - ny * wm * .62, x0 - nx * w0 / 2, y0 - ny * w0 / 2); ctx.closePath();
   };
+  path(); ctx.fillStyle = fill; ctx.fill();
+  if (shade) {
+    ctx.save(); path(); ctx.clip();
+    ctx.strokeStyle = shade; ctx.lineWidth = wm * .5;
+    ctx.beginPath(); ctx.moveTo(x0 + nx * w0 * .5, y0 + ny * w0 * .5); ctx.quadraticCurveTo(mx + nx * wm * .62, my + ny * wm * .62, x1 + nx * w1 * .5, y1 + ny * w1 * .5); ctx.stroke();
+    ctx.restore();
+  }
+  path(); ctx.strokeStyle = out; ctx.lineWidth = 1.1; ctx.stroke();
+}
+// katana: lưỡi cong có sống sẫm, lưỡi sáng, vân hamon gợn sóng, mũi kissaki; chắn kiếm vàng; chuôi quấn dây hình thoi
+function zKatana(hx, hy, ang, kind) {
+  const H = { enma: ['#24142e', '#a070e0'], kitetsu: ['#6a1414', '#e8c070'], wado: ['#f2f2f0', '#2a2a30'] }[kind];
+  ctx.save(); ctx.translate(hx, hy); ctx.rotate(ang);
+  if (kind === 'enma') {
+    // hào quang tím của Enma bập bùng dọc lưỡi
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 3; i++) { ctx.strokeStyle = `rgb(150 80 255 / ${(.22 - i * .05).toFixed(2)})`; ctx.lineWidth = 10 + i * 6 + Math.sin(S.t * 14 + i) * 2; ctx.beginPath(); ctx.moveTo(6, 0); ctx.quadraticCurveTo(32, -4, 58, -8); ctx.stroke(); }
+    ctx.restore();
+  }
+  ctx.beginPath(); ctx.moveTo(5, -1.9); ctx.quadraticCurveTo(32, -5.6, 55, -9.4); ctx.lineTo(62, -9.6); ctx.lineTo(56, -6.2); ctx.quadraticCurveTo(32, -1.6, 5, 1.9); ctx.closePath();
+  const gb = ctx.createLinearGradient(0, -6, 0, 2); gb.addColorStop(0, '#7e8896'); gb.addColorStop(.55, '#d8e0ea'); gb.addColorStop(1, '#ffffff');
+  ctx.fillStyle = gb; ctx.fill(); ctx.strokeStyle = '#30343c'; ctx.lineWidth = .8; ctx.stroke();
+  ctx.strokeStyle = 'rgb(255 255 255 / .85)'; ctx.lineWidth = .8; ctx.beginPath();   // hamon
+  for (let i = 0; i <= 10; i++) { const t = i / 10, x = 6 + t * 48, y = -1.5 - t * 4.6 + Math.sin(i * 1.7) * .6; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.stroke();
+  ctx.fillStyle = '#d8b050'; ctx.fillRect(3.2, -2.2, 2.4, 4.4);                                 // habaki
+  ctx.beginPath(); ctx.ellipse(2.4, 0, 1.5, 5.4, 0, 0, Math.PI * 2); ctx.fillStyle = '#c89a3a'; ctx.fill(); ctx.strokeStyle = '#5a3a0a'; ctx.lineWidth = .7; ctx.stroke();   // tsuba
+  ctx.fillStyle = H[0]; ctx.fillRect(-15, -2.1, 16, 4.2); ctx.strokeStyle = '#14100c'; ctx.lineWidth = .6; ctx.strokeRect(-15, -2.1, 16, 4.2);
+  ctx.fillStyle = H[1]; for (let x = -13; x < 0; x += 3.2) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 1.6, -1.6); ctx.lineTo(x + 3.2, 0); ctx.lineTo(x + 1.6, 1.6); ctx.closePath(); ctx.fill(); }   // dây quấn hình thoi
+  ctx.fillStyle = '#c89a3a'; ctx.fillRect(-16.4, -2.3, 1.6, 4.6);                               // đầu chuôi
+  ctx.restore();
+}
+function drawZoroFig(u, x, y, dir, pose, alpha, _jw, _mon, cur) {
+  const P = cur || mhPose(pose, u, true), C = ZC, sheath = u.sheath;
+  // chuyển động phụ: khăn, tay áo kimono đuổi theo người một nhịp (mượt, không giật)
+  const sec = u.sec || (u.sec = { tail: 0, kim: 0 }), tgt = -clamp(u.vx / 260, -3, 3) + Math.sin(u.mt * 5) * .5;
+  sec.tail += (tgt - sec.tail) * .12; sec.kim += (tgt * .6 - sec.kim) * .08;
+  const breath = Math.sin(u.mt * 2.2) * .8;
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.globalAlpha *= alpha; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const hy = P.hy, sx = Math.sin(P.lean) * 36, sy = hy - Math.cos(P.lean) * 36 - breath * .5;
   const arm = (a, front) => {
-    const ox = sx + (front ? 5 : -5), oy = sy + 4;
-    const kx = ox + Math.sin(a[0]) * 20, ky = oy + Math.cos(a[0]) * 20;
-    const [hx, hy2, fa] = limb(ox, oy, a[0], 20, a[1], 19, 11, 9, front ? SK : SK2);
-    // bắp tay, cẳng tay nổi cơ
-    ctx.fillStyle = front ? SKH : SK; ctx.beginPath(); ctx.ellipse((ox + kx) / 2, (oy + ky) / 2, 6.5, 4.2, a[0] + Math.PI / 2, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = SK2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo((kx + hx) / 2, (ky + hy2) / 2); ctx.stroke();
-    ctx.fillStyle = front ? SK : SK2; ctx.beginPath(); ctx.arc(hx, hy2, 4.6, 0, Math.PI * 2); ctx.fill();
-    if (!sheath) katana(hx, hy2, fa - 1.35, front ? '#2a1a3a' : '#7a1a1a', front ? '#8a5ad0' : '#e8c070', front ? 'rgb(150 80 255 / .35)' : null);   // Enma tay trước, Sandai Kitetsu tay sau
+    const ox = sx + (front ? 6 : -6), oy = sy + 4, kx = ox + Math.sin(a[0]) * 20, ky = oy + Math.cos(a[0]) * 20, hx = kx + Math.sin(a[1]) * 19, hy2 = ky + Math.cos(a[1]) * 19;
+    const sk = front ? C.SK : C.SKD;
+    zSeg(ox, oy, kx, ky, 11, 13, 8.6, sk, C.SHD, C.OUT);       // bắp tay phình
+    zSeg(kx, ky, hx, hy2, 8.6, 9.6, 6.4, sk, C.SHD, C.OUT);    // cẳng tay thon về cổ tay
+    // đường cơ: rãnh bắp tay, gân cẳng tay, điểm sáng
+    const ux = (ox + kx) / 2, uy = (oy + ky) / 2, n1 = a[0] + Math.PI / 2;
+    ctx.strokeStyle = C.LINE; ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(ux + Math.sin(n1) * 2, uy + Math.cos(n1) * 2); ctx.quadraticCurveTo(kx, ky, kx + Math.sin(a[1]) * 7, ky + Math.cos(a[1]) * 7); ctx.stroke();
+    ctx.strokeStyle = front ? C.SKH : C.SK; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ox - Math.sin(n1) * 3, oy - Math.cos(n1) * 3); ctx.lineTo(ux - Math.sin(n1) * 4, uy - Math.cos(n1) * 4); ctx.stroke();
+    if (!sheath) zKatana(hx, hy2, Math.atan2(hy2 - ky, hx - kx) - 1.35, front ? 'enma' : 'kitetsu');
+    // nắm tay siết chuôi kiếm: khối tròn, đốt ngón tay
+    ctx.fillStyle = sk; ctx.beginPath(); ctx.arc(hx, hy2, 4.8, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = C.OUT; ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = C.LINE; ctx.lineWidth = .7; for (const o of [-1.6, 0, 1.6]) { ctx.beginPath(); ctx.moveTo(hx + 1.5, hy2 + o); ctx.lineTo(hx + 3.8, hy2 + o); ctx.stroke(); }
   };
   const leg = (a, back) => {
-    const [fx, fy] = limb(back ? -4 : 4, hy, a[0], 28, a[1], 28, 13, 10, back ? '#1e201e' : PANTS);
-    ctx.fillStyle = BOOT; ctx.beginPath(); ctx.ellipse(fx + 4, fy - 1, 8.5, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+    const rx = back ? -4 : 4, kx = rx + Math.sin(a[0]) * 28, ky = hy + Math.cos(a[0]) * 28, fx = kx + Math.sin(a[1]) * 28, fy = ky + Math.cos(a[1]) * 28;
+    zSeg(rx, hy, kx, ky, 15, 16, 12, back ? C.PANTSD : C.PANTS, 'rgb(0 0 0 / .35)', '#0c0d0c');
+    zSeg(kx, ky, fx, fy - 4, 12, 12, 10, back ? C.PANTSD : C.PANTS, 'rgb(0 0 0 / .35)', '#0c0d0c');
+    ctx.strokeStyle = '#4a504a'; ctx.lineWidth = .8; ctx.beginPath(); ctx.moveTo(kx - 3, ky - 4); ctx.lineTo(kx + 2, ky + 1); ctx.moveTo((rx + kx) / 2, (hy + ky) / 2 - 3); ctx.lineTo((rx + kx) / 2 + 3, (hy + ky) / 2 + 2); ctx.stroke();   // nếp vải
+    // ủng đen: mũi, đế, nếp gấp
+    ctx.fillStyle = C.BOOT; ctx.beginPath(); ctx.moveTo(fx - 5, fy - 9); ctx.lineTo(fx + 4, fy - 9); ctx.quadraticCurveTo(fx + 13, fy - 4, fx + 13, fy); ctx.lineTo(fx - 6, fy); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3a3a3a'; ctx.fillRect(fx - 6, fy - 1.6, 19, 1.6);
+    ctx.strokeStyle = '#3a3a3a'; ctx.lineWidth = .8; ctx.beginPath(); ctx.moveTo(fx - 4, fy - 6); ctx.lineTo(fx + 3, fy - 6); ctx.stroke();
   };
   arm(P.ba, false);
   leg(P.bl, true);
   leg(P.fl, false);
-  // áo kimono đã cởi phần trên: vải xanh rủ quanh hông, hai tay áo thõng xuống
-  ctx.fillStyle = KIMONO; ctx.beginPath(); ctx.moveTo(-14, hy - 6); ctx.lineTo(14, hy - 6); ctx.lineTo(16 + sway, hy + 26); ctx.lineTo(-18 + sway, hy + 28); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = KIM2; ctx.lineWidth = 1.5; for (const fx of [-8, 0, 8]) { ctx.beginPath(); ctx.moveTo(fx, hy - 2); ctx.lineTo(fx + sway, hy + 26); ctx.stroke(); }
-  ctx.fillStyle = KIM2; ctx.beginPath(); ctx.moveTo(-13, hy - 4); ctx.quadraticCurveTo(-24 + sway, hy + 10, -20 + sway * 2, hy + 30); ctx.lineTo(-12, hy + 20); ctx.fill();   // tay áo thõng
-  // vỏ kiếm đeo bên hông
-  if (sheath) for (const [i, c, h] of [[0, '#1a1418', '#2a1a3a'], [1, '#e8e4dc', '#f4f4f4'], [2, '#5a1a1a', '#7a1a1a']]) {
+  // kimono rủ quanh hông: vải xanh có nếp gấp sâu, mép lót sáng, hai tay áo thõng đung đưa
+  const kw = sec.kim;
+  ctx.fillStyle = C.KIMD; ctx.beginPath(); ctx.moveTo(-12, hy - 4); ctx.quadraticCurveTo(-26 + kw * 4, hy + 8, -22 + kw * 7, hy + 32); ctx.lineTo(-14 + kw * 5, hy + 30); ctx.quadraticCurveTo(-16, hy + 12, -8, hy); ctx.closePath(); ctx.fill();
+  const gk = ctx.createLinearGradient(-15, 0, 17, 0); gk.addColorStop(0, C.KIMD); gk.addColorStop(.6, C.KIM); gk.addColorStop(1, C.KIMH);
+  ctx.fillStyle = gk; ctx.beginPath(); ctx.moveTo(-14, hy - 6); ctx.lineTo(14, hy - 6); ctx.quadraticCurveTo(18, hy + 12, 16 + kw * 3, hy + 27); ctx.lineTo(-18 + kw * 3, hy + 29); ctx.quadraticCurveTo(-17, hy + 10, -14, hy - 6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#0e2214'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = C.KIMD; ctx.lineWidth = 1.4; for (const [fx0, fx1] of [[-9, -11], [-2, -3], [5, 6], [11, 13]]) { ctx.beginPath(); ctx.moveTo(fx0, hy - 2); ctx.quadraticCurveTo(fx0 + 1, hy + 12, fx1 + kw * 3, hy + 27); ctx.stroke(); }
+  ctx.strokeStyle = C.KIMH; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-18 + kw * 3, hy + 28.5); ctx.lineTo(16 + kw * 3, hy + 26.5); ctx.stroke();
+  // vỏ kiếm đeo hông khi tra kiếm
+  if (sheath) for (const [i, c, h] of [[0, '#1a1418', '#24142e'], [1, '#ece8e0', '#f2f2f0'], [2, '#5a1a1a', '#6a1414']]) {
     ctx.save(); ctx.translate(-6 + i * 3, hy - 4 + i * 2); ctx.rotate(2.75 - i * .08);
-    ctx.strokeStyle = c; ctx.lineWidth = 3.6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(54, 0); ctx.stroke();
-    ctx.strokeStyle = h; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-13, 0); ctx.stroke();
+    ctx.strokeStyle = '#0c0a08'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(56, 0); ctx.stroke();
+    ctx.strokeStyle = c; ctx.lineWidth = 3.6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(55, 0); ctx.stroke();
+    ctx.fillStyle = '#c89a3a'; ctx.fillRect(-1.2, -3, 2.4, 6);
+    ctx.strokeStyle = h; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-1, 0); ctx.lineTo(-14, 0); ctx.stroke();
     ctx.restore();
   }
-  // thân trần: vai rộng, eo thon (hình chữ V)
-  const tor = () => { ctx.beginPath(); ctx.moveTo(sx - 13, sy + 1); ctx.quadraticCurveTo(sx, sy - 3, sx + 13, sy + 1); ctx.lineTo(sx + 12, sy + 10); ctx.lineTo(9, hy - 4); ctx.lineTo(-9, hy - 4); ctx.lineTo(sx - 12, sy + 10); ctx.closePath(); };
-  ctx.fillStyle = SK; tor(); ctx.fill();
+  // thân trần hình chữ V: đổ bóng từ lưng sang ngực, cơ vẽ bằng nét
+  const tor = () => { ctx.beginPath(); ctx.moveTo(sx - 14, sy + 2); ctx.quadraticCurveTo(sx, sy - 3 - breath, sx + 14, sy + 2); ctx.quadraticCurveTo(sx + 15, sy + 8, sx + 12.5, sy + 12); ctx.quadraticCurveTo(10, hy - 14, 9, hy - 4); ctx.lineTo(-9, hy - 4); ctx.quadraticCurveTo(-10, hy - 14, sx - 12.5, sy + 12); ctx.quadraticCurveTo(sx - 15, sy + 8, sx - 14, sy + 2); ctx.closePath(); };
+  const gt = ctx.createLinearGradient(sx - 14, 0, sx + 14, 0); gt.addColorStop(0, C.SKD); gt.addColorStop(.45, C.SK); gt.addColorStop(1, C.SKH);
+  ctx.fillStyle = gt; tor(); ctx.fill();
   ctx.save(); tor(); ctx.clip();
-  // khối cơ: vai (cơ delta), ngực, sáu múi, cơ liên sườn
-  ctx.fillStyle = SKH;
-  ctx.beginPath(); ctx.ellipse(sx - 10, sy + 5, 5, 6, 0, 0, Math.PI * 2); ctx.ellipse(sx + 10, sy + 5, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(sx - 4, sy + 10, 7, 5, .1, 0, Math.PI * 2); ctx.ellipse(sx + 6, sy + 10, 7, 5, -.1, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = SK2; ctx.lineWidth = 1.3;
-  ctx.beginPath(); ctx.moveTo(sx - 10, sy + 14); ctx.quadraticCurveTo(sx - 3, sy + 17, sx + 1, sy + 14); ctx.quadraticCurveTo(sx + 6, sy + 17, sx + 12, sy + 13); ctx.stroke();   // chân ngực
-  ctx.beginPath(); ctx.moveTo(sx + 1, sy + 4); ctx.lineTo(sx + .5, sy + 14); ctx.stroke();                                                             // rãnh giữa ngực
-  const mx = (sx + 1) * .5;
-  for (let i = 0; i < 3; i++) { const yy = sy + 17 + i * 5; ctx.fillStyle = SKH; ctx.beginPath(); ctx.ellipse(mx - 3 + sx * .2, yy, 2.6, 2.2, 0, 0, Math.PI * 2); ctx.ellipse(mx + 3 + sx * .2, yy, 2.6, 2.2, 0, 0, Math.PI * 2); ctx.fill(); }   // sáu múi
-  ctx.beginPath(); ctx.moveTo(sx - 11, sy + 16); ctx.lineTo(-8, hy - 8); ctx.moveTo(sx + 12, sy + 16); ctx.lineTo(9, hy - 8); ctx.stroke();               // liên sườn
-  // băng trắng quấn quanh bụng
-  ctx.fillStyle = '#eeeae0'; ctx.fillRect(-14, hy - 9, 30, 6);
-  ctx.strokeStyle = '#c8c2b4'; ctx.lineWidth = 1; for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.moveTo(-14, hy - 8 + i * 3); ctx.lineTo(16, hy - 9.5 + i * 3); ctx.stroke(); }
-  // vết sẹo lớn chéo ngực (từ vai trái xuống hông phải), có vết khâu
-  ctx.strokeStyle = '#8a3a34'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(sx - 12, sy + 3); ctx.quadraticCurveTo(sx - 2, sy + 14, 10, hy - 9); ctx.stroke();
-  ctx.strokeStyle = '#d07a6a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx - 12, sy + 2.4); ctx.quadraticCurveTo(sx - 2, sy + 13.4, 10, hy - 9.6); ctx.stroke();
-  ctx.strokeStyle = '#6a2a24'; ctx.lineWidth = 1;
-  for (let i = 1; i < 6; i++) { const k = i / 6, px = (1 - k) ** 2 * (sx - 12) + 2 * (1 - k) * k * (sx - 2) + k * k * 10, py = (1 - k) ** 2 * (sy + 3) + 2 * (1 - k) * k * (sy + 14) + k * k * (hy - 9); ctx.beginPath(); ctx.moveTo(px - 2, py + 2); ctx.lineTo(px + 2, py - 2); ctx.stroke(); }
+  // vai (cơ delta) tách bằng rãnh, ngực hai tảng có bóng dưới chân ngực
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(sx - 12, sy + 7, 6, -1.2, 1.4); ctx.stroke();
+  ctx.beginPath(); ctx.arc(sx + 12, sy + 7, 6, Math.PI - 1.4, Math.PI + 1.2); ctx.stroke();
+  ctx.fillStyle = C.SHD; ctx.beginPath(); ctx.moveTo(sx - 10, sy + 14); ctx.quadraticCurveTo(sx - 3, sy + 19, sx + 1, sy + 15); ctx.quadraticCurveTo(sx + 6, sy + 19, sx + 12, sy + 13); ctx.lineTo(sx + 12, sy + 17); ctx.quadraticCurveTo(sx + 6, sy + 21, sx + 1, sy + 18); ctx.quadraticCurveTo(sx - 3, sy + 21, sx - 10, sy + 17); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(sx - 10, sy + 14); ctx.quadraticCurveTo(sx - 3, sy + 19, sx + 1, sy + 15); ctx.quadraticCurveTo(sx + 6, sy + 19, sx + 12, sy + 13); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx + 1, sy + 4); ctx.lineTo(sx + .5, sy + 15); ctx.stroke();                  // rãnh giữa ngực
+  ctx.strokeStyle = C.SKH; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(sx + 3, sy + 6); ctx.quadraticCurveTo(sx + 7, sy + 5, sx + 10, sy + 8); ctx.stroke();   // điểm sáng ngực
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(sx - 4, sy + 2); ctx.lineTo(sx - 9, sy + 3.5); ctx.moveTo(sx + 5, sy + 2); ctx.lineTo(sx + 10, sy + 3.5); ctx.stroke();   // xương quai xanh
+  // sáu múi: đường trắng giữa, ba rãnh ngang, điểm sáng trên từng múi
+  const ax = sx * .45 + 1;
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(sx + .5, sy + 18); ctx.lineTo(ax, hy - 9); ctx.stroke();
+  for (let i = 0; i < 3; i++) { const yy = sy + 21 + i * 4.6; ctx.beginPath(); ctx.moveTo(ax - 5.5, yy + .6); ctx.quadraticCurveTo(ax - 2.5, yy + 1.4, ax, yy); ctx.quadraticCurveTo(ax + 2.5, yy + 1.4, ax + 5.5, yy + .6); ctx.stroke(); }
+  ctx.fillStyle = C.SKH; for (let i = 0; i < 3; i++) for (const o of [-2.8, 2.8]) { ctx.beginPath(); ctx.ellipse(ax + o, sy + 19 + i * 4.6, 1.8, 1, 0, 0, Math.PI * 2); ctx.fill(); }
+  // cơ răng cưa (bên sườn), đường chữ V xuống hông
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = .8; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(sx + 10, sy + 16 + i * 3.2); ctx.lineTo(sx + 7, sy + 17.5 + i * 3.2); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(sx - 9, sy + 22); ctx.quadraticCurveTo(-6, hy - 9, -3, hy - 5); ctx.moveTo(sx + 11, sy + 22); ctx.quadraticCurveTo(8, hy - 9, 5, hy - 5); ctx.stroke();
+  // bóng lưng
+  ctx.fillStyle = 'rgb(90 40 20 / .25)'; ctx.fillRect(sx - 16, sy - 6, 7, hy - sy + 6);
+  // băng quấn bụng: các vòng băng chéo, mép có bóng
+  ctx.fillStyle = '#efeae0'; ctx.beginPath(); ctx.moveTo(-12, hy - 11); ctx.lineTo(13, hy - 13); ctx.lineTo(12, hy - 4); ctx.lineTo(-11, hy - 3); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#b8b0a0'; ctx.lineWidth = .9; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-12, hy - 10 + i * 2.8); ctx.lineTo(13, hy - 12.6 + i * 2.8); ctx.stroke(); }
+  ctx.strokeStyle = '#8a8070'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-12, hy - 11); ctx.lineTo(13, hy - 13); ctx.stroke();
+  // sẹo lớn chéo ngực (Mihawk): rãnh đỏ sẫm, mép hồng nhạt, vết khâu bắt chéo
+  const scar = k => ({ x: (1 - k) ** 2 * (sx - 13) + 2 * (1 - k) * k * (sx - 1) + k * k * 10, y: (1 - k) ** 2 * (sy + 3) + 2 * (1 - k) * k * (sy + 15) + k * k * (hy - 12) });
+  const trace = (o) => { ctx.beginPath(); for (let i = 0; i <= 12; i++) { const p = scar(i / 12); i ? ctx.lineTo(p.x + o, p.y - o) : ctx.moveTo(p.x + o, p.y - o); } ctx.stroke(); };
+  ctx.strokeStyle = '#7a2e28'; ctx.lineWidth = 3; trace(0);
+  ctx.strokeStyle = '#e09a88'; ctx.lineWidth = .9; trace(-1.2);
+  ctx.strokeStyle = '#4a1a14'; ctx.lineWidth = .8; for (let i = 1; i < 8; i++) { const p = scar(i / 8); ctx.beginPath(); ctx.moveTo(p.x - 2.2, p.y + 1.6); ctx.lineTo(p.x + 2.2, p.y - 1.6); ctx.moveTo(p.x - 2.2, p.y - 1.6); ctx.lineTo(p.x + 2.2, p.y + 1.6); ctx.stroke(); }
   ctx.restore();
-  // đai đỏ thắt ngang hông
-  ctx.fillStyle = SASH; ctx.fillRect(-11, hy - 6, 22, 5); ctx.beginPath(); ctx.moveTo(-9, hy - 2); ctx.lineTo(-13 + sway, hy + 10); ctx.lineTo(-6, hy); ctx.fill();
-  // cổ dày, đầu
-  const cx = sx + Math.sin(P.lean) * 15, cy = sy - Math.cos(P.lean) * 15;
-  ctx.fillStyle = SK; ctx.beginPath(); ctx.moveTo(sx - 5, sy + 1); ctx.lineTo(sx - 4, sy - 8); ctx.lineTo(sx + 5, sy - 8); ctx.lineTo(sx + 6, sy + 1); ctx.fill();
-  ctx.strokeStyle = SK2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx - 3, sy - 6); ctx.lineTo(sx - 9, sy + 1); ctx.stroke();   // cơ cổ
-  // tóc xanh lá ngắn dựng (phía sau, lộ dưới khăn)
-  ctx.fillStyle = HAIR; ctx.beginPath(); ctx.moveTo(cx - 10, cy + 2); ctx.lineTo(cx - 12, cy - 6); ctx.lineTo(cx - 9, cy - 13); ctx.lineTo(cx + 2, cy - 15); ctx.lineTo(cx + 10, cy - 10); ctx.lineTo(cx + 3, cy - 4); ctx.lineTo(cx - 4, cy + 4); ctx.closePath(); ctx.fill();
-  // mặt: hàm vuông, gò má
-  ctx.fillStyle = SK; ctx.beginPath(); ctx.moveTo(cx - 6, cy - 7); ctx.quadraticCurveTo(cx + 6, cy - 10, cx + 10, cy - 3); ctx.lineTo(cx + 10.5, cy + 4); ctx.lineTo(cx + 8, cy + 9); ctx.lineTo(cx + 3, cy + 11); ctx.lineTo(cx - 3, cy + 9); ctx.lineTo(cx - 6, cy + 3); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = SK2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 3, cy + 8.5); ctx.lineTo(cx + 3, cy + 10.5); ctx.stroke();   // đường hàm
-  // tai và 3 khuyên vàng (tai trái)
-  ctx.fillStyle = SK2; ctx.beginPath(); ctx.ellipse(cx - 4, cy + 1, 2, 3, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#f2c84a'; for (let i = 0; i < 3; i++) { ctx.fillRect(cx - 4.6 + i * .5, cy + 3.5 + i * 1.6, 1.2, 3); }
-  // mắt trái nhắm, vết sẹo dọc chạy qua; mắt phải mở sắc
-  ctx.strokeStyle = '#1a1414'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(cx + 1.5, cy); ctx.quadraticCurveTo(cx + 3.5, cy + 1, cx + 5.5, cy); ctx.stroke();
-  ctx.strokeStyle = '#8a3a34'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(cx + 3.6, cy - 5.5); ctx.lineTo(cx + 3.4, cy + 5); ctx.stroke();
-  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(cx + 7, cy - .4); ctx.lineTo(cx + 10, cy - .8); ctx.lineTo(cx + 9.6, cy + 1); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#1a1414'; ctx.fillRect(cx + 8.4, cy - .6, 1.3, 1.5);
-  ctx.strokeStyle = '#1a1414'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx + 6.4, cy - 2.6); ctx.lineTo(cx + 10.6, cy - 3.4); ctx.moveTo(cx + 1, cy - 3); ctx.lineTo(cx + 5.2, cy - 2.6); ctx.stroke();   // lông mày rậm
-  ctx.strokeStyle = SK2; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 10.4, cy + 1); ctx.lineTo(cx + 11.4, cy + 4); ctx.lineTo(cx + 10, cy + 4.4); ctx.stroke();   // mũi
-  // miệng: ngậm Wadō Ichimonji khi đánh, nhếch mép khi tra kiếm
+  ctx.strokeStyle = C.OUT; ctx.lineWidth = 1.3; tor(); ctx.stroke();
+  // đai đỏ: nút thắt và đuôi đai bay
+  ctx.fillStyle = C.SASH; ctx.fillRect(-11, hy - 6, 22, 5.5); ctx.fillStyle = C.SASHD; ctx.fillRect(-11, hy - 1.8, 22, 1.3);
+  ctx.fillStyle = C.SASH; ctx.beginPath(); ctx.moveTo(-9, hy - 2); ctx.quadraticCurveTo(-14 + kw * 3, hy + 6, -14 + kw * 5, hy + 13); ctx.lineTo(-10 + kw * 4, hy + 12); ctx.quadraticCurveTo(-9, hy + 4, -6, hy - 1); ctx.fill();
+  ctx.strokeStyle = '#3a0a06'; ctx.lineWidth = .9; ctx.strokeRect(-11, hy - 6, 22, 5.5);
+  // cổ dày, cơ cổ, bóng dưới hàm
+  const cx = sx + Math.sin(P.lean) * 15, cy = sy - Math.cos(P.lean) * 15 - breath * .3;
+  ctx.fillStyle = C.SK; ctx.beginPath(); ctx.moveTo(sx - 6, sy + 1); ctx.lineTo(cx - 5, cy + 4); ctx.lineTo(cx + 5, cy + 6); ctx.lineTo(sx + 7, sy + 1); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C.SHD; ctx.beginPath(); ctx.moveTo(cx - 5, cy + 6); ctx.lineTo(cx + 5, cy + 9); ctx.lineTo(cx + 3, cy + 12); ctx.lineTo(cx - 4, cy + 10); ctx.fill();
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(cx - 3, cy + 6); ctx.lineTo(sx - 6, sy + 2); ctx.stroke();
+  ctx.strokeStyle = C.OUT; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(sx - 6, sy + 1); ctx.lineTo(cx - 5, cy + 4); ctx.moveTo(sx + 7, sy + 1); ctx.lineTo(cx + 5, cy + 6); ctx.stroke();
+  // tóc gáy xanh lá (lộ dưới khăn)
+  ctx.fillStyle = C.HAIRD; ctx.beginPath(); ctx.moveTo(cx - 10, cy + 3); ctx.lineTo(cx - 13, cy - 5); ctx.lineTo(cx - 10, cy - 12); ctx.lineTo(cx - 4, cy - 2); ctx.closePath(); ctx.fill();
+  // mặt: hàm vuông, gò má, đổ bóng má trong
+  const face = () => { ctx.beginPath(); ctx.moveTo(cx - 6, cy - 8); ctx.quadraticCurveTo(cx + 6, cy - 11, cx + 10.5, cy - 3); ctx.lineTo(cx + 11, cy + 3.5); ctx.lineTo(cx + 8.6, cy + 9); ctx.lineTo(cx + 3, cy + 11.4); ctx.lineTo(cx - 3, cy + 9.6); ctx.lineTo(cx - 6.5, cy + 3); ctx.closePath(); };
+  const gf = ctx.createLinearGradient(cx - 6, 0, cx + 11, 0); gf.addColorStop(0, C.SKD); gf.addColorStop(.5, C.SK); gf.addColorStop(1, C.SKH);
+  ctx.fillStyle = gf; face(); ctx.fill();
+  ctx.save(); face(); ctx.clip();
+  ctx.fillStyle = C.SHD; ctx.beginPath(); ctx.moveTo(cx - 7, cy + 1); ctx.quadraticCurveTo(cx + 1, cy + 6, cx + 3, cy + 12); ctx.lineTo(cx - 7, cy + 12); ctx.fill();   // bóng má, hàm
+  ctx.fillStyle = 'rgb(120 60 30 / .3)'; ctx.fillRect(cx, cy - 4.4, 11, 2);                                                                       // bóng dưới gờ mày
+  ctx.restore();
+  ctx.strokeStyle = C.OUT; ctx.lineWidth = 1.2; face(); ctx.stroke();
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(cx + 4, cy + 3.5); ctx.quadraticCurveTo(cx + 6, cy + 4.4, cx + 6.5, cy + 6.5); ctx.stroke();   // gò má
+  // tai, 3 khuyên vàng đung đưa (tai trái)
+  ctx.fillStyle = C.SK; ctx.beginPath(); ctx.ellipse(cx - 4, cy + 1, 2.4, 3.4, -.2, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = C.OUT; ctx.lineWidth = .9; ctx.stroke();
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = .7; ctx.beginPath(); ctx.arc(cx - 4, cy + 1, 1.2, -1, 1.6); ctx.stroke();
+  for (let i = 0; i < 3; i++) {
+    const ex = cx - 5 + i * .7, ey = cy + 3.6 + i * 1.3, sw = Math.sin(u.mt * 6 + i) * .25 - sec.tail * .08;
+    ctx.save(); ctx.translate(ex, ey); ctx.rotate(sw);
+    ctx.strokeStyle = '#a07818'; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 2); ctx.stroke();
+    ctx.fillStyle = '#f2c84a'; ctx.beginPath(); ctx.moveTo(0, 1.6); ctx.lineTo(.9, 3.4); ctx.lineTo(0, 5.4); ctx.lineTo(-.9, 3.4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  // lông mày rậm xếch, mắt trái nhắm (mi dày) có sẹo dọc mép sáng, mắt phải mở sắc lẹm
+  ctx.strokeStyle = '#141010'; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(cx + .8, cy - 3.4); ctx.quadraticCurveTo(cx + 3, cy - 4.6, cx + 5.4, cy - 3.6); ctx.moveTo(cx + 6.6, cy - 3.6); ctx.quadraticCurveTo(cx + 8.6, cy - 5, cx + 10.8, cy - 4.4); ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx + 1.4, cy + .2); ctx.quadraticCurveTo(cx + 3.4, cy + 1.6, cx + 5.4, cy + .2); ctx.stroke();
+  ctx.lineWidth = .7; for (const o of [2, 3.4, 4.8]) { ctx.beginPath(); ctx.moveTo(cx + o, cy + 1); ctx.lineTo(cx + o - .3, cy + 2.2); ctx.stroke(); }
+  ctx.strokeStyle = '#7a2e28'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(cx + 3.7, cy - 6.2); ctx.lineTo(cx + 3.3, cy + 5.6); ctx.stroke();
+  ctx.strokeStyle = '#e09a88'; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(cx + 4.4, cy - 5.8); ctx.lineTo(cx + 4.1, cy + 5.2); ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(cx + 6.8, cy - .5); ctx.quadraticCurveTo(cx + 8.6, cy - 1.6, cx + 10.4, cy - .9); ctx.lineTo(cx + 9.8, cy + .9); ctx.quadraticCurveTo(cx + 8.2, cy + 1.2, cx + 6.8, cy - .5); ctx.fill();
+  ctx.fillStyle = '#1a1414'; ctx.beginPath(); ctx.arc(cx + 8.8, cy - .2, .9, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#141010'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 6.6, cy - .6); ctx.quadraticCurveTo(cx + 8.6, cy - 1.9, cx + 10.8, cy - 1); ctx.stroke();
+  // mũi, cánh mũi
+  ctx.strokeStyle = C.LINE; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx + 9.4, cy - 1.6); ctx.lineTo(cx + 11.4, cy + 3.6); ctx.lineTo(cx + 9.8, cy + 4.2); ctx.stroke();
+  // miệng: cắn Wadō Ichimonji, khi tra kiếm thì nhếch mép
   if (!sheath) {
-    katana(cx + 6, cy + 6.8, -.05, '#f4f4f4', '#a8a8b0', null);
-    ctx.strokeStyle = '#3a1a14'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(cx + 4, cy + 6.5); ctx.lineTo(cx + 9, cy + 6.5); ctx.stroke();
-  } else { ctx.strokeStyle = '#3a1a14'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 5, cy + 7); ctx.quadraticCurveTo(cx + 7.5, cy + 7.6, cx + 9.6, cy + 6); ctx.stroke(); }
-  // khăn đen buộc đầu (khi đánh), đuôi khăn bay sau gáy; tra kiếm thì tháo khăn, lộ tóc xanh
+    zKatana(cx + 7, cy + 7, -.06, 'wado');
+    ctx.strokeStyle = '#3a1a14'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 3.6, cy + 6.4); ctx.lineTo(cx + 5.6, cy + 7.2); ctx.moveTo(cx + 9, cy + 7.2); ctx.lineTo(cx + 10.4, cy + 6.4); ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(cx + 5.4, cy + 5.8, 3.6, 1);   // răng cắn chuôi
+  } else { ctx.strokeStyle = '#3a1a14'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 4.6, cy + 7.4); ctx.quadraticCurveTo(cx + 7.4, cy + 7.8, cx + 10, cy + 5.8); ctx.stroke(); }
   if (!sheath) {
-    ctx.fillStyle = '#15151a'; ctx.beginPath(); ctx.moveTo(cx - 10, cy - 1); ctx.quadraticCurveTo(cx - 9, cy - 16, cx + 3, cy - 15); ctx.quadraticCurveTo(cx + 11, cy - 12, cx + 11, cy - 5); ctx.lineTo(cx + 9, cy - 4); ctx.quadraticCurveTo(cx + 1, cy - 9, cx - 6, cy - 1); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(cx - 9, cy - 4); ctx.lineTo(cx - 20 + sway * 2, cy - 2 + Math.sin(u.mt * 9) * 2); ctx.lineTo(cx - 17 + sway * 2, cy + 3); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#2e2e36'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 6, cy - 12); ctx.quadraticCurveTo(cx + 2, cy - 14, cx + 9, cy - 9); ctx.stroke();
+    // khăn đen buộc đầu: nếp vải sáng, nút thắt sau gáy, hai đuôi khăn bay mượt theo người
+    const band = () => { ctx.beginPath(); ctx.moveTo(cx - 10.5, cy - 1); ctx.quadraticCurveTo(cx - 10, cy - 17, cx + 3, cy - 15.6); ctx.quadraticCurveTo(cx + 12, cy - 13, cx + 11.6, cy - 4.6); ctx.lineTo(cx + 9.4, cy - 4.2); ctx.quadraticCurveTo(cx + 1, cy - 9.4, cx - 6.4, cy - 1.4); ctx.closePath(); };
+    ctx.fillStyle = '#17171c'; band(); ctx.fill(); ctx.strokeStyle = '#000000'; ctx.lineWidth = 1; band(); ctx.stroke();
+    ctx.strokeStyle = '#3a3a46'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 6, cy - 12.6); ctx.quadraticCurveTo(cx + 2, cy - 14.6, cx + 9, cy - 9.4); ctx.moveTo(cx - 3, cy - 8); ctx.quadraticCurveTo(cx + 3, cy - 11, cx + 8, cy - 7); ctx.stroke();
+    const t = sec.tail;
+    ctx.fillStyle = '#17171c';
+    for (const [o, l] of [[0, 1], [3, .8]]) { ctx.beginPath(); ctx.moveTo(cx - 9, cy - 4 + o * .4); ctx.quadraticCurveTo(cx - 15 + t * 2, cy - 4 + o + Math.sin(u.mt * 9 + o) * 1.5, cx - (18 + 4 * l) + t * 4, cy - 2 + o + Math.sin(u.mt * 9 + o) * 3); ctx.lineTo(cx - (16 + 4 * l) + t * 4, cy + 2 + o); ctx.quadraticCurveTo(cx - 13 + t * 2, cy + o, cx - 8, cy - 1 + o * .4); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = '#26262e'; ctx.beginPath(); ctx.arc(cx - 9.6, cy - 2.6, 2, 0, Math.PI * 2); ctx.fill();
+    // tóc mai xanh thò ra dưới khăn
+    ctx.fillStyle = C.HAIR; ctx.beginPath(); ctx.moveTo(cx - 6.6, cy - 1.6); ctx.lineTo(cx - 5.6, cy + 3); ctx.lineTo(cx - 4.2, cy - 1.2); ctx.fill();
   } else {
-    ctx.fillStyle = HAIR; ctx.beginPath(); ctx.moveTo(cx - 9, cy - 4); ctx.lineTo(cx - 6, cy - 15); ctx.lineTo(cx - 1, cy - 12); ctx.lineTo(cx + 2, cy - 17); ctx.lineTo(cx + 5, cy - 12); ctx.lineTo(cx + 10, cy - 14); ctx.lineTo(cx + 10, cy - 5); ctx.quadraticCurveTo(cx + 2, cy - 9, cx - 5, cy - 2); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = HAIR2; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 3, cy - 10); ctx.lineTo(cx + 1, cy - 13); ctx.moveTo(cx + 3, cy - 9); ctx.lineTo(cx + 6, cy - 12); ctx.stroke();
+    // tóc xanh lá ngắn dựng, từng chùm nhọn có nét sáng
+    const hair = () => { ctx.beginPath(); ctx.moveTo(cx - 10, cy - 1); ctx.lineTo(cx - 12, cy - 8); ctx.lineTo(cx - 8, cy - 9); ctx.lineTo(cx - 9, cy - 15); ctx.lineTo(cx - 3, cy - 12); ctx.lineTo(cx - 1, cy - 18); ctx.lineTo(cx + 3, cy - 13); ctx.lineTo(cx + 7, cy - 16); ctx.lineTo(cx + 8, cy - 11); ctx.lineTo(cx + 12, cy - 11); ctx.lineTo(cx + 10.6, cy - 5); ctx.quadraticCurveTo(cx + 3, cy - 9, cx - 5, cy - 2); ctx.closePath(); };
+    ctx.fillStyle = C.HAIR; hair(); ctx.fill(); ctx.strokeStyle = '#123a16'; ctx.lineWidth = 1; hair(); ctx.stroke();
+    ctx.strokeStyle = C.HAIRH; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 6, cy - 9); ctx.lineTo(cx - 3, cy - 11); ctx.moveTo(cx + 1, cy - 11); ctx.lineTo(cx + 4, cy - 13); ctx.moveTo(cx + 6, cy - 9); ctx.lineTo(cx + 9, cy - 10); ctx.stroke();
+    ctx.strokeStyle = C.HAIRD; ctx.beginPath(); ctx.moveTo(cx - 4, cy - 5); ctx.lineTo(cx - 1, cy - 9); ctx.moveTo(cx + 3, cy - 7); ctx.lineTo(cx + 6, cy - 10); ctx.stroke();
   }
   arm(P.fa, true);
   ctx.restore();
 }
-
 // mặt trời lặn sát mặt biển, mây hồng
 function drawPirateBgSun(T) {
   const sx0 = viewW * .72 - S.cam.x * .02, sy0 = 400 - S.cam.y * .4;
