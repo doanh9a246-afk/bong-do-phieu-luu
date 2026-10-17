@@ -589,15 +589,15 @@ function step(h) {
   if (!input && !slick && S.onGround && Math.abs(b.vx) < 12) b.vx = 0;
   const maxv = S.dash ? TACKLE_SPEED : CH().speed * (CHAR === 'luffy' ? LF_GEARS[S.lf.gear].spd : 1) * (CHAR === 'kurumi' && S.ku.haste > 0 ? 1.8 : 1) * (S.ape > 0 ? 1.15 : 1) * (S.black > 0 ? 1.2 : 1) * (S.ui > 0 ? 1.3 : 1);
   b.vx = clamp(b.vx, -maxv, maxv);
-  if (CH().fly) {
+  if (flying()) {
     // Goku bay tự do: ▲ lên, ▼ xuống, không có trọng lực, thả nút thì đứng lơ lửng
     const vin = S.dash || S.boom > 0 || S.bound > 0 ? 0 : (keys.down ? 1 : 0) - (keys.jump ? 1 : 0), fly = maxv * .9;
     if (vin) b.vy = clamp(b.vy + vin * (Math.sign(b.vy) === -vin ? 5000 : 2600) * h, -fly, fly);
     else if (!S.dash) b.vy *= 1 - 10 * h;
-  } else b.vy = Math.min(b.vy + G * h, 1400);
+  } else b.vy = Math.min(b.vy + G * h * (CHAR === 'kurumi' ? .55 : 1), CHAR === 'kurumi' ? 520 : 1400);   // Kurumi bay lơ lửng: rơi chậm
   if (CHAR === 'pain' && keys.jump && b.vy > 90) b.vy = 90;   // Pain lơ lửng khi giữ nhảy
   b.x += b.vx * h; b.y += b.vy * h;
-  if (CH().fly) {
+  if (flying()) {
     // không bay khỏi khung hình, không rơi xuống vực; đang đánh boss thì ở trong đấu trường
     if (b.y < CAM_Y[0] + 40) { b.y = CAM_Y[0] + 40; b.vy = Math.max(0, b.vy); }
     if (b.y > DEATH_Y - 140) { b.y = DEATH_Y - 140; b.vy = Math.min(0, b.vy); }
@@ -627,7 +627,8 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
   }
   // Rimuru (Đại Hiền Giả): chặn một đòn chí mạng mỗi 15 giây, trừ khi rơi xuống vực
   // Xayda biến khỉ: khỉ khổng lồ chịu đòn thay, mỗi đòn mất 1 máu khỉ
-  if (!force && CHAR === 'kurumi' && S.ku.rasiel && !fellOff()) { kuForesee(); return; }   // Rasiel biết trước đòn
+  if (!force && CHAR === 'kurumi' && S.ku.rasiel && !fellOff()) { kuForesee(); return; }
+  if (!force && CHAR === 'kurumi' && S.ku.cancer > 0 && !fellOff()) return;   // Đạn Cự Giải: không-thời gian bẻ cong che chắn   // Rasiel biết trước đòn
   if (!force && CHAR === 'kurumi' && !(S.ku.cd.rewind > 0)) { kuRewind(); return; }   // Dalet tự tua ngược (kể cả rơi vực)
   if (!force && CHAR === 'luffy' && S.lf.fusen > 0 && !fellOff()) return;   // Fusen / thân cao su của Luffy
   if (!force && CHAR === 'luffy' && S.lf.obs > 0 && !fellOff()) { lfDodge(); return; }   // Haki quan sát
@@ -693,6 +694,7 @@ function update(dt) {
   for (const e of S.enemies) {
     if (!e.alive) { e.squash = Math.max(0, e.squash - dt); continue; }
     if (worldStopped()) continue;   // thời gian ngưng đọng
+    if (e.rook > 0) { rookMob(e, dt); continue; }   // quân cờ của Đạn Bọ Cạp
     e.inv = Math.max(0, (e.inv || 0) - dt); e.hurt = Math.max(0, (e.hurt || 0) - dt);
     if (e.stun > 0) { e.stun -= dt; continue; }    // dính Lưới điện: đứng yên
     if (e.role) { squadMob(e, dt); continue; }
@@ -737,14 +739,14 @@ function update(dt) {
     S.jumpBuf -= dt;
     if (S.bound > 0) S.jumpBuf = 0;   // bị trói: không nhảy được
     if (S.onGround) S.airJumps = CH().airJumps + (CHAR === 'luffy' ? LF_GEARS[S.lf.gear].jumps : 0);
-    if (CH().fly) S.jumpBuf = 0;
-    else if (S.jumpBuf > 0 && S.lastGround < .1) { b.vy = -JUMP; S.jumpBuf = 0; S.lastGround = 1; sfx(JUMP_SFX[CHAR]); }
+    if (flying()) S.jumpBuf = 0;
+    else if (S.jumpBuf > 0 && S.lastGround < .1) { b.vy = -JUMP * (CHAR === 'kurumi' ? .78 : 1); S.jumpBuf = 0; S.lastGround = 1; sfx(JUMP_SFX[CHAR]); }
     else if (S.jumpBuf > 0 && S.airJumps > 0) {
       // nhảy thêm trên không (Rimuru, Stelle)
-      S.airJumps--; b.vy = -JUMP * .92; S.jumpBuf = 0; S.lastGround = 1; sfx(JUMP_SFX[CHAR]);
+      S.airJumps--; b.vy = -JUMP * (CHAR === 'kurumi' ? .72 : .92); S.jumpBuf = 0; S.lastGround = 1; sfx(JUMP_SFX[CHAR]);
       boltSpark(b.x, b.y + R, CHAR === 'stelle' ? '#ffd65e' : '#9ef0ff', 8);
     }
-    if (!keys.jump && b.vy < -320 && !CH().fly) b.vy = -320;   // nhả sớm → nhảy thấp
+    if (!keys.jump && b.vy < -320 && !flying()) b.vy = -320;   // nhả sớm → nhảy thấp
 
     if (!worldStopped()) { S.wt += dt; updateEShots(dt); }
     updateObstacles(dt);
@@ -762,7 +764,7 @@ function update(dt) {
   updatePikachuMoves(dt);
   b.squash = Math.max(0, b.squash - dt * 1.6);
 
-  if (S.onGround || CH().fly) S.safeY = b.y;
+  if (S.onGround || flying()) S.safeY = b.y;
   if (fellOff()) die();
   if (!S.power && !S.safe) {
     for (const sp of SPIKES) {
@@ -772,6 +774,7 @@ function update(dt) {
   }
   for (const e of S.enemies) {
     if (!e.alive) continue;
+    if (e.rook > 0) continue;   // quân cờ của Kurumi không làm hại bạn
     const ey = e.f(e.x) - 20 - (e.jy || 0);
     const cx = clamp(b.x, e.x - 20, e.x + 20), cy = clamp(b.y, ey - 20, ey + 20);
     if ((b.x - cx) ** 2 + (b.y - cy) ** 2 < R * R) {
@@ -1086,6 +1089,8 @@ const CHARS = {
   // Xayda hoá Super Saiyan Blue (khỉ bị đánh bại): bộ chiêu cheat
   ssb:    { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 1, regen: 6, speed: 430, airJumps: 2, dmgK: 2, pierce: true },
 };
+// bay tự do: Goku luôn bay, Kurumi bay được khi ngưng đọng thời gian
+const flying = () => CH().fly || (CHAR === 'kurumi' && !!S.ku && S.ku.stop);
 const CH = () => CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
 const cost = k => CH().cost[k];
 /* ---------- Pikachu: Dynamax (G) và tuyệt kĩ Z (Z) ----------
@@ -2730,20 +2735,21 @@ const CHAR_UI = {
       ['Y / T', 'Hạ loại quái nào là học chiêu của loại đó (máy nhớ mãi): Y dùng chiêu đang chọn, T đổi chiêu']],
     passive: 'chiêu học được: quái vuông → Húc · dơi → Dơi bổ nhào · ma lửa → Cầu lửa xuyên · chim băng → Mưa cột băng · ụ băng → Đạn băng · Khủng long → Cắn · Lợn lòi → Lao húc · Quỷ đất → Ném đá · Lính khiên → Khiên · Cung thủ → Bắn tên · Ninja → Nhảy vòng · Pháp sư → Hồi phục · Quỷ bom → Ném bom.',
     tip: 'Xayda: U đổi dạng Người → Khỉ → Super Saiyan Blue · khỉ: J Galick · giữ J Antomic khổng lồ · L Dậm đất · H Trói · Blue: J KI · giữ J Galick Gun · L Big Bang · O Final Flash. Hạ quái để học chiêu: Y dùng, T đổi.' },
-  kurumi: { name: 'Kurumi', from: 'Date A Live', tag: 'Tinh linh thời gian: Zafkiel, ngưng đọng thời gian, Rasiel, Lucifugus (cheat)', energy: 'Thời gian',
+  kurumi: { name: 'Kurumi', from: 'Date A Live', tag: 'Tinh linh thời gian: Zafkiel, ngưng đọng thời gian, Rasiel, Nghịch chuyển, Lucifugus (cheat)', energy: 'Thời gian',
     btn: { bolt: ['Bắn', 'Súng kíp'], web: ['Zayin', 'Ngưng đọng thời gian'], skill: ['Aleph', 'Aleph tăng tốc'], volt: ['Zafkiel', 'Zafkiel'] },
     short: ['súng kíp', 'súng hoả mai (Rasiel: bão trang sách)', 'Zayin: ngưng đọng thời gian bật/tắt', 'Aleph: tăng tốc', 'Zafkiel: 6 phân thân bắn khắp màn hình'],
-    more: ' · <kbd>E</kbd> phân thân · <kbd>T</kbd> Dalet · <kbd>F</kbd> đổi dạng (Thường → Rasiel → Lucifugus)', moreTap: ' · Thân · Dalet · Dạng',
+    more: ' · <kbd>E</kbd> phân thân · <kbd>T</kbd> Dalet · <kbd>F</kbd> đổi dạng (Thường → Rasiel → Nghịch chuyển → Lucifugus)', moreTap: ' · Thân · Dalet · Dạng',
     kit: [['J', 'Súng kíp: hai tay thay nhau bắn liên thanh, tự nhắm mục tiêu gần nhất'], ['Giữ J', 'Súng hoả mai: đạn lớn xuyên mọi thứ, 3–6 sát thương'],
       ['L', 'Zayin (đạn thứ bảy): ngưng đọng thời gian, bật/tắt tuỳ ý — quái, boss, đạn đang bay, bẫy, bục đều đứng yên; chỉ Kurumi cử động'],
       ['K', 'Aleph (đạn thứ nhất): tăng tốc ×1,8 trong 4 giây, để lại bóng mờ'],
       ['U', 'Zafkiel: đồng hồ khổng lồ hiện sau lưng, 6 phân thân mọc lên từ bóng tối bắn mọi mục tiêu trên màn hình'],
       ['E', 'Phân thân: 4 Kurumi đi theo hai bên tự bắn suốt 12 giây'], ['T', 'Dalet (đạn thứ tư): +1 mạng'],
-      ['F', 'Đổi dạng theo vòng: Thường → Rasiel → Lucifugus → Thường'],
+      ['F', 'Đổi dạng theo vòng: Thường → Rasiel → Nghịch chuyển → Lucifugus → Thường'],
       ['Rasiel', 'sách thiên thần, viền vàng; biết trước mọi đòn (tự né); J trang sách đuổi mục tiêu · giữ J bão trang sách · L Định Mệnh: mọi mục tiêu trên màn hình cùng trúng đòn sau 1,2 giây · K Lật trang: hiện sau lưng mục tiêu · U Khải Huyền: 10 cột sáng giáng khắp màn hình; sát thương ×2'],
-      ['Lucifugus', 'bóng tối nghịch thời, tím đen, cánh bóng tối; J đạn bóng tối xuyên · giữ J hố đen hút quái rồi nổ · L Thành Phố Ăn Thời Gian: bóng tối phủ mặt đất 5 giây, trói và hút máu · K Lặn bóng · U Yud Bet: xoá sạch quái trên màn hình, boss mất 15 máu; sát thương ×2']],
+      ['Nghịch chuyển', 'bóng tối nghịch thời, tím đen, cánh bóng tối; J đạn bóng tối xuyên · giữ J hố đen hút quái rồi nổ · L Thành Phố Ăn Thời Gian: bóng tối phủ mặt đất 5 giây, trói và hút máu · K Lặn bóng · U Yud Bet: xoá sạch quái trên màn hình, boss mất 15 máu; sát thương ×2'],
+      ['Lucifugus', 'Ma Vương của White Queen — Yamauchi Sawa, người bạn thân đã chết của Kurumi, ở Lân Giới: quân phục trắng, tóc trắng bạc trong suốt, mắt đồng hồ xanh, kiếm saber, cánh pha lê và đồng hồ Hoàng Đạo. J chém saber · giữ J Đạn Nhân Mã · L Đạn Thiên Bình: đạn địch quay đầu 5 giây · K Đạn Cự Giải: dịch chuyển và che chắn · U Đạn Bọ Cạp: quái thành quân cờ đánh lại đồng bọn, boss mất 10 máu · T Đạn Bảo Bình: hồi đầy mạng; sát thương ×2']],
     passive: 'sắp chết thì tự tua ngược về chỗ đứng 1,5 giây trước (kể cả rơi vực), hồi 15 giây · cheat: mọi chiêu miễn phí, sát thương ×2.',
-    tip: 'Kurumi: J súng kíp · giữ J súng hoả mai · L ngưng đọng thời gian (cả đồng hồ màn chơi cũng dừng) · K Aleph · U Zafkiel · E phân thân · T Dalet · F đổi dạng Rasiel / Lucifugus.' },
+    tip: 'Kurumi: J súng kíp · giữ J súng hoả mai · L ngưng đọng thời gian (cả đồng hồ màn chơi cũng dừng) · K Aleph · U Zafkiel · E phân thân · T Dalet · F đổi dạng Rasiel / Nghịch chuyển / Lucifugus.' },
   luffy: { name: 'Luffy', from: 'One Piece', tag: 'Gear 2/3/4/5, ba loại Haki, mặt đất cao su (cheat)', energy: 'Sức',
     btn: { bolt: ['Đấm', 'Gomu Gomu no Pistol'], web: ['Chiêu', 'Chiêu riêng của Gear'], skill: ['Né', 'Né / phòng thủ'], volt: ['Tuyệt', 'Tuyệt chiêu của Gear'] },
     short: ['Gomu Gomu no Pistol', 'Gomu Gomu no Gatling', 'Gomu Gomu no Rocket', 'Gomu Gomu no Fusen', 'Gomu Gomu no Bazooka'],
@@ -2838,8 +2844,8 @@ function applyChar() {
   document.querySelectorAll('.touch .lf').forEach(el => { el.hidden = CHAR !== 'luffy'; });
   document.querySelectorAll('.touch .ku').forEach(el => { el.hidden = CHAR !== 'kurumi'; });
   document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
-  document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !CH().fly; });
-  document.querySelector('.touch [data-key="jump"]').setAttribute('aria-label', CH().fly ? 'Bay lên' : 'Nhảy');
+  document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !flying(); });
+  document.querySelector('.touch [data-key="jump"]').setAttribute('aria-label', flying() ? 'Bay lên' : 'Nhảy');
   $('energyChip').title = `${u.energy}: ` + u.kit.map(([k, t]) => `${k} ${t}`).join(' · ');
   for (const [k, [label, aria]] of Object.entries(u.btn)) {
     const el = document.querySelector(`.touch [data-key="${k}"]`);
@@ -5628,26 +5634,28 @@ function drawObstacles(x0, x1) {
    · U Zafkiel: 6 phân thân bắn mọi mục tiêu trên màn hình · T Dalet: +1 mạng · F trạng thái Rasiel (bật/tắt): sách thiên thần
    Rasiel mở ra bên cạnh, biết trước mọi đòn (tự né), đạn thành trang sách vàng đuổi mục tiêu, sát thương ×2.
    Nội tại: sắp chết thì tự tua về 1,5 giây trước (kể cả rơi vực), hồi 15 giây. */
-function newKu() { return { shots: [], clones: [], hist: [], clock: 0, bullet: 0, haste: 0, stop: false, form: 'base', rasiel: false, luci: false, holes: [], fate: null, apoc: null, city: null, yud: null, cd: {}, gun: 0 }; }
+function newKu() { return { shots: [], clones: [], hist: [], clock: 0, bullet: 0, haste: 0, stop: false, form: 'base', rasiel: false, inv: false, wq: false, holes: [], fate: null, apoc: null, city: null, yud: null, cd: {}, gun: 0 }; }
 // thời gian đang ngưng đọng: mọi thứ trừ Kurumi đứng yên
 const worldStopped = () => CHAR === 'kurumi' && !!S.ku && S.ku.stop;
-const KU_NUM = { aleph: 1, dalet: 4, zayin: 7, zafkiel: 12, clone: 8, rasiel: 0, fate: 3, apoc: 6, luci: 0, city: 9, yud: 12 };
-const KU_NAME = { aleph: 'Aleph — Đạn thứ nhất', dalet: 'Dalet — Đạn thứ tư', zayin: 'Zayin — Đạn thứ bảy: ngưng đọng thời gian', zafkiel: 'Zafkiel: Thành phố ăn thời gian', clone: 'Phân thân — Bóng tối của Kurumi', rasiel: 'Rasiel — Thiên Thư', fate: 'Rasiel: Định Mệnh', apoc: 'Rasiel: Khải Huyền', luci: 'Lucifugus — Bóng tối nghịch thời', city: 'Thành Phố Ăn Thời Gian', yud: 'Yud Bet — Đạn thứ mười hai' };
+const KU_NUM = { aleph: 1, dalet: 4, zayin: 7, zafkiel: 12, clone: 8, rasiel: 0, fate: 3, apoc: 6, inv: 0, city: 9, yud: 12 };
+const KU_NAME = { aleph: 'Aleph — Đạn thứ nhất', dalet: 'Dalet — Đạn thứ tư', zayin: 'Zayin — Đạn thứ bảy: ngưng đọng thời gian', zafkiel: 'Zafkiel: Thành phố ăn thời gian', clone: 'Phân thân — Bóng tối của Kurumi', rasiel: 'Rasiel — Thiên Thư', fate: 'Rasiel: Định Mệnh', apoc: 'Rasiel: Khải Huyền', inv: 'Nghịch chuyển — Bóng tối nghịch thời', wq: 'Lucifugus — White Queen', sagittarius: 'Đạn Nhân Mã', libra: 'Đạn Thiên Bình: đảo ngược nhân quả', cancer: 'Đạn Cự Giải', scorpio: 'Đạn Bọ Cạp', aquarius: 'Đạn Bảo Bình', city: 'Thành Phố Ăn Thời Gian', yud: 'Yud Bet — Đạn thứ mười hai' };
 function kuClock(kind, t = 1.4) { const K = S.ku; K.clock = t; K.clockMax = t; K.bullet = kind; S.pops.push({ x: S.ball.x, y: S.ball.y - 96, t: 1.4, text: KU_NAME[kind], c: '#ffd36a' }); }
 const kuCd = (k, t) => { const K = S.ku; if (K.cd[k] > 0) return false; K.cd[k] = t; return true; };
 function kuShot(x, y, vx, vy, o = {}) {
-  const k2 = S.ku.rasiel || S.ku.luci ? 2 : 1;   // Rasiel, Lucifugus: sát thương ×2
-  S.ku.shots.push({ x, y, vx, vy, t: 0, life: o.life || .9, r: o.r || 8, dmg: (o.dmg || 1) * k2, big: !!o.big, pierce: !!o.pierce, clone: !!o.clone, page: !!o.page, shadow: !!o.shadow, home: o.home || null, hit: new Set(), trail: [] });
+  const k2 = S.ku.rasiel || S.ku.inv || S.ku.wq ? 2 : 1;   // Rasiel, Nghịch chuyển, Lucifugus: sát thương ×2
+  S.ku.shots.push({ x, y, vx, vy, t: 0, life: o.life || .9, r: o.r || 11, dmg: (o.dmg || 1) * k2, big: !!o.big, pierce: !!o.pierce, clone: !!o.clone, page: !!o.page, shadow: !!o.shadow, wq: !!o.wq, home: o.home || null, hit: new Set(), trail: [] });
 }
 // J: súng kíp ngắn — hai tay thay nhau bắn, mỗi phát có tia lửa nòng
 function kuPistol() {
+  if (S.ku.wq) return kuSaber();
   if (!canAct() || !kuCd('j', .12)) return;
   const b = S.ball, d = b.face || 1, K = S.ku;
   K.gun = .14; K.side = !K.side;
   const t = kkTarget(700), sx = b.x + d * 30, sy = b.y - 42 + (K.side ? -2 : 2);   // nòng súng ngang vai
-  let vx = d * 1150, vy = 0;
-  if (t) { const p = tPos(t), a = Math.atan2(p.y - sy, p.x - sx); vx = Math.cos(a) * 1150; vy = Math.sin(a) * 1150; }
-  kuShot(sx, sy, vx, vy, K.rasiel ? { page: true, home: t, life: 1.2 } : K.luci ? { shadow: true, pierce: true, dmg: 2, life: 1 } : {});
+  let vx = d * 1450, vy = 0;
+  if (t) { const p = tPos(t), a = Math.atan2(p.y - sy, p.x - sx); vx = Math.cos(a) * 1450; vy = Math.sin(a) * 1450; }
+  b.vx -= d * 50;   // giật súng
+  kuShot(sx, sy, vx, vy, K.rasiel ? { page: true, home: t, life: 1.2 } : K.inv ? { shadow: true, pierce: true, dmg: 2, life: 1 } : {});
   K.flash = { x: sx, y: sy, a: Math.atan2(vy, vx), t: .08 };
   sfx('bolt');
 }
@@ -5655,11 +5663,13 @@ function kuPistol() {
 function kuMusket(hold) {
   if (!canAct() || !kuCd('hold', .35)) return;
   if (S.ku.rasiel) return kuPageStorm();
-  if (S.ku.luci) return kuBlackHole(hold);
+  if (S.ku.inv) return kuBlackHole(hold);
+  if (S.ku.wq) return kuSagittarius();
   const b = S.ball, d = b.face || 1, k = chargeK(hold), sx = b.x + d * 48, sy = b.y - 44;
-  kuShot(sx, sy, d * 1500, 0, { life: 1, r: 12 + k * 6, dmg: 3 + (k >= .99 ? 3 : 0), big: true, pierce: true });
+  kuShot(sx, sy, d * 1700, 0, { life: 1, r: 18 + k * 12, dmg: 3 + (k >= .99 ? 3 : 0), big: true, pierce: true });
+  S.flash = Math.max(S.flash, .15);
   S.ku.flash = { x: sx, y: sy, a: d > 0 ? 0 : Math.PI, t: .14, big: true }; S.ku.gun = .3;
-  b.vx -= d * 160;
+  b.vx -= d * 300;   // súng hoả mai giật mạnh
   sfx('kame');
 }
 // L: Zayin — ngưng đọng thời gian, bật/tắt tuỳ ý: quái, boss, đạn đang bay, bẫy, bục đều đứng yên (đạn đứng giữa không trung
@@ -5667,16 +5677,19 @@ function kuMusket(hold) {
 function kuZayin() {
   if (!canAct()) return;
   if (S.ku.rasiel) return kuFate();
-  if (S.ku.luci) return kuDevourCity();
+  if (S.ku.inv) return kuDevourCity();
+  if (S.ku.wq) return kuLibra();
   const K = S.ku;
   K.stop = !K.stop;
+  applyChar();   // hiện/ẩn nút bay xuống
   if (K.stop) { kuClock('zayin', 1.6); sfx('ui'); }
   else { sfx('tele'); kuPop('Thời gian chạy lại'); }
 }
 // K: Aleph — tăng tốc 4 giây, để lại bóng mờ (vẫn xuyên qua boss như mọi nhân vật)
 function kuAleph() {
   if (S.ku.rasiel) return kuPageWarp();
-  if (S.ku.luci) return kuShadowStep();
+  if (S.ku.inv) return kuShadowStep();
+  if (S.ku.wq) return kuCancer();
   const K = S.ku;
   K.haste = 4; kuClock('aleph', 1.2);
   sfx('tele');
@@ -5685,7 +5698,8 @@ function kuAleph() {
 function kuZafkiel() {
   if (!canAct()) return;
   if (S.ku.rasiel) return kuApocalypse();
-  if (S.ku.luci) return kuYudBet();
+  if (S.ku.inv) return kuYudBet();
+  if (S.ku.wq) return kuScorpio();
   if (!kuCd('u', 3)) { sfx('deny'); return; }
   const K = S.ku, b = S.ball;
   kuClock('zafkiel', 2.6);
@@ -5727,6 +5741,7 @@ function kuForesee() {
 // T: Dalet — +1 mạng (hồi 12 giây)
 function kuDalet() {
   if (!canAct()) return;
+  if (S.ku.wq) return kuAquarius();
   if (!kuCd('dalet', 12)) { kuPop(`Dalet hồi ${Math.ceil(S.ku.cd.dalet)} giây`); sfx('deny'); return; }
   const before = S.lives;
   S.lives = Math.min(MAX_LIVES, S.lives + 1); hud();
@@ -5750,8 +5765,9 @@ function updateKurumi(dt) {
   K.clock = Math.max(0, K.clock - dt); K.haste = Math.max(0, K.haste - dt); K.gun = Math.max(0, K.gun - dt);
   if (K.rasiel) K.rasielT = (K.rasielT || 0) + dt;
   updateKuForms(dt);
+  updateWq(dt);
   if (CHAR !== 'kurumi') K.stop = false;
-  if (K.flash && (K.flash.t -= dt) <= 0) K.flash = null;
+  if (K.flash && (K.flash.t -= dt * .7) <= 0) K.flash = null;
   if (K.rewindFx && (K.rewindFx.t -= dt) <= 0) K.rewindFx = null;
   if (CHAR === 'kurumi' && !S.dead) {
     // nhớ vị trí 1,5 giây gần nhất (chỉ những lúc đứng vững) để Dalet tua về
@@ -5773,7 +5789,7 @@ function updateKurumi(dt) {
       else if (t.kind === 'enemy') { t.ref.inv = 0; if (q.dmg >= 3) t.ref.hp = 1; killEnemy(t.ref, '#3a0a14'); }
       else if (t.kind === 'flyer') killFlyer(t.ref);
       else { const T = S.turret; T.hp -= q.dmg; T.flash = .15; if (T.hp <= 0) breakTurret(); }
-      K.hits = (K.hits || []); K.hits.push({ x: p.x, y: p.y, t: .3, big: q.big });
+      K.hits = (K.hits || []); K.hits.push({ x: q.x, y: q.y, t: .3, big: q.big });
       if (!q.pierce) { q.dead = true; break; }
     }
     if (q.t > q.life) q.dead = true;
@@ -5835,12 +5851,13 @@ function drawZafkiel(x, y, r, alpha, lit, inv, back) {
 function drawKuFigure(x, fy, d, o) {
   const run = o.run, air = o.air, ph = o.ph || 0, K = S.ku;
   const gold = !!o.rasiel;
-  const SKIN = '#fbe8e0', SKIN2 = '#e8c4b8', HAIR = '#1a1014', HAIRH = o.luci ? '#6a2ab0' : '#5a1a24', BLK = '#1a1216', BLK2 = '#2e1e26';
-  const luci = !!o.luci;
-  const RED = gold ? '#e8c24a' : luci ? '#7a2ad0' : '#d0202c', RED2 = gold ? '#b8902c' : luci ? '#3a0a6a' : '#8a0a1c', ORA = gold ? '#fff0b0' : luci ? '#c08aff' : '#f2902a';
+  const SKIN = '#fbe8e0', SKIN2 = '#e8c4b8', HAIR = o.wq ? 'rgb(232 238 250 / .88)' : '#1a1014', HAIRH = o.wq ? '#9ab8e8' : o.inv ? '#6a2ab0' : '#5a1a24', BLK = o.wq ? '#f2f4fa' : '#1a1216', BLK2 = o.wq ? '#c8c0e0' : '#2e1e26';
+  const luci = !!o.inv, wq = !!o.wq;
+  const RED = wq ? '#b8a8e8' : gold ? '#e8c24a' : luci ? '#7a2ad0' : '#d0202c', RED2 = wq ? '#7a6ab0' : gold ? '#b8902c' : luci ? '#3a0a6a' : '#8a0a1c', ORA = wq ? '#f6f2ff' : gold ? '#fff0b0' : luci ? '#c08aff' : '#f2902a';
   ctx.save(); ctx.translate(x, fy); ctx.scale(d, 1);
+  if (o.lean) ctx.rotate(o.lean * .12);   // nghiêng người theo hướng bay
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  const t = S.t, sway = Math.sin(t * 5) * (run ? 3 : 1.2), flow = run ? -10 : air ? -4 : -2;
+  const t = S.t, sway = Math.sin(t * (o.float ? 2.6 : 5)) * (run ? 3 : 1.6), flow = run ? -10 : o.float ? -3 - Math.abs(o.lean || 0) * 9 : air ? -4 : -2;
   // ---- bím tóc dài phía sau: bay ra sau, gợn sóng, ánh đỏ ----
   const tail = (sx, sy, len, w, phase) => {
     const pts = [];
@@ -5860,7 +5877,7 @@ function drawKuFigure(x, fy, d, o) {
   tail(-1, -86, 44, 5.2, 1.7);
   tail(1, -84, 36, 3.6, 3.1);
   // ---- chân: tất đen cao quá gối, nịt ren ở đùi trước, giày cao gót đế dày ----
-  const legs = air ? [[-2.6, -.35], [2.6, .45]] : run ? [[-2.2, Math.sin(ph) * .7], [2.2, Math.sin(ph + Math.PI) * .7]] : [[-2.4, -.04], [2.6, .06]];
+  const legs = o.float ? [[-1.6, .3 + (o.lean || 0) * .3], [1.8, .1 + (o.lean || 0) * .3]] : air ? [[-2.6, -.35], [2.6, .45]] : run ? [[-2.2, Math.sin(ph) * .7], [2.2, Math.sin(ph + Math.PI) * .7]] : [[-2.4, -.04], [2.6, .06]];
   legs.forEach(([lx, a], i) => {
     ctx.save(); ctx.translate(lx, -36); ctx.rotate(a);
     ctx.fillStyle = SKIN; ctx.fillRect(-1.9, -2, 3.8, 6);
@@ -5893,7 +5910,7 @@ function drawKuFigure(x, fy, d, o) {
   for (let i = -5; i <= 5; i++) { ctx.beginPath(); ctx.moveTo(i * 4.6 * flare + sk, -29); ctx.lineTo(i * 5.2 * flare + sk, -24.5); ctx.stroke(); }
   // lớp chính: đỏ ở trên chuyển cam rực ở dưới, tối dần hai bên, ba hàng răng cưa đen
   const g = ctx.createLinearGradient(0, -48, 0, -28);
-  g.addColorStop(0, RED); g.addColorStop(.55, gold ? '#f6d880' : luci ? '#9a4ae8' : '#e8541e'); g.addColorStop(1, ORA);
+  g.addColorStop(0, RED); g.addColorStop(.55, wq ? '#dcd2f6' : gold ? '#f6d880' : luci ? '#9a4ae8' : '#e8541e'); g.addColorStop(1, ORA);
   ctx.fillStyle = g; bell(-28.5, 25, 2.4, 11); ctx.fill();
   ctx.save(); bell(-28.5, 25, 2.4, 11); ctx.clip();
   const side = ctx.createLinearGradient(-26, 0, 26, 0);
@@ -5948,6 +5965,11 @@ function drawKuFigure(x, fy, d, o) {
       ctx.fillStyle = '#2a2024'; ctx.fillRect(-.9, len + 1, 1.8, 9);
       ctx.fillStyle = '#6a4220'; ctx.fillRect(-2.2, len - .8, 2.4, 4);
       ctx.fillStyle = '#e8c24a'; ctx.fillRect(-1.1, len + 3.4, 2.2, .9); ctx.fillRect(-1.1, len + 7.4, 2.2, .7);
+    } else if (gun === 'saber') {
+      // kiếm saber: chuôi vàng, lưỡi bạc dài
+      ctx.fillStyle = '#e8c24a'; ctx.fillRect(-2.6, len + .4, 5.2, 1.2);
+      ctx.fillStyle = '#e8eef8'; ctx.strokeStyle = '#8a9ab8'; ctx.lineWidth = .4;
+      ctx.beginPath(); ctx.moveTo(-.9, len + 1.6); ctx.lineTo(.9, len + 1.6); ctx.lineTo(.4, len + 28); ctx.lineTo(-.6, len + 26); ctx.closePath(); ctx.fill(); ctx.stroke();
     } else if (gun === 'musket') {
       ctx.fillStyle = '#6a4220'; ctx.fillRect(-1.6, len - 6, 3.2, 10);
       ctx.fillStyle = '#2a2024'; ctx.fillRect(-1, len + 3, 2, 26);
@@ -5958,6 +5980,7 @@ function drawKuFigure(x, fy, d, o) {
   const aim = K.gun > 0 || o.aim;
   arm(-4, run ? Math.sin(ph + Math.PI) * .5 + .35 : .55, 15, true, null);
   if (o.musket) arm(4.6, -1.57, 14, false, 'musket');
+  else if (o.wq) arm(4.6, aim || (K.slash && K.slash.t > 0) ? -1.5 : .5, 14, false, 'saber');
   else if (aim) arm(4.6, -1.5, 15, false, 'pistol');
   else if (run || air) arm(4.6, Math.sin(ph) * .5 + .2, 15, false, null);
   else arm(4.6, -2.75, 12, false, null);          // tay chạm cằm như poster
@@ -5973,7 +5996,7 @@ function drawKuFigure(x, fy, d, o) {
   ctx.strokeStyle = HAIRH; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(hx - 4, hy - 6); ctx.quadraticCurveTo(hx + 2, hy - 9.6, hx + 7, hy - 5); ctx.stroke();
   // mắt phải đỏ, mắt trái đồng hồ vàng (kim quay), má hồng, miệng cười mỉm
   const ex = hx + 5.2, ey = hy + 1.6;
-  ctx.fillStyle = '#e8c24a'; ctx.strokeStyle = '#7a5a1a'; ctx.lineWidth = .4; ctx.beginPath(); ctx.arc(ex, ey, 1.7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = o.wq ? '#6ab0ff' : '#e8c24a'; ctx.strokeStyle = o.wq ? '#1a4a8a' : '#7a5a1a'; ctx.lineWidth = .4; ctx.beginPath(); ctx.arc(ex, ey, 1.7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();   // White Queen: mắt đồng hồ xanh dương
   ctx.strokeStyle = '#3a2a0a'; ctx.lineWidth = .35; ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.sin(t * 2) * 1.3, ey - Math.cos(t * 2) * 1.3); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.sin(t * .3) * .9, ey - Math.cos(t * .3) * .9); ctx.stroke();
   ctx.fillStyle = '#b0102a'; ctx.beginPath(); ctx.ellipse(hx + 1.6, ey, 1.2, 1.7, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ffffff'; ctx.fillRect(hx + 1.3, ey - 1.1, .6, .6);
@@ -5990,11 +6013,11 @@ function drawKuFigure(x, fy, d, o) {
   for (const off of [0, 1.6]) { ctx.beginPath(); ctx.moveTo(rx - 1, ry + 3); ctx.quadraticCurveTo(rx - 4 + flow * .5 + off, ry + 9, rx - 6 + flow + Math.sin(t * 5 + off) * 1.5, ry + 15 + off); ctx.stroke(); }
   ctx.restore();
 }
-/* ----- Kurumi: ba dạng (F đổi theo vòng Thường → Rasiel → Lucifugus) -----
+/* ----- Kurumi: ba dạng (F đổi theo vòng Thường → Rasiel → Nghịch chuyển) -----
    Rasiel (sách thiên thần, vàng kim): biết trước mọi đòn (tự né) · J trang sách đuổi mục tiêu · giữ J bão trang sách
    · L Định Mệnh: ghi tên mọi mục tiêu trên màn hình vào sách, 1,2 giây sau tất cả cùng trúng đòn · K Lật trang: biến thành
    trang sách, hiện ra sau lưng mục tiêu gần nhất · U Khải Huyền: sách khổng lồ mở trên trời, 10 cột sáng giáng khắp màn hình.
-   Lucifugus (bóng tối, tím đen, cánh bóng tối): J đạn bóng tối xuyên · giữ J hố đen hút quái rồi nổ · L Thành Phố Ăn Thời Gian:
+   Nghịch chuyển (bóng tối, tím đen, cánh bóng tối): J đạn bóng tối xuyên · giữ J hố đen hút quái rồi nổ · L Thành Phố Ăn Thời Gian:
    bóng tối phủ mặt đất 5 giây, trói và hút máu mọi thứ đứng trên đó · K Lặn bóng: chìm vào bóng tối rồi trồi lên phía trước
    · U Yud Bet: đồng hồ quay ngược khổng lồ, xoá sạch quái trên màn hình, boss mất 15 máu. Cả hai dạng sát thương ×2. */
 const KU_FORMS = {
@@ -6002,8 +6025,10 @@ const KU_FORMS = {
     btn: { web: ['Zayin', 'Ngưng đọng thời gian'], skill: ['Aleph', 'Aleph tăng tốc'], volt: ['Zafkiel', 'Zafkiel'] } },
   rasiel: { short: ['trang sách đuổi mục tiêu', 'bão trang sách', 'Định Mệnh: mọi mục tiêu cùng trúng đòn', 'Lật trang: hiện sau lưng mục tiêu', 'Khải Huyền: 10 cột sáng'],
     btn: { web: ['Định', 'Định Mệnh'], skill: ['Lật', 'Lật trang'], volt: ['Khải', 'Khải Huyền'] } },
-  luci: { short: ['đạn bóng tối', 'hố đen', 'Thành Phố Ăn Thời Gian', 'Lặn bóng', 'Yud Bet: xoá sạch màn hình'],
+  inv: { short: ['đạn bóng tối', 'hố đen', 'Thành Phố Ăn Thời Gian', 'Lặn bóng', 'Yud Bet: xoá sạch màn hình'],
     btn: { web: ['Ăn', 'Thành Phố Ăn Thời Gian'], skill: ['Lặn', 'Lặn bóng'], volt: ['Yud', 'Yud Bet'] } },
+  wq: { short: ['chém saber', 'Đạn Nhân Mã', 'Đạn Thiên Bình: đạn địch quay đầu', 'Đạn Cự Giải: dịch chuyển, bảo vệ', 'Đạn Bọ Cạp: biến quái thành quân cờ'],
+    btn: { web: ['Thiên', 'Đạn Thiên Bình'], skill: ['Cự', 'Đạn Cự Giải'], volt: ['Bọ', 'Đạn Bọ Cạp'] } },
 };
 function kuFormUI() {
   const u = CHAR_UI.kurumi, f = KU_FORMS[S.ku.form || 'base'];
@@ -6013,13 +6038,17 @@ function kuFormUI() {
 // F: đổi dạng theo vòng
 function kuRasiel() {
   if (!canAct()) return;
-  const K = S.ku, next = { base: 'rasiel', rasiel: 'luci', luci: 'base' }[K.form || 'base'];
-  K.form = next; K.rasiel = next === 'rasiel'; K.luci = next === 'luci'; K.rasielT = 0;
+  const K = S.ku, next = { base: 'rasiel', rasiel: 'inv', inv: 'wq', wq: 'base' }[K.form || 'base'];
+  K.form = next; K.rasiel = next === 'rasiel'; K.inv = next === 'inv'; K.wq = next === 'wq'; K.rasielT = 0;
   if (next === 'rasiel') { kuClock('rasiel', 1.4); sfx('ui'); S.flash = Math.max(S.flash, .4); }
-  else if (next === 'luci') {
-    kuClock('luci', 1.6); sfx('roar'); S.flash = Math.max(S.flash, .4);
+  else if (next === 'inv') {
+    kuClock('inv', 1.6); sfx('roar'); S.flash = Math.max(S.flash, .4);
     const b = S.ball;
     for (let i = 0; i < 40; i++) { const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 300; S.parts.push({ x: b.x, y: b.y - 30, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .8, c: ['#2a0a3a', '#7a2ad0', '#c08aff'][i % 3], r: 4 + Math.random() * 6, g: 0 }); }
+  } else if (next === 'wq') {
+    kuClock('wq', 1.8); sfx('ui'); S.flash = Math.max(S.flash, .5);
+    const b = S.ball;
+    for (let i = 0; i < 40; i++) { const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 300; S.parts.push({ x: b.x, y: b.y - 30, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .8, c: ['#ffffff', '#cfe4ff', '#9ab8e8'][i % 3], r: 4 + Math.random() * 6, g: 0 }); }
   } else { sfx('dash'); kuPop('Trở lại dạng thường'); }
   applyChar();
 }
@@ -6046,7 +6075,7 @@ function kuApocalypse() {
   S.ku.apoc = { t: 0, x0: S.cam.x + 60, hits: Array.from({ length: 10 }, () => new Set()) };
   kuClock('apoc', 2); sfx('ui'); S.flash = Math.max(S.flash, .3);
 }
-/* Lucifugus */
+/* Nghịch chuyển */
 function kuBlackHole(hold) {
   const b = S.ball, k = chargeK(hold), tg = nkTargets(b.x, b.y, 800, 1)[0], d = tg ? Math.sign(tPos(tg).x - b.x) || 1 : b.face || 1;
   S.ku.holes.push({ x: b.x + d * 50, y: b.y - 30, vx: d * 260, t: 0, life: 1.6, r: 30 + k * 30, pull: 230 + k * 80, tg });
@@ -6152,7 +6181,7 @@ function updateKuForms(dt) {
   for (const k of ['sinkFx', 'riseFx']) if (K[k] && (K[k].t -= dt) <= 0) K[k] = null;
   if (K.warpFx) { for (const w of K.warpFx) w.t -= dt; K.warpFx = K.warpFx.filter(w => w.t > 0); }
 }
-// cánh bóng tối rách của Lucifugus: vỗ chậm, viền tím
+// cánh bóng tối rách của Nghịch chuyển: vỗ chậm, viền tím
 function drawLuciWings(x, y, d) {
   const flap = Math.sin(S.t * 3) * .18;
   for (const s of [-1, 1]) {
@@ -6246,21 +6275,186 @@ function drawKuFormsFx() {
     }
   }
 }
+/* ----- Lucifugus: Ma Vương của White Queen (Date A Bullet) — nhân cách Yamauchi Sawa, người bạn thân đã chết của Kurumi,
+   xuất hiện ở Lân Giới. Quân phục trắng, váy đổ bóng tím nhạt, bím tóc trắng bạc trong suốt, mắt đồng hồ xanh dương, kiếm saber
+   và súng; Lucifugus dang cánh trong suốt sau lưng cùng đồng hồ thiên văn mười hai cung Hoàng Đạo. Bộ chiêu là các viên đạn
+   Hoàng Đạo (sát thương ×2): J chém saber · giữ J Đạn Nhân Mã (3 viên bạc đuổi mục tiêu) · L Đạn Thiên Bình (đảo ngược nhân quả:
+   đạn của địch quay đầu bắn lại địch, 5 giây) · K Đạn Cự Giải (bẻ cong không-thời gian: bảo vệ và dịch chuyển) · U Đạn Bọ Cạp
+   (đánh dấu quái thành quân cờ đánh lại đồng bọn, boss mất 10 máu) · T Đạn Bảo Bình (hồi đầy mạng). */
+const ZODIAC = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'];
+const WQ_SIGN = { saber: 0, sagittarius: 8, libra: 6, cancer: 3, scorpio: 7, aquarius: 10, wq: 11 };
+// J: chém kiếm saber — vệt chém bạc hình lưỡi liềm trước mặt
+function kuSaber() {
+  if (!canAct() || !kuCd('j', .22)) return;
+  const K = S.ku, b = S.ball, d = b.face || 1, cx = b.x + d * 50, cy = b.y - 30;
+  K.slash = { x: cx, y: cy, d, t: .22, up: !K.slash || !K.slash.up };
+  for (const t of nkTouch(cx, cy, 70)) kuHit(t, 4, b, false);
+  K.gun = .2; sfx('slash');
+}
+// giữ J: Đạn Nhân Mã — ba viên đạn bạc tự đuổi ba mục tiêu
+function kuSagittarius() {
+  const K = S.ku, b = S.ball, d = b.face || 1, T = nkTargets(b.x, b.y, 900, 3);
+  for (let i = 0; i < 3; i++) kuShot(b.x + d * 30, b.y - 42 + (i - 1) * 10, d * 900, (i - 1) * 160, { wq: true, home: T[i % Math.max(1, T.length)] || null, dmg: 3, pierce: true, life: 1.4, r: 9 });
+  kuClock('sagittarius', 1.2); K.gun = .3; sfx('kame');
+}
+// L: Đạn Thiên Bình — 5 giây đảo ngược nhân quả: mọi viên đạn của địch trên màn hình (và bay tới sau đó) quay đầu bắn địch
+function kuLibra() {
+  if (!canAct()) return;
+  if (!kuCd('libra', 7)) { sfx('deny'); return; }
+  S.ku.libra = 5; kuClock('libra', 1.6); sfx('ui');
+}
+function libraReflect() {
+  const b = S.ball, x0 = S.cam.x - 40, x1 = S.cam.x + viewW + 40;
+  for (const arr of [S.bullets, S.eshots, S.tshots]) for (const q of arr) {
+    if (q.dead || q.alive === false || q.x < x0 || q.x > x1) continue;
+    q.dead = true; q.alive = false;
+    const t = nkTargets(q.x, q.y, 1200, 1)[0];
+    let vx = -(q.vx || 0), vy = -(q.vy || 0);
+    if (t) { const p = tPos(t), a = Math.atan2(p.y - q.y, p.x - q.x); vx = Math.cos(a) * 900; vy = Math.sin(a) * 900; }
+    kuShot(q.x, q.y, vx, vy, { wq: true, dmg: 2, life: 1.4, home: t || null });
+    boltSpark(q.x, q.y, '#9ad0ff', 6);
+  }
+}
+// K: Đạn Cự Giải — bẻ cong không-thời gian: dịch chuyển lên phía trước, được bảo vệ 2,5 giây
+function kuCancer() {
+  const K = S.ku, b = S.ball, d = b.face || 1;
+  K.warpRing = { x: b.x, y: b.y, t: .5 };
+  b.x += d * 200; b.vx = 0; b.vy = Math.min(b.vy, 0);
+  K.cancer = 2.5; kuClock('cancer', 1.2); sfx('tele');
+}
+// U: Đạn Bọ Cạp — đánh dấu mọi quái trên màn hình thành quân cờ (đánh lại đồng bọn 8 giây rồi tan biến); boss mất 10 máu, choáng 3 giây
+function kuScorpio() {
+  if (!kuCd('scorpio', 6)) { sfx('deny'); return; }
+  const x0 = S.cam.x - 40, x1 = S.cam.x + viewW + 40;
+  for (const e of S.enemies) if (e.alive && e.x > x0 && e.x < x1) { e.rook = 8; e.stun = 0; e.bub = 0; }
+  for (const f of S.flyers) if (f.alive && f.x > x0 && f.x < x1) killFlyer(f);
+  const B = S.boss;
+  if (bossOpen()) { const u = B.units[0]; if (u.x > x0 && u.x < x1) { kuHit({ ref: u, kind: 'boss' }, 10, { x: u.x, y: u.y }, true); if (!B.dead && !B.cut && !B.fuse && !B.trans) { B.stun = Math.max(B.stun, 3); B.act = null; } } }
+  kuClock('scorpio', 1.8); S.flash = Math.max(S.flash, .3); sfx('charge');
+}
+// T: Đạn Bảo Bình — hồi đầy mạng (hồi 20 giây)
+function kuAquarius() {
+  if (!canAct()) return;
+  if (!kuCd('aquarius', 20)) { kuPop(`Đạn Bảo Bình hồi ${Math.ceil(S.ku.cd.aquarius)} giây`, '#9ad0ff'); sfx('deny'); return; }
+  S.lives = MAX_LIVES; hud();
+  S.ku.aqua = 1; kuClock('aquarius', 1.4); sfx('whistle');
+  kuPop('Đạn Bảo Bình: hồi đầy mạng', '#9ad0ff');
+}
+// quái bị Đạn Bọ Cạp biến thành quân cờ: lao vào hạ đồng bọn gần nhất, không làm hại bạn
+function rookMob(e, dt) {
+  e.rook -= dt;
+  if (e.rook <= 0) { e.alive = false; e.squash = 0; boltSpark(e.x, e.f(e.x) - 20, '#9ad0ff', 14); return; }
+  let best = null, bd = 1e9;
+  for (const o of S.enemies) if (o.alive && o !== e && !(o.rook > 0)) { const dd = Math.abs(o.x - e.x); if (dd < bd && o.x >= e.min - 40 && o.x <= e.max + 40) { bd = dd; best = o; } }
+  if (!best) return;
+  e.dir = Math.sign(best.x - e.x) || e.dir;
+  e.x = clamp(e.x + e.dir * ENEMY_SPEED * 2 * dt, Math.min(e.min, best.x), Math.max(e.max, best.x));
+  if (Math.abs(best.x - e.x) < 34) { e.atk = .3; kuHit({ ref: best, kind: 'enemy' }, 9, S.ball, true); }
+}
+function updateWq(dt) {
+  const K = S.ku;
+  if (K.slash && (K.slash.t -= dt) <= 0) K.slash = null;
+  if (K.warpRing && (K.warpRing.t -= dt) <= 0) K.warpRing = null;
+  K.cancer = Math.max(0, (K.cancer || 0) - dt);
+  K.aqua = Math.max(0, (K.aqua || 0) - dt);
+  if (K.libra > 0) { K.libra -= dt; libraReflect(); }
+}
+// đồng hồ thiên văn của Lucifugus: vòng bạc xanh, mười hai cung Hoàng Đạo, vòng răng cưa quay ngược nhau, cung đang dùng sáng lên
+function drawZodiacClock(x, y, r, alpha, lit) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
+  const g = ctx.createRadialGradient(0, 0, r * .2, 0, 0, r * 1.25);
+  g.addColorStop(0, 'rgb(150 200 255 / .3)'); g.addColorStop(1, 'rgb(150 200 255 / 0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 1.25, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgb(230 238 255 / .25)'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  for (const [rr, w, c] of [[.96, .05, '#c8d8f0'], [.96, .015, '#ffffff'], [.6, .02, '#9ab8e8']]) { ctx.strokeStyle = c; ctx.lineWidth = r * w; ctx.beginPath(); ctx.arc(0, 0, r * rr, 0, Math.PI * 2); ctx.stroke(); }
+  for (const [rr, sp, n] of [[.8, .4, 36], [.5, -.7, 24]]) {
+    ctx.save(); ctx.rotate(S.t * sp); ctx.strokeStyle = 'rgb(154 184 232 / .8)'; ctx.lineWidth = r * .012;
+    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * rr, Math.sin(a) * r * rr); ctx.lineTo(Math.cos(a) * r * (rr + .04), Math.sin(a) * r * (rr + .04)); ctx.stroke(); }
+    ctx.restore();
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `${Math.round(r * .14)}px "Segoe UI Symbol", "Noto Sans Symbols", serif`;
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2, on = i === lit;
+    ctx.fillStyle = on ? '#4ab0ff' : '#e8f0ff';
+    if (on) { ctx.shadowColor = '#4ab0ff'; ctx.shadowBlur = r * .15; }
+    ctx.fillText(ZODIAC[i], Math.sin(a) * r * .7, -Math.cos(a) * r * .7);
+    ctx.shadowBlur = 0;
+  }
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = r * .02;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(S.t * .5) * r * .45, -Math.cos(S.t * .5) * r * .45); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(S.t * 3) * r * .75, -Math.cos(S.t * 3) * r * .75); ctx.stroke();
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+// cánh Lucifugus: những phiến pha lê trong suốt màu nhạt xếp như lông vũ, viền trắng, ánh xanh
+function drawWqWings(x, y, d) {
+  const flap = Math.sin(S.t * 2) * .1;
+  for (const s of [-1, 1]) {
+    ctx.save(); ctx.translate(x - d * 3, y); ctx.scale(s, 1); ctx.rotate(-.35 + flap * s);
+    for (let i = 0; i < 6; i++) {
+      const len = 46 + i * 9, a = -.15 + i * .2;
+      ctx.save(); ctx.rotate(a);
+      const g = ctx.createLinearGradient(0, 0, len, 0);
+      g.addColorStop(0, 'rgb(230 240 255 / .55)'); g.addColorStop(1, 'rgb(170 200 255 / .15)');
+      ctx.fillStyle = g; ctx.strokeStyle = 'rgb(255 255 255 / .75)'; ctx.lineWidth = .8;
+      ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(len * .55, -7); ctx.lineTo(len, 0); ctx.lineTo(len * .55, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+function drawWqFx() {
+  const K = S.ku;
+  // vệt chém saber
+  if (K.slash) {
+    const sl = K.slash, k = 1 - sl.t / .22;
+    ctx.save(); ctx.translate(sl.x, sl.y); ctx.scale(sl.d, sl.up ? 1 : -1);
+    ctx.strokeStyle = `rgb(220 235 255 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.arc(-20, 0, 56, -1.1 + k * .4, 1 + k * .4); ctx.stroke();
+    ctx.strokeStyle = `rgb(120 180 255 / ${(.7 * (1 - k)).toFixed(2)})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(-20, 0, 64, -1, 1.1); ctx.stroke();
+    ctx.restore();
+  }
+  // Thiên Bình: cán cân trong suốt quanh người, mũi tên đảo chiều
+  if (K.libra > 0) {
+    const b = S.ball, a = Math.min(1, K.libra / .5);
+    ctx.strokeStyle = `rgb(154 208 255 / ${(.6 * a).toFixed(2)})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(b.x, b.y - 30, 70, 0, Math.PI * 2); ctx.stroke();
+    ctx.save(); ctx.translate(b.x, b.y - 110); ctx.globalAlpha = a;
+    ctx.strokeStyle = '#e8f0ff'; ctx.lineWidth = 2; const tilt = Math.sin(S.t * 2) * .2;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 18); ctx.moveTo(-22 * Math.cos(tilt), -22 * Math.sin(tilt)); ctx.lineTo(22 * Math.cos(tilt), 22 * Math.sin(tilt)); ctx.stroke();
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(s * 22 * Math.cos(tilt), s * 22 * Math.sin(tilt) + 6, 6, 0, Math.PI); ctx.stroke(); }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  // Cự Giải: không gian gợn sóng quanh người, vòng xoáy ở chỗ dịch chuyển đi
+  if (K.cancer > 0) {
+    const b = S.ball;
+    for (let i = 0; i < 3; i++) { ctx.strokeStyle = `rgb(170 210 255 / ${(.5 - i * .12).toFixed(2)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(b.x, b.y - 30, 36 + i * 8 + Math.sin(S.t * 8 + i) * 3, 56 + i * 8, 0, 0, Math.PI * 2); ctx.stroke(); }
+  }
+  if (K.warpRing) { const w = K.warpRing, k = 1 - w.t / .5; ctx.strokeStyle = `rgb(220 235 255 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(w.x, w.y - 20, 20 + k * 60, S.t * 6, S.t * 6 + 5); ctx.stroke(); }
+  // quân cờ của Đạn Bọ Cạp: dấu Bọ Cạp xanh trên đầu, viền xanh quanh người
+  for (const e of S.enemies) if (e.alive && e.rook > 0) {
+    const gy = e.f(e.x);
+    ctx.strokeStyle = 'rgb(74 176 255 / .8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(e.x, gy - 22, 24, 30, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = '20px "Segoe UI Symbol", "Noto Sans Symbols", serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#4ab0ff'; ctx.fillText('♏', e.x, gy - 84);
+  }
+  // Bảo Bình: dòng nước sáng xoáy lên quanh người
+  if (K.aqua > 0) { const b = S.ball; for (let i = 0; i < 10; i++) { const a = S.t * 6 + i * .63, h = (1 - K.aqua) * 90; ctx.fillStyle = 'rgb(150 210 255 / .7)'; ctx.beginPath(); ctx.arc(b.x + Math.cos(a) * 30, b.y + 20 - h - i * 6, 3, 0, Math.PI * 2); ctx.fill(); } }
+}
 function drawKurumi(b, charged) {
-  const K = S.ku, d = b.face || 1, air = !S.onGround, run = !air && Math.abs(b.vx) > 30, fy = b.y + R - 2;
+  const K = S.ku, d = b.face || 1, air = true, hover = 10 + Math.sin(S.t * 2.2) * 4, lean = clamp(b.vx / 450, -1, 1) * d, fy = b.y + R - 2 - hover;   // lơ lửng, không chạy bộ
   // Zafkiel sau lưng khi vừa dùng một viên đạn
-  if (K.clock > 0) { const k = K.clock / K.clockMax, r = K.bullet === 'zafkiel' ? 150 : 70; drawZafkiel(b.x, b.y - (K.bullet === 'zafkiel' ? 80 : 44), r * (1.15 - k * .15), Math.min(1, k * 2.5) * .9, KU_NUM[K.bullet], K.luci); }
-  if (K.luci) {
-    // Lucifugus: hào quang tím đen bốc lên, cánh bóng tối sau lưng
+  if (K.clock > 0) { const k = K.clock / K.clockMax, r = K.bullet === 'zafkiel' ? 150 : 70; if (K.wq) drawZodiacClock(b.x, b.y - 54, r * (1.15 - k * .15), Math.min(1, k * 2.5) * .9, WQ_SIGN[K.bullet] ?? -1); else drawZafkiel(b.x, b.y - (K.bullet === 'zafkiel' ? 80 : 44), r * (1.15 - k * .15), Math.min(1, k * 2.5) * .9, KU_NUM[K.bullet], K.inv); }
+  if (K.inv) {
+    // Nghịch chuyển: hào quang tím đen bốc lên, cánh bóng tối sau lưng
     ctx.fillStyle = 'rgb(60 10 100 / .25)'; ctx.beginPath(); ctx.ellipse(b.x, b.y - 24, 34, 60, 0, 0, Math.PI * 2); ctx.fill();
     drawLuciWings(b.x, b.y - 46, d);
   }
+  if (K.wq) drawWqWings(b.x, b.y - 48, d);   // Lucifugus dang cánh pha lê sau lưng
   // Aleph: bóng mờ đỏ đen kéo theo
-  if (K.trail) for (const p of K.trail) { ctx.globalAlpha = p.t / .25 * .45; drawKuFigure(p.x, p.y + R - 2, p.face, { run: true, air, ph: b.run }); }
+  if (K.trail) for (const p of K.trail) { ctx.globalAlpha = p.t / .25 * .45; drawKuFigure(p.x, p.y + R - 12, p.face, { float: true, air: true, lean: .8, inv: K.inv, wq: K.wq, rasiel: K.rasiel }); }
   ctx.globalAlpha = 1;
   if (K.haste > 0) { ctx.strokeStyle = `rgb(255 60 90 / ${(.4 + .3 * Math.sin(S.t * 20)).toFixed(2)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(b.x, b.y - 26, 24, 52, 0, 0, Math.PI * 2); ctx.stroke(); }
-  if (K.rasiel) drawRasielCircle(b.x, fy);
-  drawKuFigure(b.x, fy, d, { run, air, ph: b.run, musket: S.charging && S.chargeT > BALL_HOLD && !K.rasiel && !K.luci, aim: S.charging, rasiel: K.rasiel, luci: K.luci });
+  if (K.rasiel) drawRasielCircle(b.x, fy + hover);
+  drawKuFigure(b.x, fy, d, { run: false, air, float: true, lean, ph: b.run, musket: S.charging && S.chargeT > BALL_HOLD && !K.rasiel && !K.inv && !K.wq, aim: S.charging, rasiel: K.rasiel, inv: K.inv, wq: K.wq });
   if (K.rasiel) drawRasielBook(b.x - d * 34, b.y - 66 + Math.sin(S.t * 2.4) * 5, d);
 }
 // Rasiel: vòng phép vàng dưới chân, vạch chữ cổ xoay ngược chiều nhau
@@ -6303,6 +6497,7 @@ function drawKurumiFx() {
   const K = S.ku;
   if (!K) return;
   drawKuFormsFx();
+  drawWqFx();
   // Zayin: thời gian ngưng đọng — thế giới ngả màu sepia, sóng đồng hồ lan ra, vòng kim giờ quanh mọi thứ đang đứng yên
   if (K.stop) {
     ctx.fillStyle = 'rgb(120 90 60 / .24)'; ctx.fillRect(S.cam.x, S.cam.y, viewW, VIEW_H);
@@ -6328,18 +6523,28 @@ function drawKurumiFx() {
     ctx.fillStyle = `rgb(20 0 10 / ${(.6 * fade).toFixed(2)})`; ctx.beginPath(); ctx.ellipse(c.x, c.y + 2, 26, 6, 0, 0, Math.PI * 2); ctx.fill();
     ctx.save(); ctx.beginPath(); ctx.rect(c.x - 50, c.y - 116, 100, 118); ctx.clip();
     ctx.globalAlpha = fade;
-    drawKuFigure(c.x, c.y + (1 - rise) * 100, c.face, { aim: c.flash > 0 || c.shots > 0 });
+    drawKuFigure(c.x, c.y - 8 + (1 - rise) * 100, c.face, { aim: c.flash > 0 || c.shots > 0, float: true, air: true });
     ctx.restore(); ctx.globalAlpha = 1;
     if (c.flash > 0) { ctx.fillStyle = '#fff0b0'; starPath(c.x + c.face * 28, c.y - 64, 7); ctx.fill(); }
   }
-  // đạn: vệt sáng đỏ vàng, đạn hoả mai có quầng bóng tối
+  // đạn: cộng sáng nhiều lớp — quầng lửa đỏ cam, lõi trắng, đuôi dài rực; đạn hoả mai đỏ thẫm có vòng sóng xung kích
   for (const q of K.shots) {
-    for (let i = 0; i < q.trail.length; i++) {
-      const p = q.trail[i], k = 1 - i / q.trail.length;
-      ctx.fillStyle = q.big ? `rgb(140 10 40 / ${(.5 * k).toFixed(2)})` : q.page ? `rgb(255 240 170 / ${(.4 * k).toFixed(2)})` : q.shadow ? `rgb(90 20 160 / ${(.5 * k).toFixed(2)})` : `rgb(255 200 90 / ${(.45 * k).toFixed(2)})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, q.r * (.4 + .6 * k), 0, Math.PI * 2); ctx.fill();
+    if (!q.page && !q.wq) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const col = q.shadow ? [150, 60, 255] : q.big ? [255, 30, 70] : q.clone ? [255, 90, 150] : [255, 110, 30];
+      for (let i = 0; i < q.trail.length; i++) {
+        const p = q.trail[i], k = 1 - i / q.trail.length;
+        ctx.fillStyle = `rgb(${col[0]} ${col[1]} ${col[2]} / ${(.55 * k).toFixed(2)})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, q.r * (.35 + .75 * k), 0, Math.PI * 2); ctx.fill();
+      }
+      const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, q.r * (q.big ? 2.8 : 2.2));
+      g.addColorStop(0, 'rgb(255 255 255 / 1)'); g.addColorStop(.25, q.shadow ? 'rgb(210 170 255 / .95)' : 'rgb(255 230 120 / .95)');
+      g.addColorStop(.55, `rgb(${col[0]} ${col[1]} ${col[2]} / .7)`); g.addColorStop(1, `rgb(${col[0]} ${col[1]} ${col[2]} / 0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * (q.big ? 2.8 : 2.2), 0, Math.PI * 2); ctx.fill();
+      if (q.big) { ctx.strokeStyle = 'rgb(255 80 110 / .6)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * 1.6 + Math.sin(q.t * 40) * 4, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+      continue;
     }
-    if (q.big) { ctx.fillStyle = 'rgb(30 0 12 / .6)'; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * 1.6, 0, Math.PI * 2); ctx.fill(); }
     if (q.page) {
       ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(Math.atan2(q.vy, q.vx) + S.t * 6);
       ctx.fillStyle = '#fff8e4'; ctx.strokeStyle = '#e8c24a'; ctx.lineWidth = 1.2; ctx.fillRect(-6, -8, 12, 16); ctx.strokeRect(-6, -8, 12, 16);
@@ -6347,23 +6552,36 @@ function drawKurumiFx() {
       ctx.restore();
       continue;
     }
-    if (q.shadow) { ctx.fillStyle = 'rgb(20 4 30 / .7)'; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * 1.5, 0, Math.PI * 2); ctx.fill(); }
-    ctx.fillStyle = q.big ? '#ff3b5c' : q.clone ? '#ffb0c0' : q.shadow ? '#c08aff' : '#ffd36a'; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * .7, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * .32, 0, Math.PI * 2); ctx.fill();
+    if (q.wq) {
+      // đạn Hoàng Đạo: mũi bạc xanh dài, đuôi sáng
+      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(Math.atan2(q.vy, q.vx));
+      ctx.fillStyle = 'rgb(154 208 255 / .45)'; ctx.beginPath(); ctx.ellipse(-8, 0, 18, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e8f0ff'; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-6, -3); ctx.lineTo(-6, 3); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      continue;
+    }
   }
   // lửa nòng súng: ngôi sao vàng trắng
   const F = K.flash;
   if (F) {
     ctx.save(); ctx.translate(F.x, F.y); ctx.rotate(F.a);
-    ctx.fillStyle = 'rgb(255 220 120 / .8)'; ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(F.big ? 34 : 18, 0); ctx.lineTo(0, 5); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#ffffff'; starPath(2, 0, F.big ? 10 : 6); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';
+    const L = F.big ? 72 : 36, W = F.big ? 12 : 7;
+    ctx.fillStyle = 'rgb(255 120 30 / .7)'; ctx.beginPath(); ctx.moveTo(0, -W); ctx.lineTo(L, 0); ctx.lineTo(0, W); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgb(255 240 160 / .95)'; ctx.beginPath(); ctx.moveTo(0, -W * .5); ctx.lineTo(L * .7, 0); ctx.lineTo(0, W * .5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffffff'; starPath(4, 0, F.big ? 18 : 10); ctx.fill();
+    ctx.strokeStyle = 'rgb(255 200 120 / .8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(6, 0, F.big ? 10 : 6, F.big ? 22 : 13, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
   // trúng đích: vòng nổ nhỏ có kim đồng hồ
   if (K.hits) for (const h of K.hits) {
     const k = 1 - h.t / .3;
-    ctx.strokeStyle = h.big ? `rgb(255 59 92 / ${(1 - k).toFixed(2)})` : `rgb(255 211 106 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(h.x, h.y, 8 + k * (h.big ? 30 : 16), 0, Math.PI * 2); ctx.stroke();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = h.big ? `rgb(255 40 80 / ${(.6 * (1 - k)).toFixed(2)})` : `rgb(255 170 60 / ${(.55 * (1 - k)).toFixed(2)})`; ctx.beginPath(); ctx.arc(h.x, h.y, (h.big ? 34 : 20) * (1 - k * .5), 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = h.big ? `rgb(255 80 110 / ${(1 - k).toFixed(2)})` : `rgb(255 220 120 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(h.x, h.y, 10 + k * (h.big ? 56 : 30), 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + h.x; ctx.beginPath(); ctx.moveTo(h.x + Math.cos(a) * 8, h.y + Math.sin(a) * 8); ctx.lineTo(h.x + Math.cos(a) * (14 + k * (h.big ? 50 : 28)), h.y + Math.sin(a) * (14 + k * (h.big ? 50 : 28))); ctx.stroke(); }
+    ctx.restore();
   }
   // Dalet: vệt tua ngược — vòng đồng hồ quay ngược ở chỗ cũ
   if (K.rewindFx) { const k = K.rewindFx.t / .5; drawZafkiel(K.rewindFx.x, K.rewindFx.y - 10, 40, k, 4); }
