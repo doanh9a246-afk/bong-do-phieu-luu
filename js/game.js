@@ -348,6 +348,7 @@ function reset() {
   $('tsBanner').hidden = true;
   $('hint').classList.remove('gone');
   hud();
+  if (CHAR === 'saiyan') applyChar();   // chơi lại: Xayda về hình người
 }
 
 /* ---------- Điều khiển ---------- */
@@ -629,7 +630,7 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
     return;
   }
   S.dead = .9; S.deaths++; if (!TEST_MODE) S.lives--;
-  if (S.sx.blue) { S.sx.blue = false; S.sx.beam = null; }   // mất mạng thì hết Super Saiyan Blue
+  if (S.sx.blue) { S.sx.blue = false; S.sx.beam = null; applyChar(); }   // mất mạng thì hết Super Saiyan Blue
   sfx('hurt');
   const b = S.ball;
   for (let i = 0; i < 26; i++) {
@@ -1281,6 +1282,7 @@ function whistle() {
   S.pops.push({ x: S.ball.x, y: S.ball.y - 60, t: 1, text: S.lives > before ? 'Huýt sáo: +1 mạng' : 'Huýt sáo: đầy mạng', c: '#ff6b81' });
 }
 function selfDestruct() {
+  if (S.sx.blue) return ssbFinalFlash();   // Super Saiyan Blue: O là Final Flash
   if (!canAct() || S.boom > 0) return;
   if (S.energy < 50) { S.pops.push({ x: S.ball.x, y: S.ball.y - 50, t: .8, text: `Tự phát nổ cần 50 KI (${Math.floor(S.energy)}/50)`, c: '#fff27a' }); sfx('deny'); return; }
   S.energy = 0; S.boom = 1.5;
@@ -2677,17 +2679,17 @@ const CHAR_UI = {
     tip: 'Stelle (hack): J Farewell Hit · giữ J RIP Home Run · L khiên Hổ Phách · Shift lao gậy · U Stardust Ace. Nhảy 3 lần, sát thương ×2, mọi chiêu miễn phí.' },
   saiyan: { name: 'Xayda', from: 'Ngọc Rồng Online', tag: 'Hành tinh Xayda: Biến Khỉ vĩnh viễn, học chiêu của quái', energy: 'KI', locked: true,
     btn: { bolt: ['Đấm', 'Đấm Galick'], web: ['Trói', 'Trói / Dậm đất'], skill: ['Khiên', 'Khiên năng lượng'], volt: ['Khỉ', 'Biến Khỉ (bật/tắt)'] },
-    short: ['Đấm Galick', 'Antomic', 'Trói (khỉ: Dậm đất)', 'Khiên năng lượng', 'Biến Khỉ bật/tắt'],
-    more: ' · <kbd>H</kbd> Tái tạo năng lượng (khỉ: Trói) · <kbd>I</kbd> Huýt sáo · <kbd>O</kbd> Tự phát nổ · <kbd>Y</kbd> chiêu học từ quái · <kbd>T</kbd> đổi chiêu học',
+    short: ['Đấm Galick', 'Antomic', 'Trói', 'Khiên năng lượng', 'Biến Khỉ'],
+    more: ' · <kbd>H</kbd> Tái tạo năng lượng (khỉ: Trói) · <kbd>I</kbd> Huýt sáo · <kbd>O</kbd> Tự phát nổ (Blue: Final Flash) · <kbd>Y</kbd> chiêu học từ quái · <kbd>T</kbd> đổi chiêu học',
     moreTap: ' · Hồi · Sáo · Nổ · Học · Đổi',
     kit: [['J', 'Đấm Galick (1 KI). Khỉ: lao tới đấm, luồng gió đấm bay xa'], ['Giữ J', 'Antomic (15). Khỉ: Antomic khổng lồ đuổi theo mục tiêu'],
       ['L', 'Trói quái và boss (25). Khỉ: Dậm đất — sóng chấn động chạy ra hai bên'], ['Shift', 'Khiên năng lượng 3 giây (20), hồi 10 giây; khỉ hồi 5 giây'],
-      ['U', 'Biến Khỉ cấp 7 vĩnh viễn, bấm lại để trở về người. Khỉ có 5 máu khỉ chịu đòn thay, sát thương ×2, chạm là hạ quái; khỉ bị đánh bại (hết máu khỉ) thì hoá SUPER SAIYAN BLUE'],
-      ['Super Saiyan Blue', 'tóc xanh, bộ chiêu cheat (miễn phí, sát thương ×2): J Bắn KI liên hoàn · giữ J Galick Gun · L Big Bang Attack · Shift Khiên hồi 1 giây · U Final Flash. Mất mạng thì trở lại bình thường'],
+      ['U', 'Đổi dạng theo vòng: Người → Khỉ cấp 7 → SUPER SAIYAN BLUE → Người. Khỉ vĩnh viễn, có 5 máu khỉ chịu đòn thay, sát thương ×2, chạm là hạ quái; khỉ bị đánh bại cũng tự hoá Super Saiyan Blue'],
+      ['Super Saiyan Blue', 'tóc xanh, hào quang xanh, bộ chiêu cheat (miễn phí, sát thương ×2): J Bắn KI liên hoàn · giữ J Galick Gun · L Big Bang Attack · Shift Khiên hồi 1 giây · O Final Flash. Bấm U hoặc mất mạng thì trở lại người'],
       ['H', 'Giữ: tái tạo năng lượng. Khỉ: Trói'], ['I', 'Huýt sáo: +1 mạng, hồi 45 giây'], ['O', 'Tự phát nổ (50 KI). Khỉ nổ rộng gấp rưỡi, 20 sát thương lên boss'],
       ['Y / T', 'Hạ loại quái nào là học chiêu của loại đó (máy nhớ mãi): Y dùng chiêu đang chọn, T đổi chiêu']],
     passive: 'chiêu học được: quái vuông → Húc · dơi → Dơi bổ nhào · ma lửa → Cầu lửa xuyên · chim băng → Mưa cột băng · ụ băng → Đạn băng · Khủng long → Cắn · Lợn lòi → Lao húc · Quỷ đất → Ném đá.',
-    tip: 'Xayda: U Biến Khỉ (bật/tắt) · khỉ: J Galick · giữ J Antomic khổng lồ · L Dậm đất · H Trói · Shift Khiên · O Tự phát nổ. Khỉ bị đánh bại thì hoá Super Saiyan Blue. Hạ quái để học chiêu: Y dùng, T đổi.' },
+    tip: 'Xayda: U đổi dạng Người → Khỉ → Super Saiyan Blue · khỉ: J Galick · giữ J Antomic khổng lồ · L Dậm đất · H Trói · Blue: J KI · giữ J Galick Gun · L Big Bang · O Final Flash. Hạ quái để học chiêu: Y dùng, T đổi.' },
   luffy: { name: 'Luffy', from: 'One Piece', tag: 'Gear 2/3/4/5, ba loại Haki, mặt đất cao su (cheat)', energy: 'Sức',
     btn: { bolt: ['Đấm', 'Gomu Gomu no Pistol'], web: ['Chiêu', 'Chiêu riêng của Gear'], skill: ['Né', 'Né / phòng thủ'], volt: ['Tuyệt', 'Tuyệt chiêu của Gear'] },
     short: ['Gomu Gomu no Pistol', 'Gomu Gomu no Gatling', 'Gomu Gomu no Rocket', 'Gomu Gomu no Fusen', 'Gomu Gomu no Bazooka'],
@@ -2765,6 +2767,7 @@ const CHAR_UI = {
     tip: 'Goku: ↑ ↓ ← → bay tự do · J Chưởng KI · giữ J Kamehameha · L Thuấn Di · Shift lướt · U khi đầy: BẢN NĂNG VÔ CỰC (tự né mọi đòn). Cheat: mọi chiêu miễn phí, sát thương ×2.' },
 };
 function applyChar() {
+  if (CHAR === 'saiyan' && S.sx) sxFormUI();   // tên chiêu Xayda theo dạng: người, khỉ, Super Saiyan Blue
   const u = CHAR_UI[CHAR], s = u.short;
   $('charBtn').textContent = `Nhân vật: ${u.name} (P)`;
   if (u.simple) {
@@ -4467,15 +4470,17 @@ function newSx() {
   return { apeHp: 0, cd: {}, dapT: -1, shots: [], learned, sel: Math.max(0, learned.length - 1), blue: false, beam: null };
 }
 const sxPop = (text, c = '#ffb38a') => S.pops.push({ x: S.ball.x, y: S.ball.y - (S.ape > 0 ? 120 : 64), t: .9, text, c });
+// U đổi dạng theo vòng: Người → Khỉ cấp 7 → Super Saiyan Blue → Người
 function apeForm() {
   if (!canAct()) return;
-  if (S.sx.blue) return ssbFinalFlash();   // Super Saiyan Blue: U là Final Flash
   const X = S.sx, b = S.ball;
-  if (S.ape > 0) { S.ape = 0; X.cd.ape = 1; sfx('dash'); sxPop('Trở lại hình người'); return; }
+  if (X.blue) { X.blue = false; X.beam = null; X.cd.ape = 1; sfx('dash'); sxPop('Trở lại hình người'); applyChar(); return; }
+  if (S.ape > 0) { ssbAwaken(); return; }
   if (X.cd.ape > 0) { sxPop(`Biến Khỉ hồi ${Math.ceil(X.cd.ape)} giây`); sfx('deny'); return; }
   S.ape = 1e9; X.apeHp = 5; S.flash = .6;
   sfx('roar');
-  sxPop('Biến Khỉ! (U để trở lại)');
+  sxPop('Biến Khỉ! (U lần nữa: Super Saiyan Blue)');
+  applyChar();
   for (let i = 0; i < 40; i++) {
     const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 360;
     S.parts.push({ x: b.x, y: b.y - 30, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .8, c: ['#fff27a', '#ffffff', '#ffb347'][i % 3], r: 4 + Math.random() * 6, g: 0 });
@@ -4644,9 +4649,20 @@ function drawSxFx() {
     }
   }
 }
-/* ----- Super Saiyan Blue: khỉ bị đánh bại (hết máu khỉ) thì hoá Super Saiyan Blue, giữ tới khi mất mạng -----
-   Bộ chiêu cheat (CHARS.ssb: miễn phí, sát thương ×2, nhảy 3 lần, xuyên khiên): J Bắn KI liên hoàn · giữ J Galick Gun (tia tím)
-   · L Big Bang Attack (cầu xanh nổ cả vùng) · Shift/K Khiên năng lượng hồi 1 giây · U Final Flash (tia vàng khổng lồ xuyên màn hình). */
+/* ----- Super Saiyan Blue: dạng sau Biến Khỉ (bấm U khi đang là khỉ), hoặc tự hoá khi khỉ bị đánh bại; giữ tới khi bấm U
+   hoặc mất mạng. Bộ chiêu cheat (CHARS.ssb: miễn phí, sát thương ×2, nhảy 3 lần, xuyên khiên): J Bắn KI liên hoàn
+   · giữ J Galick Gun (tia tím) · L Big Bang Attack (cầu xanh nổ cả vùng) · Shift/K Khiên năng lượng hồi 1 giây
+   · O Final Flash (tia vàng khổng lồ xuyên màn hình). */
+// tên chiêu trên dòng hướng dẫn theo dạng hiện tại
+const SX_FORMS = {
+  human: { short: ['Đấm Galick', 'Antomic', 'Trói', 'Khiên năng lượng', 'Biến Khỉ'], volt: ['Khỉ', 'Biến Khỉ'] },
+  ape: { short: ['Đấm Galick (khỉ)', 'Antomic khổng lồ', 'Dậm đất', 'Khiên năng lượng', 'Super Saiyan Blue'], volt: ['Blue', 'Super Saiyan Blue'] },
+  blue: { short: ['Bắn KI liên hoàn', 'Galick Gun', 'Big Bang Attack', 'Khiên năng lượng', 'Trở lại người (O: Final Flash)'], volt: ['Người', 'Trở lại hình người'] },
+};
+function sxFormUI() {
+  const u = CHAR_UI.saiyan, f = SX_FORMS[S.sx.blue ? 'blue' : S.ape > 0 ? 'ape' : 'human'];
+  u.short = f.short.slice(); u.btn.volt = f.volt.slice();
+}
 function ssbAwaken() {
   const X = S.sx, b = S.ball;
   S.ape = 0; X.blue = true; X.cd.ape = 0; S.safe = Math.max(S.safe, 1.5); S.flash = 1;
