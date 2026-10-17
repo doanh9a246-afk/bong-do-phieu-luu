@@ -345,6 +345,7 @@ function reset() {
   });
   // địa hình bị Shinra Tensei phá được dựng lại
   for (const s of SOLIDS) { s.broken = 0; s.open = false; s.cr = 0; }
+  for (const t of TRAP_DEF) t.dead = false;
   for (const w of SWITCHES) w.on = false;
   if (CRATERS.length || RUBBER.length) { CRATERS.length = 0; RUBBER.length = 0; reshapeGround(-Infinity, Infinity); }
   $('win').hidden = true;
@@ -1090,8 +1091,8 @@ const CHARS = {
   // Xayda hoá Super Saiyan Blue (khỉ bị đánh bại): bộ chiêu cheat
   ssb:    { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 1, regen: 6, speed: 430, airJumps: 2, dmgK: 2, pierce: true },
 };
-// bay tự do: Goku luôn bay, Kurumi bay được khi ngưng đọng thời gian
-const flying = () => CH().fly || (CHAR === 'kurumi' && !!S.ku && S.ku.stop);
+// bay tự do: Goku luôn bay, Kurumi bay được khi ngưng đọng thời gian hoặc ở dạng Hồng Liên
+const flying = () => CH().fly || (CHAR === 'kurumi' && !!S.ku && (S.ku.stop || S.ku.crim));
 const CH = () => CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
 const cost = k => CH().cost[k];
 /* ---------- Pikachu: Dynamax (G) và tuyệt kĩ Z (Z) ----------
@@ -2749,7 +2750,7 @@ const CHAR_UI = {
       ['Rasiel', 'sách thiên thần, viền vàng; biết trước mọi đòn (tự né); J trang sách đuổi mục tiêu · giữ J bão trang sách · L Định Mệnh: mọi mục tiêu trên màn hình cùng trúng đòn sau 1,2 giây · K Lật trang: hiện sau lưng mục tiêu · U Khải Huyền: 10 cột sáng giáng khắp màn hình; sát thương ×2'],
       ['Nghịch chuyển', 'bóng tối nghịch thời, tím đen, cánh bóng tối; J đạn bóng tối xuyên · giữ J hố đen hút quái rồi nổ · L Thành Phố Ăn Thời Gian: bóng tối phủ mặt đất 5 giây, trói và hút máu · K Lặn bóng · U Yud Bet: xoá sạch quái trên màn hình, boss mất 15 máu; sát thương ×2'],
       ['Lucifugus', 'Ma Vương của White Queen — Yamauchi Sawa, người bạn thân đã chết của Kurumi, ở Lân Giới: quân phục trắng, tóc trắng bạc trong suốt, mắt đồng hồ xanh, kiếm saber, cánh pha lê và đồng hồ Hoàng Đạo. J chém saber · giữ J Đạn Nhân Mã · L Đạn Thiên Bình: đạn địch quay đầu 5 giây · K Đạn Cự Giải: dịch chuyển và che chắn · U Đạn Bọ Cạp: quái thành quân cờ đánh lại đồng bọn, boss mất 10 máu · T Đạn Bảo Bình: hồi đầy mạng; sát thương ×2'],
-      ['Hồng Liên', 'Kurumi đỏ rực, dạng mạnh nhất (sát thương ×3), lửa bốc quanh người thiêu mọi quái chạm vào. J Đạn Hoả Thần: 3 tia lửa nổ · giữ J Pháo Hồng Liên: tia lửa khổng lồ xuyên màn hình · L Hoả Ngục Thời Gian: dừng thời gian 3 giây, cột lửa trên mọi kẻ địch rồi nổ cùng lúc · K Bước Lửa: lướt xa để lại vệt lửa · U Tận Thế Hồng Liên: mưa thiên thạch lửa · T Phượng Hoàng Tái Sinh: hồi đầy mạng, vô địch 3 giây']],
+      ['Hồng Liên', 'Kurumi đỏ rực, dạng mạnh nhất (sát thương ×3), bay tự do (▲ lên, ▼ xuống), lửa bốc quanh người thiêu mọi quái chạm vào; mọi chiêu phá tan công trình: bục, cửa đá, bẫy, bãi gai, khoét hố mặt đất. J Đạn Hoả Thần: 3 tia lửa nổ · giữ J Pháo Hồng Liên: tia lửa khổng lồ xuyên màn hình · L Hoả Ngục Thời Gian: dừng thời gian 3 giây, cột lửa trên mọi kẻ địch rồi nổ cùng lúc · K Bước Lửa: lướt xa để lại vệt lửa · U Tận Thế Hồng Liên: mưa thiên thạch lửa · T Phượng Hoàng Tái Sinh: hồi đầy mạng, vô địch 3 giây']],
     passive: 'sắp chết thì tự tua ngược về chỗ đứng 1,5 giây trước (kể cả rơi vực), hồi 15 giây · cheat: mọi chiêu miễn phí, sát thương ×2.',
     tip: 'Kurumi: J súng kíp · giữ J súng hoả mai · L ngưng đọng thời gian (cả đồng hồ màn chơi cũng dừng) · K Aleph · U Zafkiel · E phân thân · T Dalet · F đổi dạng Rasiel / Nghịch chuyển / Lucifugus / Hồng Liên.' },
   luffy: { name: 'Luffy', from: 'One Piece', tag: 'Gear 2/3/4/5, ba loại Haki, mặt đất cao su (cheat)', energy: 'Sức',
@@ -5394,6 +5395,7 @@ function updateObstacles(dt) {
   }
   if (S.dead || S.power || S.safe) return;
   for (const t of TRAP_DEF) {
+    if (t.dead) continue;   // bị Hồng Liên phá
     if (t.type === 'flame') {
       if (flameOn(t) && Math.abs(b.x - t.x) < 16 + R * .6 && b.y + R * .7 > t.f(t.x) - 130) { die(); return; }
       continue;
@@ -5595,6 +5597,7 @@ function drawObstacles(x0, x1) {
     ctx.stroke();
   }
   for (const t of TRAP_DEF) {
+    if (t.dead) continue;   // bị Hồng Liên phá
     if (t.type === 'flame') {
       if (t.x < x0 || t.x > x1) continue;
       const gy = t.f(t.x);
@@ -6534,6 +6537,7 @@ function kuInferno() {
 function kuFireStep() {
   const K = S.ku, b = S.ball, d = (keys.right ? 1 : 0) - (keys.left ? 1 : 0) || b.face || 1, x0 = b.x;
   b.x += d * 320; b.vx = d * 200; b.vy = Math.min(b.vy, -100); S.safe = Math.max(S.safe, .5);
+  for (let x = x0; d > 0 ? x < b.x : x > b.x; x += d * 30) crimWreck(x, b.y, 50, false);
   for (let x = x0; d > 0 ? x < b.x : x > b.x; x += d * 30) { const gy = groundYAt(x); if (gy != null) K.flames.push({ x, y: gy, t: 2.4, tick: 0 }); }
   kuClock('firestep', 1); sfx('dash');
 }
@@ -6550,7 +6554,39 @@ function kuPhoenix() {
   S.ku.phoenix = 3; kuClock('phoenix', 1.6); S.flash = Math.max(S.flash, .5); sfx('ui');
   kuPop('Phượng Hoàng Tái Sinh!', '#ff7a3a');
 }
+// Hồng Liên phá huỷ công trình: bục (kể cả bục di chuyển, bục vỡ), cửa đá, bẫy cưa / cột lửa / chuỳ gai, bãi gai,
+// và khoét hố xuống mặt đất (ngoài đấu trường boss). Bị phá là mất hẳn tới khi chơi lại màn.
+function crimWreck(x, y, r, dig) {
+  const debris = (px, py, c, n) => { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, sp = 200 + Math.random() * 420; S.parts.push({ x: px, y: py, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 200, life: 1.1, c: i % 3 ? c : '#ff6a1a', r: 4 + Math.random() * 7, g: 900 }); } };
+  let hit = false;
+  for (const s of SOLIDS) {
+    if (s.gd || s.gate || s.broken || s.open) continue;
+    const cx = clamp(x, s.minX, s.maxX), cy = clamp(y, s.minY, s.pts[5]);
+    if (Math.hypot(cx - x, cy - y) > r) continue;
+    s.broken = S.t + 1e9; hit = true;
+    if (s.door) { s.open = true; for (const w of SWITCHES) if (w.door === s) w.on = true; }
+    const w = s.maxX - s.minX, h = s.pts[5] - s.minY;
+    for (let k = 0; k < Math.max(2, h / 60); k++) debris(s.minX + Math.random() * w, s.minY + Math.random() * h, s.door ? '#7a7e88' : THEMES[MAP].dirt, 8);
+  }
+  for (const t of TRAP_DEF) {
+    if (t.dead) continue;
+    const p = t.type === 'flame' ? { x: t.x, y: t.f(t.x) - 20 } : trapPos(t);
+    if (Math.hypot(p.x - x, p.y - y) > r + 24) continue;
+    t.dead = true; hit = true; debris(p.x, p.y, '#5a5e68', 14);
+  }
+  for (const sp of SPIKES) if (!S.spikeGone.has(sp) && sp.x1 > x - r && sp.x0 < x + r && Math.abs(sp.f((sp.x0 + sp.x1) / 2) - y) < r) { S.spikeGone.add(sp); hit = true; debris((sp.x0 + sp.x1) / 2, sp.f(sp.x0), '#c8ccd4', 6); }
+  if (dig) {
+    const gy = groundYAt(x), inArena = x > ARENA.gateX - 60 - r && x < ARENA.r + 80 + r;
+    if (!inArena && gy != null && Math.abs(gy - y) < r) {
+      const c = CRATERS.find(c => Math.abs(c.x - x) < r * .5);
+      if (c) c.d = Math.min(150, c.d + 25); else CRATERS.push({ x, r: r * .7, d: 55 });
+      reshapeGround(x - r, x + r); hit = true;
+    }
+  }
+  if (hit) { S.flash = Math.max(S.flash, .15); sfx('stomp'); }
+}
 function crimBlast(x, y, r, dmg) {
+  crimWreck(x, y, r, r >= 90);
   for (const t of nkTouch(x, y, r)) kuHit(t, dmg, { x, y }, false);
   S.ku.booms.push({ x, y, r, t: .45 });
   for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 260; S.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, life: .5, c: ['#ff2a14', '#ffb02a', '#fff0c0'][i % 3], r: 3 + Math.random() * 4, g: 400 }); }
@@ -6563,6 +6599,7 @@ function updateCrim(dt) {
   // hào quang lửa: quái chạm vào là bị thiêu
   if (K.crim && !S.dead) {
     K.burnCd = K.burnCd || new Map();
+    crimWreck(b.x, b.y, 40, false);   // lao vào công trình là phá tan
     for (const t of nkTouch(b.x, b.y - 20, 46)) { const c = K.burnCd.get(t.ref) || 0; if (S.t > c) { K.burnCd.set(t.ref, S.t + .35); kuHit(t, 2, b, false); } }
     if (Math.random() < dt * 30) S.parts.push({ x: b.x + (Math.random() - .5) * 40, y: b.y - Math.random() * 60, vx: (Math.random() - .5) * 40, vy: -120 - Math.random() * 80, life: .6, c: Math.random() < .5 ? '#ff5a14' : '#ffd23f', r: 2 + Math.random() * 3, g: -80 });
   }
@@ -6570,6 +6607,7 @@ function updateCrim(dt) {
   if (B) {
     B.t += dt; B.x = b.x + B.d * 26; B.y = b.y - 42;
     B.len = Math.min(B.max, B.len + 3200 * dt);
+    if (B.t <= B.dur) for (let s2 = 30; s2 < B.len; s2 += 40) crimWreck(B.x + B.d * s2, B.y, B.w * .8, false);
     if (B.t <= B.dur) for (let s2 = 30; s2 < B.len; s2 += 40) for (const t of nkTouch(B.x + B.d * s2, B.y, B.w)) {
       if (B.hit.has(t.ref)) continue;
       B.hit.add(t.ref); kuHit(t, B.dmg, { x: B.x + B.d * s2, y: B.y }, false);
@@ -6581,7 +6619,7 @@ function updateCrim(dt) {
     for (const p of K.pyre || []) p.h = Math.min(1, p.h + dt * 1.2);
     if (K.infernoT <= 0) {
       K.stop = false; applyChar();
-      for (const p of K.pyre || []) if (tAlive(p.t)) { const q = tPos(p.t); kuHit(p.t, 12, q, true); crimBlast(q.x, q.y, 60, 2); }
+      for (const p of K.pyre || []) if (tAlive(p.t)) { const q = tPos(p.t); kuHit(p.t, 12, q, true); crimBlast(q.x, q.y, 110, 2); }
       K.pyre = null; S.flash = Math.max(S.flash, .6); sfx('boom');
     }
   }
