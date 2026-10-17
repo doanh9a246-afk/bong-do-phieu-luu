@@ -348,6 +348,7 @@ function setMuted(m) {
 
 function setKey(k, on) {
   audio();
+  if (CH().simple && (k === 'web' || k === 'volt')) return;   // Chiikawa không có L và U
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
@@ -724,7 +725,11 @@ function spend(cost) {
   S.energy -= cost;
   return true;
 }
-function startCharge() { if (canAct()) { S.charging = true; S.chargeT = 0; } }
+function startCharge() {
+  if (!canAct()) return;
+  if (CH().simple) { MOVES[CHAR].tap(); return; }   // không có chiêu giữ J: bấm là đánh ngay
+  S.charging = true; S.chargeT = 0;
+}
 function releaseCharge() {
   if (!S.charging) return;
   S.charging = false;
@@ -897,7 +902,8 @@ const CHARS = {
   pika:   { cost: { tap: COST.shock, hold: COST.ball, web: COST.web, tackle: COST.tackle }, tackleCd: TACKLE_CD, regen: 1, speed: MAXV, airJumps: 0, dmgK: 1 },
   // Pikachu Dynamax (phím G): to gấp 10 lần, vĩnh viễn, bộ chiêu hack như Stelle
   pikaMax: { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .35, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
-  chii:   { cost: { tap: 2, hold: 15, web: 25, tackle: 20 }, tackleCd: .8, regen: 1.2, speed: 300, airJumps: 0, dmgK: 1 },
+  // Chiikawa: bộ chiêu đơn giản, chỉ J (ném gậy) và K/Shift (lăn tròn); không có giữ J, L, U
+  chii:   { cost: { tap: 2, tackle: 20 }, tackleCd: .8, regen: 1.2, speed: 300, airJumps: 0, dmgK: 1, simple: true },
   rimuru: { cost: { tap: 4, hold: 25, web: 20, tackle: 20 }, tackleCd: .8, regen: 1.3, speed: 330, airJumps: 1, dmgK: 1 },
   // Stelle: bộ kĩ năng "hack" — mọi chiêu miễn phí, nhảy 3 lần, sát thương ×2, xuyên khiên boss
   stelle: { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .35, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
@@ -964,7 +970,7 @@ function zMove() {
 }
 const MOVES = {
   pika:   { tap: fireShock, hold: fireElectroBall, web: fireWeb },
-  chii:   { tap: chiiBonk, hold: chiiWeeds, web: chiiCry },
+  chii:   { tap: chiiBonk, hold: chiiBonk, web: () => {} },
   rimuru: { tap: waterBlade, hold: blackLightning, web: predator },
   stelle: { tap: farewellHit, hold: homeRun, web: amberShield },
   saiyan: { tap: galick, hold: antomic, web: bind },
@@ -991,29 +997,11 @@ function shoot(kind, speed, life, dmg, cd, dy = -8) {
   S.shockCd = cd; S.cast = .2;
   S.bolts.push({ kind, x: b.x + d * 24, y: b.y + dy, vx: d * speed, life, seed: Math.random() * 100, dmg });
 }
-// Chiikawa: gõ gậy tầm gần
+// Chiikawa: ném gậy xoay tít bay xa
 function chiiBonk() {
   if (S.shockCd > 0 || !spend(cost('tap'))) return;
-  shoot('stick', 640, .2, 1, .28); S.swing = SWING;
+  shoot('stick', 720, .6, 1, .28); S.swing = SWING;
   sfx('bonk');
-}
-// Chiikawa: ném bó cỏ (chứng chỉ nhổ cỏ), bay vòng cung và nảy như Quả cầu điện
-function chiiWeeds(hold) {
-  if (!spend(cost('hold'))) return;
-  const b = S.ball, d = b.face || 1, k = chargeK(hold), dmg = 2 + (k >= .99 ? 1 : 0);
-  S.orbs.push({ kind: 'weed', x: b.x + d * 24, y: b.y - 18, vx: d * (380 + k * 240), vy: -380, r: 10 + k * 6, dmg, bounced: false, life: 1.8, hit: new Set() });
-  S.cast = .25; S.swing = SWING;
-  sfx('toss');
-  S.pops.push({ x: b.x, y: b.y - 58, t: .6, text: `Bó cỏ ×${dmg}`, c: '#9cf07a' });
-}
-// Chiikawa: khóc oà — làm choáng mọi thứ xung quanh và xoá đạn
-function chiiCry() {
-  if (!canAct() || S.webCd > 0 || !spend(cost('web'))) return;
-  const b = S.ball;
-  S.webCd = 1; S.cry = .9;
-  sfx('cry');
-  S.pops.push({ x: b.x, y: b.y - 60, t: .9, text: 'Wa wa wa!', c: '#9fd8ff' });
-  stunAround(b.x, b.y, 190, 3);
 }
 function stunAround(x, y, r, t) {
   const near = (px, py) => Math.hypot(px - x, py - y) < r;
@@ -1879,17 +1867,25 @@ function moveUnits(B, b, dt) {
         boltSpark(u.x, u.y - 60, '#d8fbff', 16);
       }
     } else if (u.kind === 'zag') {
-      // Zagred lơ lửng đối diện bạn, thỉnh thoảng dịch chuyển sang phía bên kia
+      // Zagred bay lượn hỗn loạn, không theo quỹ đạo nào: liên tục chọn điểm ngẫu nhiên trong đấu trường với tốc độ
+      // ngẫu nhiên, lúc lướt chậm, lúc vụt nhanh, đường bay chao đảo; thỉnh thoảng dịch chuyển tức thời tới chỗ bất kì
       u.mt += dt;
-      const side = b.x < ARENA_MID ? 1 : -1;
-      const tx = clamp(b.x + side * 230, lo, hi), ty = ARENA.floor - 130 + Math.sin(u.mt * 2) * 18;
-      u.x += (tx - u.x) * Math.min(1, dt * 1.4); u.y += (ty - u.y) * Math.min(1, dt * 3);
+      const fast = B.phase === 2 ? 1.35 : 1;
+      u.wt = (u.wt || 0) - dt;
+      if (u.wt <= 0 || u.tx == null || Math.hypot(u.tx - u.x, u.ty - u.y) < 16) {
+        u.tx = lo + Math.random() * (hi - lo); u.ty = ARENA.floor - 100 - Math.random() * 140;
+        u.wt = .35 + Math.random() * 1.2;
+        u.sp = (Math.random() < .25 ? 520 + Math.random() * 260 : 120 + Math.random() * 220) * fast;
+      }
+      const dx = u.tx - u.x, dy = u.ty - u.y, dist = Math.hypot(dx, dy) || 1, step = Math.min(dist, u.sp * dt);
+      u.x = clamp(u.x + dx / dist * step + Math.sin(u.mt * 7.3) * 40 * dt, lo, hi);
+      u.y = clamp(u.y + dy / dist * step + Math.cos(u.mt * 5.1) * 34 * dt, ARENA.floor - 250, ARENA.floor - 100);
       u.dir = Math.sign(b.x - u.x) || u.dir;
       B.blinkT -= dt;
       if (B.blinkT <= 0) {
-        B.blinkT = 6.5;
+        B.blinkT = 3 + Math.random() * 4;
         boltSpark(u.x, u.y - 60, '#b04cff', 18);
-        u.x = clamp(b.x - side * 230, lo, hi);
+        u.x = lo + Math.random() * (hi - lo); u.y = ARENA.floor - 100 - Math.random() * 140; u.wt = 0;
         boltSpark(u.x, u.y - 60, '#e6c8ff', 18);
       }
     } else if (u.kind === 'fire') {
@@ -2466,14 +2462,12 @@ const CHAR_UI = {
     passive: 'Lưới điện giam quái và boss vĩnh viễn (boss chỉ thoát khi sang giai đoạn mới) · Quả cầu điện to gấp đôi (Dynamax: gấp 5).',
     more: ' · <kbd>G</kbd> Dynamax · <kbd>Z</kbd> Catastropika', moreTap: ' · Max: Dynamax · Z: Catastropika',
     tip: PIKA_TIP },
-  chii: { name: 'Chiikawa', from: 'Chiikawa', tag: 'Nhỏ mà có võ: nhổ cỏ, khóc oà, gọi bạn', energy: 'Dũng khí',
-    btn: { bolt: ['Gậy', 'Gõ gậy'], web: ['Khóc', 'Khóc oà'], skill: ['Lăn', 'Lăn tròn'], volt: ['Bạn', 'Gọi bạn'] },
-    short: ['gõ gậy', 'ném bó cỏ', 'Khóc oà', 'Lăn tròn', 'Gọi Hachiware & Usagi'],
-    kit: [['J', 'Gõ gậy: đánh tầm gần (2)'], ['Giữ J', 'Ném bó cỏ (chứng chỉ nhổ cỏ cấp 3): nảy, 2–3 sát thương (15)'],
-      ['L', 'Khóc oà “Wa wa wa”: nước mắt làm choáng mọi thứ quanh mình, xoá đạn (25)'], ['Shift', 'Lăn tròn: vô địch khi lăn (20)'],
-      ['U', 'Gọi Hachiware & Usagi: “Ura! Yaha!” quét sạch màn hình (cần đầy)']],
+  chii: { name: 'Chiikawa', from: 'Chiikawa', tag: 'Đơn giản: chỉ J ném gậy và K lăn tròn', energy: 'Dũng khí',
+    btn: { bolt: ['Gậy', 'Ném gậy'], web: ['Khóc', 'Khóc oà'], skill: ['Lăn', 'Lăn tròn'], volt: ['Bạn', 'Gọi bạn'] },
+    short: ['ném gậy', null, null, 'Lăn tròn', null], simple: true,
+    kit: [['J', 'Ném gậy: gậy xoay tít bay xa (2)'], ['K', 'Lăn tròn: vô địch khi lăn (20) — Shift cũng được']],
     passive: 'nhặt sao được +30 dũng khí.',
-    tip: 'Chiikawa: J gõ gậy · giữ J ném bó cỏ · L khóc oà làm choáng xung quanh · Shift lăn tròn · U khi đầy: gọi Hachiware & Usagi.' },
+    tip: 'Chiikawa: J ném gậy bay xa · K lăn tròn (vô địch khi lăn). Chỉ cần 2 nút!' },
   rimuru: { name: 'Rimuru', from: 'Chuyển sinh thành Slime', tag: 'Slime: lưỡi nước, Sét Đen, Kẻ Săn Mồi', energy: 'Ma tố',
     btn: { bolt: ['Nước', 'Lưỡi nước'], web: ['Nuốt', 'Kẻ Săn Mồi'], skill: ['Lao', 'Biến dạng'], volt: ['Mgd', 'Megiddo'] },
     short: ['Lưỡi nước', 'Sét Đen', 'Kẻ Săn Mồi', 'Biến dạng', 'Megiddo'],
@@ -2553,8 +2547,14 @@ const CHAR_UI = {
 function applyChar() {
   const u = CHAR_UI[CHAR], s = u.short;
   $('charBtn').textContent = `Nhân vật: ${u.name} (P)`;
+  if (u.simple) {
+    document.querySelector('#hint .keys').innerHTML = `<kbd>←</kbd> <kbd>→</kbd> chạy · <kbd>↑</kbd>/<kbd>Space</kbd> nhảy · <kbd>J</kbd> ${s[0]} · <kbd>K</kbd> ${s[3]} · <kbd>P</kbd> đổi nhân vật · <kbd>N</kbd> đổi màn · về đích trong ${TIME_LIMIT / 60} phút`;
+    document.querySelector('#hint .tap').textContent = `◀ ▶ chạy · ▲ nhảy · ${u.btn.bolt[0]}: ${s[0]} · ${u.btn.skill[0]}: ${s[3]} · về đích trong ${TIME_LIMIT / 60} phút`;
+  } else {
   document.querySelector('#hint .keys').innerHTML = `<kbd>←</kbd> <kbd>→</kbd> chạy · <kbd>↑</kbd>/<kbd>Space</kbd> nhảy · <kbd>J</kbd> ${s[0]}${s[1] ? ` (giữ rồi thả: ${s[1]})` : ''} · <kbd>L</kbd> ${s[2]} · <kbd>Shift</kbd> ${s[3]} · <kbd>U</kbd> ${s[4]}${u.more || ''} · <kbd>P</kbd> đổi nhân vật · <kbd>N</kbd> đổi màn · về đích trong ${TIME_LIMIT / 60} phút`;
   document.querySelector('#hint .tap').textContent = `◀ ▶ chạy · ▲ nhảy · ${u.btn.bolt[0]}${s[1] ? ` (giữ: ${s[1]})` : ''} · ${u.btn.web[0]}: ${s[2]} · ${u.btn.skill[0]}: ${s[3]} · ${u.btn.volt[0]}${CH().cost.volt != null ? `: ${s[4]}` : ' khi đầy'}${u.moreTap || ''} · về đích trong ${TIME_LIMIT / 60} phút`;
+  }
+  document.querySelectorAll('.touch [data-key="web"], .touch [data-key="volt"]').forEach(el => { el.hidden = !!u.simple; });
   document.querySelectorAll('.touch .sx').forEach(el => { el.hidden = CHAR !== 'saiyan'; });
   document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
   document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !CH().fly; });
