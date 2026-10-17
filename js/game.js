@@ -51,7 +51,7 @@ const FW = BOSS_W * FUSED_K, FH = BOSS_H * FUSED_K;
 // Màn chuyển cảnh khi Lilith bị hạ: Naamah chui ra, hiện sau lưng Pikachu và đánh úp
 const CUT = { burst: .9, emerge: .6, vanish: 1.5, appear: 1.7, strike: 2.5, end: 2.9 };
 
-let CHAR = 'pika';       // nhân vật đang chơi: pika, chii, rimuru, stelle, saiyan, kiem, asta, yuno (xem CHARS, CHAR_UI)
+let CHAR = 'chii';       // nhân vật đang chơi (mặc định Chiikawa, các nhân vật khác khoá mật khẩu): pika, chii, rimuru, stelle, saiyan, kiem, asta, yuno (xem CHARS, CHAR_UI)
 let paused = false;      // đang mở bảng chọn nhân vật
 
 const cv = document.getElementById('game');
@@ -2445,10 +2445,12 @@ function hud() {
 }
 
 /* ---------- Chọn nhân vật ----------
-   Stelle chỉ mở được bằng mật khẩu; mở rồi thì máy đó nhớ. Mật khẩu chỉ lưu dưới dạng mã băm. */
+   Chỉ Chiikawa mở sẵn; mọi nhân vật khác mở bằng mật khẩu, mở rồi thì máy đó nhớ. Mật khẩu chỉ lưu dưới dạng mã băm. */
 const CHAR_KEY = 'bongdo.char';
 // mật khẩu chỉ lưu dưới dạng mã băm; mở rồi thì máy đó nhớ
-const LOCKS = { stelle: { hash: 2576725674, key: 'bongdo.stelle' }, saiyan: { hash: 2743617246, key: 'bongdo.saiyan' } };
+const PW_HASH = 2576725674;   // 123456
+const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku']
+  .map(id => [id, { hash: PW_HASH, key: 'bongdo.lock.' + id }]));
 let pwFor = null;   // nhân vật đang chờ nhập mật khẩu
 const pwHash = s => { let h = 2166136261; for (const c of s) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; };
 const unlocked = id => !LOCKS[id] || lsGet(LOCKS[id].key, '') === '1';
@@ -2641,9 +2643,9 @@ $('pwForm').addEventListener('submit', e => {
 });
 $('charBtn').addEventListener('click', openChars);
 $('charsClose').addEventListener('click', closeChars);
-CHAR = lsGet(CHAR_KEY, 'pika');
+CHAR = lsGet(CHAR_KEY, 'chii');
 DMAX = lsGet(DMAX_KEY, '') === '1';
-if (!CHAR_UI[CHAR] || !unlocked(CHAR)) CHAR = 'pika';
+if (!CHAR_UI[CHAR] || !unlocked(CHAR)) CHAR = 'chii';
 applyChar();
 
 /* ---------- Vẽ ---------- */
