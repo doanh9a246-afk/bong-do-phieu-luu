@@ -95,6 +95,7 @@ const CHAR_STATS = {
   asta: { hp: 1600, atk: 140, def: 50 }, yuno: { hp: 1400, atk: 140, def: 30 }, pain: { hp: 1800, atk: 140, def: 60 },
   goku: { hp: 2000, atk: 160, def: 60 }, namek: { hp: 2000, atk: 140, def: 80 }, luffy: { hp: 1800, atk: 150, def: 50 },
   kurumi: { hp: 1600, atk: 150, def: 40 },
+  mereo: { hp: 10000, atk: 180, def: 0 },   // Mereoleona: không giáp, máu cực nhiều, đánh là hút máu
 };
 const stat = () => CHAR_STATS[CHAR] || CHAR_STATS.chii;
 const DMG_K = 10;   // 1 điểm sát thương gốc của chiêu = 10 máu
@@ -373,6 +374,7 @@ function reset() {
     ghost: 0, ghostCd: 0,   // K/Shift: xuyên qua boss
     alert: {}, eshots: [],   // nhóm quái đang báo động, tên của cung thủ
     wt: 0,                   // đồng hồ thế giới (bẫy, bục di chuyển); đứng yên khi ngưng đọng thời gian
+    mr: newMr(),             // Mereoleona: cánh tay lửa, Mana Zone, Hoả Táng
     ku: newKu(),             // Kurumi: đạn, phân thân, Zafkiel, Rasiel
     nk: newNk(),            // Namek: chiêu đang phát, hiệu ứng, đạn, thú, khiên
     lf: newLf(),            // Luffy: Gear, Haki, tay chân cao su đang vươn
@@ -476,7 +478,7 @@ const SFX = {
   ki()      { tone(900, 300, .1, 'sine', .06); noise(.08, .04, 3000); },
   ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
-const JUMP_SFX = { pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
+const JUMP_SFX = { mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
 function sfx(name) { if (!muted && audio()) SFX[name](); }
 function setMuted(m) {
   muted = m;
@@ -492,7 +494,7 @@ function setKey(k, on) {
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
-  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : fireVolt());
+  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : fireVolt());
   if (CHAR === 'kurumi' && on && !keys[k]) {
     if (k === 'egg') kuCloneArmy();
     else if (k === 'heal') kuDalet();
@@ -513,6 +515,7 @@ function setKey(k, on) {
   }
   if (k === 'egg' && on && !keys.egg && CHAR === 'namek') nkEgg();
   if (k === 'heal' && on && !keys.heal && CHAR === 'namek') nkHeal();
+  if (k === 'heal' && on && !keys.heal && CHAR === 'mereo') mrBurial();
   if (k === 'boom' && on && !keys.boom && CHAR === 'saiyan') selfDestruct();
   if (k === 'dmax' && on && !keys.dmax && CHAR === 'pika') toggleDmax();
   if (k === 'zmove' && on && !keys.zmove && CHAR === 'pika') zMove();
@@ -545,6 +548,7 @@ function activateSkill() {
   if (!S.dead && !S.won && !S.lost && S.ghostCd <= 0) { S.ghost = .7; S.ghostCd = 1; }
   // bị Vegeta trói: Shift/K giật đứt dây
   if (CHAR === 'kurumi' && !S.bound) { if (!S.dead && !S.won && !S.lost) kuAleph(); return; }   // Kurumi: K là Aleph
+  if (CHAR === 'mereo' && !S.bound) { if (!S.dead && !S.won && !S.lost) mrDash(); return; }   // Mereoleona: K Sư Tử Lao
   if (CHAR === 'luffy' && !S.bound) { if (!S.dead && !S.won && !S.lost) lfK(); return; }   // Luffy: K né / phòng thủ theo Gear
   if (CHAR === 'namek' && !S.bound) { if (!S.dead && !S.won && !S.lost) nkShield(); return; }   // Namek: K bật/tắt khiên
   if (S.bound > 0 && !S.dead) { S.bound = 0; S.safe = Math.max(S.safe, .4); sfx('dash'); S.pops.push({ x: S.ball.x, y: S.ball.y - 60, t: .8, text: 'Thoát Trói!', c: '#ffe27a' }); return; }
@@ -1142,6 +1146,8 @@ const CHARS = {
   luffy:  { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 0, regen: 6, speed: 380, airJumps: 1, dmgK: 2, pierce: true },
   // Kurumi (Date A Live): cheat; Aleph (K) tăng tốc ×1,8
   kurumi: { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 0, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
+  // Mereoleona (Black Clover): cheat, cận chiến
+  mereo:  { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .5, regen: 6, speed: 410, airJumps: 2, dmgK: 2, pierce: true },
   // Xayda hoá Super Saiyan Blue (khỉ bị đánh bại): bộ chiêu cheat
   ssb:    { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 1, regen: 6, speed: 430, airJumps: 2, dmgK: 2, pierce: true },
 };
@@ -1210,6 +1216,7 @@ const MOVES = {
   namek:  { tap: nkDemon, hold: nkMasenko, web: nkLienHoan },
   luffy:  { tap: lfTap, hold: lfGatling, web: lfL },
   kurumi: { tap: kuPistol, hold: kuMusket, web: kuZayin },
+  mereo:  { tap: mrTap, hold: mrBrachium, web: mrZone },
 };
 // chiêu U: sát thương lên boss (trước hệ số nhân vật), thời gian choáng, số tia, âm thanh
 const ULTS = {
@@ -1899,6 +1906,7 @@ function updateCharMoves(dt) {
   updateNamek(dt);
   updateLuffy(dt);
   updateKurumi(dt);
+  updateMereo(dt);
   updateSaiyanX(dt);
   updatePain(dt);
   S.swing = Math.max(0, S.swing - dt);
@@ -2403,7 +2411,7 @@ function damageBoss(u, base, kind) {
   dmg = Math.max(1, Math.round(dmgRoll(dmg) * (B.armor || 1)));   // chỉ số tấn công, chí mạng; B.armor: boss giảm sát thương
   const crit = S.lastCrit;
   if (kind === 'makanko') dmg = Math.max(1, B.hp);   // hạ ngay dạng hiện tại của boss
-  B.hp -= dmg;
+  B.hp -= dmg; S.lastDmg = dmg;   // để hút máu theo sát thương (Mereoleona)
   if (MAP === 3 && kind !== 'stomp' && kind !== 'tackle' && kind !== 'volt') B.learn.dodge = Math.min(12, B.learn.dodge + 1);   // Vegeta học né đạn
   B.inv = kind === 'stomp' || kind === 'tackle' ? .45 : .1;
   u.hurt = .3; u.squash = .15;
@@ -2745,7 +2753,7 @@ function hud() {
 const CHAR_KEY = 'bongdo.char';
 // mật khẩu chỉ lưu dưới dạng mã băm; mở rồi thì máy đó nhớ
 const PW_HASH = 2576725674;   // 123456
-const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi']
+const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo']
   .map(id => [id, { hash: PW_HASH, key: 'bongdo.lock.' + id }]));
 let pwFor = null;   // nhân vật đang chờ nhập mật khẩu
 const pwHash = s => { let h = 2166136261; for (const c of s) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; };
@@ -2814,6 +2822,18 @@ const CHAR_UI = {
       ['Hồng Liên', 'Kurumi đỏ rực, dạng mạnh nhất (sát thương ×3). BẤT DIỆT: không gì giết được — kể cả rơi vực và tự phát nổ của Vegeta — trúng đòn chí mạng là bùng lửa tái sinh tại chỗ và nổ phản đòn. Lửa xuyên mọi khiên, Goku không né được, boss trúng lửa bị thiêu mất máu dần; đạn quái bay vào vùng lửa là cháy rụi. bay tự do (▲ lên, ▼ xuống), lửa bốc quanh người thiêu mọi quái chạm vào; mọi chiêu phá tan công trình: bục, cửa đá, bẫy, bãi gai, khoét hố mặt đất. J Đạn Hoả Thần: 3 tia lửa nổ · giữ J Pháo Hồng Liên: tia lửa khổng lồ xuyên màn hình · L Hoả Ngục Thời Gian: dừng thời gian 3 giây, cột lửa trên mọi kẻ địch rồi nổ cùng lúc · K Bước Lửa: lướt xa để lại vệt lửa · U Tận Thế Hồng Liên: mưa thiên thạch lửa · T Phượng Hoàng Tái Sinh: hồi đầy mạng, vô địch 3 giây']],
     passive: 'sắp chết thì tự tua ngược về chỗ đứng 1,5 giây trước (kể cả rơi vực), hồi 15 giây · cheat: mọi chiêu miễn phí, sát thương ×2.',
     tip: 'Kurumi: J súng kíp · giữ J súng hoả mai · L ngưng đọng thời gian (cả đồng hồ màn chơi cũng dừng) · K Aleph · U Zafkiel · E phân thân · T Dalet · F đổi dạng Rasiel / Nghịch chuyển / Lucifugus / Hồng Liên.' },
+  mereo: { name: 'Mereoleona', from: 'Black Clover', tag: 'Sư tử dữ: không giáp, 10.000 máu, đánh là hút máu, cận chiến lửa (cheat)', energy: 'Ma lực',
+    btn: { bolt: ['Đấm', 'Đấm lửa'], web: ['Vùng', 'Mana Zone'], skill: ['Lao', 'Sư Tử Lao'], volt: ['Luyện', 'Calidos Brachium Purgatorium'] },
+    short: ['Đấm lửa liên hoàn', 'Calidos Brachium', 'Mana Zone', 'Sư Tử Lao', 'Calidos Brachium Purgatorium'],
+    more: ' · <kbd>T</kbd> Hoả Táng', moreTap: ' · Hoả',
+    kit: [['J', 'Đấm lửa liên hoàn: đấm thẳng → đấm tay sau → đá vòng, nắm đấm bọc lửa'],
+      ['Giữ J', 'Calidos Brachium: hai cánh tay lửa khổng lồ phóng ra từ sau vai (giữ càng lâu càng xa, càng to)'],
+      ['L', 'Mana Zone (bật/tắt, 10 giây, hồi 14 giây): vùng ma lực quanh người — nắm đấm lửa tự đánh kẻ địch trong vùng từ mọi hướng, mỗi cú J thêm 2 nắm đấm; duy trì vùng thì hồi 1,5% máu mỗi giây'],
+      ['K', 'Sư Tử Lao: lao 320 về phía trước đấm xuyên mọi thứ trên đường, để lại vệt lửa (và xuyên qua boss như mọi nhân vật)'],
+      ['U', 'Calidos Brachium Purgatorium (hồi 8 giây): mưa cánh tay lửa từ vùng ma lực dội vào mọi kẻ địch trên màn hình 2 giây, rồi cột lửa nổ tung'],
+      ['T', 'Hoả Táng — Flame Burial (hồi 18 giây): lửa nóng nhất bọc kín người 6 giây, sát thương ×2, hút máu ×2, chạm vào là thiêu']],
+    passive: 'không mặc giáp (phòng thủ 0) nhưng 10.000 máu; mỗi đòn trúng hút lại máu (40% sát thương gây lên boss + một lượng cố định); lửa ma lực xuyên Khiên năng lượng · cheat: mọi chiêu miễn phí, sát thương ×2.',
+    tip: 'Mereoleona: J đấm lửa · giữ J Calidos Brachium · L Mana Zone · K Sư Tử Lao · U Purgatorium · T Hoả Táng. Không có giáp — cứ lao vào đánh, đánh trúng là hồi máu!' },
   luffy: { name: 'Luffy', from: 'One Piece', tag: 'Gear 2/3/4/5, ba loại Haki, mặt đất cao su (cheat)', energy: 'Sức',
     btn: { bolt: ['Đấm', 'Gomu Gomu no Pistol'], web: ['Chiêu', 'Chiêu riêng của Gear'], skill: ['Né', 'Né / phòng thủ'], volt: ['Tuyệt', 'Tuyệt chiêu của Gear'] },
     short: ['Gomu Gomu no Pistol', 'Gomu Gomu no Gatling', 'Gomu Gomu no Rocket', 'Gomu Gomu no Fusen', 'Gomu Gomu no Bazooka'],
@@ -2908,6 +2928,7 @@ function applyChar() {
   document.querySelectorAll('.touch .nm').forEach(el => { el.hidden = CHAR !== 'namek'; });
   document.querySelectorAll('.touch .lf').forEach(el => { el.hidden = CHAR !== 'luffy'; });
   document.querySelectorAll('.touch .ku').forEach(el => { el.hidden = CHAR !== 'kurumi'; });
+  document.querySelectorAll('.touch .mr').forEach(el => { el.hidden = CHAR !== 'mereo'; });
   document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
   document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !flying(); });
   document.querySelector('.touch [data-key="jump"]').setAttribute('aria-label', flying() ? 'Bay lên' : 'Nhảy');
@@ -7716,6 +7737,287 @@ function drawMhBoss(B) {
   }
   ctx.restore();
 }
+/* ---------- Mereoleona Vermillion (Black Clover): cheat ----------
+   “Sư tử dữ” của Hồng Liên Sư Tử Vương: không mặc giáp (phòng thủ 0) nhưng 10.000 máu, đánh tay không bọc lửa, mỗi đòn trúng
+   hút lại máu. J đấm lửa liên hoàn (đấm thẳng, đấm móc, đá) · giữ J Calidos Brachium: hai cánh tay lửa khổng lồ phóng ra ·
+   L Mana Zone: vùng ma lực 10 giây — nắm đấm lửa đánh vào kẻ địch từ mọi hướng, duy trì vùng thì hồi máu liên tục ·
+   K Sư Tử Lao: lao tới đấm, để lại vệt lửa · U Calidos Brachium Purgatorium: mưa cánh tay lửa từ vùng ma lực rồi nổ tung ·
+   T Hoả Táng (Flame Burial): lửa nóng nhất bọc kín người 6 giây, sát thương và hút máu ×2, chạm là thiêu. */
+function newMr() { return { cd: {}, pose: null, poseT: 0, poseK: 1, cur: null, mt: 0, combo: 0, arms: [], fists: [], zone: 0, zoneT: 0, burial: 0, purg: null, trail: [], healAcc: 0, healT: 0 }; }
+function mrCd(k, t) { const M = S.mr; if (M.cd[k] > 0) return false; M.cd[k] = t; return true; }
+function mrPop(text, c = '#ff9a4a') { S.pops.push({ x: S.ball.x, y: S.ball.y - 80, t: 1, text, c }); }
+function mrPose(p, t) { const M = S.mr; M.pose = p; M.poseT = t; }
+// hút máu: hồi theo sát thương gây ra; Hoả Táng nhân đôi
+function mrHeal(n) {
+  const M = S.mr;
+  if (S.dead || S.hp >= S.maxHp || n <= 0) return;
+  n = Math.round(n * (M.burial > 0 ? 2 : 1));
+  S.hp = Math.min(S.maxHp, S.hp + n); M.healAcc += n; hud();
+}
+function mrHit(t, dmg, p) {
+  if (!tAlive(t)) return;
+  const k = S.mr.burial > 0 ? 2 : 1;
+  let heal = 30 * k;
+  boltSpark(p.x, p.y, '#ff8a2a', 8);
+  if (t.kind === 'boss') {
+    LAST_PROBE = { x: p.x, y: p.y, t: S.t }; S.lastDmg = 0;
+    if (damageBoss(t.ref, dmg * k, 'haki')) heal += S.lastDmg * .4;   // lửa ma lực xuyên Khiên năng lượng
+  } else if (t.kind === 'enemy') { const e = t.ref; e.inv = 0; e.bub = 0; if (e.role === 'khien') e.dir = -(Math.sign(S.ball.x - e.x) || 1); if (dmg * k >= 3) e.hp = 1; killEnemy(e, '#e8402c'); heal += 40; }
+  else if (t.kind === 'flyer') { killFlyer(t.ref); heal += 40; }
+  else { const T = S.turret; T.hp -= dmg * k; T.flash = .15; if (T.hp <= 0) breakTurret(); }
+  mrHeal(heal);
+}
+// nắm đấm lửa bay tới mục tiêu từ một góc bất kì (Mana Zone)
+function mrFist(t, ang, dmg, big) {
+  const p = tPos(t), r = big ? 240 : 170;
+  S.mr.fists.push({ t: 0, dur: big ? .3 : .22, tgt: t, sx: p.x + Math.cos(ang) * r, sy: p.y + Math.sin(ang) * r, ang, dmg, big, done: false });
+}
+// J: đấm lửa liên hoàn — đấm thẳng, đấm móc tay sau, đá vòng
+function mrTap() {
+  if (!canAct() || !mrCd('j', .2)) return;
+  const M = S.mr, b = S.ball, d = b.face || 1, i = M.combo % 3;
+  M.combo++;
+  mrPose(['jab', 'cross', 'kick'][i], .2);
+  b.vx += d * 140;
+  const hx = b.x + d * (i === 2 ? 52 : 46), hy = b.y - (i === 2 ? 4 : 14), hit = nkTouch(hx, hy, i === 2 ? 46 : 40);
+  for (const t of hit) {
+    mrHit(t, i === 2 ? 3 : 2, tPos(t));
+    if (M.zone > 0) for (let n = 0; n < 2; n++) mrFist(t, Math.random() * Math.PI * 2, 1);
+  }
+  S.mr.trail.push({ x: hx, y: hy, d, t: .18, big: i === 2 });
+  sfx(hit.length ? 'hit' : 'dash');
+}
+// giữ J: Calidos Brachium — hai cánh tay lửa khổng lồ phóng ra từ sau vai
+function mrBrachium(hold) {
+  if (!canAct() || !mrCd('hold', .55)) return;
+  const k = chargeK(hold), b = S.ball, d = b.face || 1;
+  for (const side of [-1, 1]) S.mr.arms.push({ t: side > 0 ? -.08 : 0, dur: .55, d, side, reach: 300 + k * 140, r: 30 + k * 10, dmg: 4 + Math.round(k * 3), hit: new Set() });
+  mrPose('brachium', .6); S.cast = .5; b.vx -= d * 120;
+  mrPop('Calidos Brachium!'); sfx('kame');
+}
+// L: Mana Zone — bật/tắt; vùng ma lực 10 giây
+function mrZone() {
+  const M = S.mr;
+  if (M.zone > 0) { M.zone = 0; mrPop('Tắt Mana Zone', '#ffcf8a'); return; }
+  if (!canAct()) return;
+  if (!mrCd('zone', 14)) { mrPop(`Mana Zone hồi ${Math.ceil(M.cd.zone)} giây`, '#ffcf8a'); sfx('deny'); return; }
+  M.zone = 10; M.zoneT = 0; mrPose('zone', .5);
+  mrPop('Mana Zone!'); sfx('ui');
+}
+// K: Sư Tử Lao — lao tới đấm, đầu sư tử lửa, vệt lửa phía sau
+function mrDash() {
+  if (!canAct() || !mrCd('k', .5)) return;
+  const b = S.ball, d = (keys.right ? 1 : 0) - (keys.left ? 1 : 0) || b.face || 1, x0 = b.x;
+  b.face = d; b.x += d * 320; b.vx = d * 260; b.vy = Math.min(b.vy, -60); S.safe = Math.max(S.safe, .45);
+  const hit = new Set();
+  // dọc đường lao bám theo mặt đất (lên dốc, xuống dốc)
+  for (let x = x0; d > 0 ? x <= b.x : x >= b.x; x += d * 30) { const gy = groundYAt(x), y = S.onGround && gy != null ? gy - 24 : b.y - 10; for (const t of nkTouch(x, y, 48)) if (!hit.has(t.ref)) { hit.add(t.ref); mrHit(t, 3, tPos(t)); } }
+  for (let x = x0; d > 0 ? x < b.x : x > b.x; x += d * 26) S.mr.trail.push({ x, y: b.y - 10, d, t: .35, lion: x === x0 });
+  mrPose('jab', .3); sfx('dash');
+}
+// U: Calidos Brachium Purgatorium — mưa cánh tay lửa lên mọi kẻ địch trên màn hình, rồi nổ cột lửa
+function mrPurg() {
+  if (!canAct()) return;
+  if (!mrCd('purg', 8)) { mrPop(`Purgatorium hồi ${Math.ceil(S.mr.cd.purg)} giây`); sfx('deny'); return; }
+  S.mr.purg = { t: 0, dur: 2, tk: 0 }; mrPose('purg', 2.2);
+  mrPop('Calidos Brachium Purgatorium!', '#ffd27a'); sfx('roar'); S.flash = Math.max(S.flash, .3);
+}
+// T: Hoả Táng — lửa nóng nhất bọc kín người
+function mrBurial() {
+  if (!canAct()) return;
+  if (!mrCd('burial', 18)) { mrPop(`Hoả Táng hồi ${Math.ceil(S.mr.cd.burial)} giây`); sfx('deny'); return; }
+  S.mr.burial = 6; mrPose('zone', .4); S.flash = Math.max(S.flash, .4);
+  mrPop('Hoả Táng — Flame Burial!', '#fff0b0'); sfx('meteor');
+}
+function updateMereo(dt) {
+  const M = S.mr, b = S.ball;
+  for (const k in M.cd) M.cd[k] = Math.max(0, M.cd[k] - dt);
+  M.mt += dt; M.poseT -= dt; if (M.poseT <= 0) M.pose = null;
+  for (const o of M.trail) o.t -= dt;
+  M.trail = M.trail.filter(o => o.t > 0);
+  // số máu hồi gộp lại, hiện 3 lần mỗi giây
+  if ((M.healT -= dt) <= 0 && M.healAcc > 0) { S.pops.push({ x: b.x + 26, y: b.y - 60, t: .7, text: `+${M.healAcc}`, c: '#5fe08a' }); M.healAcc = 0; M.healT = .33; }
+  if (CHAR !== 'mereo' || S.dead) { M.arms = []; M.fists = []; M.purg = null; M.zone = 0; M.burial = 0; return; }
+  // cánh tay lửa Calidos Brachium
+  for (const a of M.arms) {
+    a.t += dt;
+    if (a.t < 0) continue;
+    const e = Math.min(1, a.t / (a.dur * .45)), x = b.x + a.d * (20 + a.reach * e), y = b.y - 18 + a.side * 14;
+    a.x = x; a.y = y;
+    if (a.t < a.dur * .7) for (const t of nkTouch(x, y, a.r)) if (!a.hit.has(t.ref)) { a.hit.add(t.ref); mrHit(t, a.dmg, { x, y }); }
+  }
+  M.arms = M.arms.filter(a => a.t < a.dur);
+  // nắm đấm từ mọi hướng
+  for (const f of M.fists) {
+    f.t += dt;
+    if (!f.done && f.t >= f.dur) { f.done = true; if (tAlive(f.tgt)) { const p = tPos(f.tgt); mrHit(f.tgt, f.dmg, p); boltSpark(p.x, p.y, '#ffd27a', 6); } }
+  }
+  M.fists = M.fists.filter(f => f.t < f.dur + .15);
+  // Mana Zone: hồi 1,5% máu mỗi giây, cứ 0,35 giây một nắm đấm lửa đánh kẻ địch trong vùng từ góc bất kì
+  if (M.zone > 0) {
+    M.zone -= dt; M.zoneT -= dt;
+    mrHeal(S.maxHp * .015 * dt);
+    if (M.zoneT <= 0) { M.zoneT = .35; for (const t of nkTargets(b.x, b.y, 300, 2)) mrFist(t, Math.random() * Math.PI * 2, 1); }
+    if (M.zone <= 0) mrPop('Mana Zone kết thúc', '#ffcf8a');
+  }
+  // Hoả Táng: chạm là thiêu
+  if (M.burial > 0) {
+    M.burial -= dt;
+    M.burnCd = M.burnCd || new Map();
+    for (const t of nkTouch(b.x, b.y - 14, 42)) { const c = M.burnCd.get(t.ref) || 0; if (S.t > c) { M.burnCd.set(t.ref, S.t + .3); mrHit(t, 2, tPos(t)); } }
+    if (Math.random() < dt * 40) S.parts.push({ x: b.x + (Math.random() - .5) * 36, y: b.y - Math.random() * 60, vx: (Math.random() - .5) * 40, vy: -140 - Math.random() * 80, life: .5, c: ['#fff0b0', '#ffb03a', '#ff5a1a'][Math.floor(Math.random() * 3)], r: 2 + Math.random() * 3, g: -80 });
+  }
+  // Purgatorium: tay lửa dồn dập rồi cột lửa nổ trên từng mục tiêu
+  const P = M.purg;
+  if (P) {
+    P.t += dt; P.tk -= dt;
+    const tg = nkTargets(b.x, b.y, 900, 20);
+    if (P.tk <= 0 && P.t < P.dur) { P.tk = .07; for (const t of tg) mrFist(t, Math.random() * Math.PI * 2, 2, true); }
+    if (P.t >= P.dur) {
+      for (const t of tg) { const p = tPos(t); mrHit(t, 8, p); M.trail.push({ x: p.x, y: p.y, d: 1, t: .6, pillar: true }); }
+      S.flash = Math.max(S.flash, .6); sfx('boom'); M.purg = null;
+    }
+  }
+}
+function drawMereoFx() {
+  const M = S.mr, b = S.ball;
+  if (CHAR !== 'mereo') return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  // vùng ma lực: vòm lửa mờ, tàn lửa xoay
+  if (M.zone > 0) {
+    const a = Math.min(1, M.zone) * .5;
+    const gr = ctx.createRadialGradient(b.x, b.y - 20, 40, b.x, b.y - 20, 300);
+    gr.addColorStop(0, 'rgb(255 120 40 / 0)'); gr.addColorStop(.85, `rgb(255 110 30 / ${(a * .25).toFixed(2)})`); gr.addColorStop(1, `rgb(255 200 90 / ${(a * .5).toFixed(2)})`);
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(b.x, b.y - 20, 300, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 18; i++) { const ang = S.t * .8 + i / 18 * Math.PI * 2, rr = 200 + 90 * Math.sin(S.t * 2 + i); ctx.fillStyle = `rgb(255 ${150 + (i % 3) * 40} 60 / .7)`; ctx.fillRect(b.x + Math.cos(ang) * rr, b.y - 20 + Math.sin(ang) * rr * .7, 3, 3); }
+  }
+  // vệt lửa của nắm đấm, cú lao, cột lửa Purgatorium
+  for (const o of M.trail) {
+    const k = o.t / (o.pillar ? .6 : o.big ? .18 : .35);
+    if (o.pillar) {
+      for (const [w, c] of [[40, 'rgb(255 60 20 / .5)'], [24, 'rgb(255 170 50 / .7)'], [10, 'rgb(255 250 210 / .9)']]) { ctx.fillStyle = c; ctx.globalAlpha = k; ctx.fillRect(o.x - w / 2, o.y - 260 * (1.2 - k * .2), w, 290); }
+      ctx.globalAlpha = 1; continue;
+    }
+    const r = (o.big ? 34 : o.lion ? 40 : 22) * (1.2 - k * .4);
+    const gr = ctx.createRadialGradient(o.x, o.y, 1, o.x, o.y, r);
+    gr.addColorStop(0, `rgb(255 245 200 / ${(.9 * k).toFixed(2)})`); gr.addColorStop(.5, `rgb(255 140 40 / ${(.6 * k).toFixed(2)})`); gr.addColorStop(1, 'rgb(255 40 10 / 0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  // cánh tay lửa khổng lồ: ống lửa từ vai, nắm đấm to ở đầu
+  for (const a of M.arms) {
+    if (a.t < 0 || a.x === undefined) continue;
+    const fade = Math.min(1, (a.dur - a.t) / .2), sx = b.x - a.d * 6, sy = b.y - 34 + a.side * 6;
+    for (const [w, c] of [[a.r * 1.4, 'rgb(255 50 10 / .35)'], [a.r * .9, 'rgb(255 140 30 / .55)'], [a.r * .4, 'rgb(255 245 200 / .8)']]) {
+      ctx.strokeStyle = c; ctx.globalAlpha = fade; ctx.lineWidth = w; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo((sx + a.x) / 2, sy - 30 * a.side - 20, a.x, a.y); ctx.stroke();
+    }
+    const gr = ctx.createRadialGradient(a.x, a.y, 2, a.x, a.y, a.r * 1.3);
+    gr.addColorStop(0, 'rgb(255 255 230 / .95)'); gr.addColorStop(.45, 'rgb(255 160 40 / .8)'); gr.addColorStop(1, 'rgb(255 40 10 / 0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  // nắm đấm lửa bay vào từ mọi hướng
+  for (const f of M.fists) {
+    const p = tAlive(f.tgt) ? tPos(f.tgt) : { x: f.sx, y: f.sy }, e = Math.min(1, f.t / f.dur), x = f.sx + (p.x - f.sx) * e, y = f.sy + (p.y - f.sy) * e, r = f.big ? 22 : 15;
+    ctx.globalAlpha = f.done ? Math.max(0, 1 - (f.t - f.dur) / .15) : 1;
+    ctx.strokeStyle = 'rgb(255 110 30 / .5)'; ctx.lineWidth = r; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(f.sx + (x - f.sx) * .2, f.sy + (y - f.sy) * .2); ctx.lineTo(x, y); ctx.stroke();
+    const gr = ctx.createRadialGradient(x, y, 1, x, y, r * 1.2); gr.addColorStop(0, 'rgb(255 250 220 / .95)'); gr.addColorStop(1, 'rgb(255 80 20 / 0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r * 1.2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+// tư thế: tái dùng khung xương mhPose của boss manhwa (cùng cách đấm, đá), thêm vài tư thế riêng
+function mrTarget(b) {
+  const M = S.mr, u = { mt: M.mt, vx: b.vx, ground: S.onGround, poseK: 1 };
+  if (M.pose === 'brachium') return { hy: -52, lean: .25, bl: [-.45, -.3], fl: [.55, .15], ba: [1.45, 1.5], fa: [1.6, 1.6] };
+  if (M.pose === 'zone') return { hy: -52, lean: -.1, bl: [-.4, -.25], fl: [.45, .15], ba: [-1.3, -1.6], fa: [1.3, 1.6] };
+  if (M.pose === 'purg') return { hy: -54, lean: -.15, bl: [-.35, -.2], fl: [.4, .1], ba: [2.6, 2.9], fa: [2.8, 3] };
+  return mhPose(M.pose, u, false);
+}
+function drawMereo(b, charged) {
+  const M = S.mr, d = b.face || 1, fy = b.y + R - 2, S6 = .64;
+  // nội suy tư thế giống boss: ra đòn nhanh, thu về chậm
+  const T = mrTarget(b), run = !M.pose && S.onGround && Math.abs(b.vx) > 60;
+  if (!M.cur) M.cur = JSON.parse(JSON.stringify(T));
+  const k = 1 - Math.exp(-(run ? 40 : M.pose ? 32 : 12) / 60), C = M.cur;
+  C.hy += (T.hy - C.hy) * k; C.lean += (T.lean - C.lean) * k;
+  for (const L of ['bl', 'fl', 'ba', 'fa']) for (let i = 0; i < 2; i++) C[L][i] += (T[L][i] - C[L][i]) * k;
+  const P = C;
+  if (M.burial > 0) {
+    // Hoả Táng: lửa trắng vàng bọc kín
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 7; i++) {
+      const ox = (i - 3) * 7, h = 50 + 26 * Math.abs(Math.sin(S.t * 9 + i * 1.3));
+      const gr = ctx.createLinearGradient(0, fy, 0, fy - 90 - h * .3); gr.addColorStop(0, 'rgb(255 120 30 / .55)'); gr.addColorStop(.6, 'rgb(255 220 120 / .35)'); gr.addColorStop(1, 'rgb(255 255 230 / 0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(b.x + ox - 10, fy); ctx.quadraticCurveTo(b.x + ox - 10, fy - h, b.x + ox + Math.sin(S.t * 11 + i) * 6, fy - 46 - h); ctx.quadraticCurveTo(b.x + ox + 10, fy - h, b.x + ox + 10, fy); ctx.fill();
+    }
+    ctx.restore();
+  }
+  ctx.save(); ctx.translate(b.x, fy); ctx.scale(d * S6, S6); ctx.lineJoin = 'round';
+  const SK = '#f6d8c4', HAIR = '#d8402a', HAIR2 = '#a8221a', HAIRHI = '#ff8a4a', SHIRT = '#1f2c5a', TRIM = '#e8e2d0', TUNIC = '#f4f2ec', SASH = '#7a3aa0', PANTS = '#f2efe6', BOOT = '#3a2418', CAPE = '#c0281e';
+  const hy = P.hy, sx = Math.sin(P.lean) * 36, sy = hy - Math.cos(P.lean) * 36, cx = sx + Math.sin(P.lean) * 15, cy = sy - Math.cos(P.lean) * 15;
+  const sway = Math.sin(M.mt * 4) * 2 - clamp(b.vx / 200, -4, 4);
+  // áo choàng đỏ bay sau lưng
+  ctx.fillStyle = CAPE; ctx.beginPath(); ctx.moveTo(sx - 8, sy); ctx.lineTo(-10, hy); ctx.quadraticCurveTo(-26 + sway * 3, hy + 30, -30 + sway * 4, 0); ctx.lineTo(-8, -4); ctx.lineTo(sx + 2, sy + 2); ctx.fill();
+  ctx.fillStyle = '#8a1a14'; ctx.beginPath(); ctx.moveTo(sx - 8, sy); ctx.lineTo(-14, hy + 10); ctx.lineTo(-20 + sway * 3, -2); ctx.lineTo(-26 + sway * 4, 0); ctx.quadraticCurveTo(-24 + sway * 3, hy + 30, -10, hy); ctx.fill();
+  // mái tóc dài gợn sóng như bờm sư tử, rủ tới hông
+  ctx.fillStyle = HAIR2; ctx.beginPath();
+  ctx.moveTo(cx + 6, cy - 14); ctx.quadraticCurveTo(cx - 22, cy - 18, cx - 24 + sway, cy + 6);
+  // các lọn tóc gợn sóng to, xoà ra như bờm sư tử
+  for (let i = 0; i < 6; i++) { const yy = cy + 8 + i * 10, w = Math.sin(M.mt * 3 + i) * 1.5; ctx.quadraticCurveTo(cx - 34 - (i % 2) * 4 + sway * (1 + i * .3) + w, yy + 2, cx - 22 + sway * (1 + i * .25), yy + 8); }
+  ctx.lineTo(cx - 10 + sway, cy + 66); ctx.lineTo(cx - 4, cy + 30); ctx.lineTo(cx + 2, cy + 12); ctx.closePath(); ctx.fill();
+  const arm = (a, front) => {
+    // tay áo xắn tới khuỷu: bắp tay áo xanh, cẳng tay trần
+    const kx = sx + (front ? 4 : -4) + Math.sin(a[0]) * 21, ky = sy + 4 + Math.cos(a[0]) * 21;
+    const [hx, hy2] = limb(sx + (front ? 4 : -4), sy + 4, a[0], 21, a[1], 20, 9, 7, front ? SK : '#e8c4ae');
+    ctx.strokeStyle = front ? SHIRT : '#141d40'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(sx + (front ? 4 : -4), sy + 4); ctx.lineTo(kx, ky); ctx.stroke();
+    ctx.strokeStyle = TRIM; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(kx - 3, ky - 2); ctx.lineTo(kx + 3, ky + 2); ctx.stroke();
+    // nắm đấm bọc lửa
+    ctx.fillStyle = front ? SK : '#e8c4ae'; ctx.beginPath(); ctx.arc(hx, hy2, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const gr = ctx.createRadialGradient(hx, hy2, 1, hx, hy2, 14); gr.addColorStop(0, 'rgb(255 220 120 / .8)'); gr.addColorStop(1, 'rgb(255 60 10 / 0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(hx, hy2, 14, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  };
+  const leg = (a, back) => {
+    const [fx, fy2] = limb(back ? -3 : 3, hy, a[0], 28, a[1], 28, 12, 10, back ? '#d8d4c8' : PANTS);
+    ctx.fillStyle = BOOT; ctx.beginPath(); ctx.ellipse(fx + 4, fy2 - 1, 8, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  };
+  arm(P.ba, false);
+  leg(P.bl, true);
+  leg(P.fl, false);
+  // thân: áo dài xanh đậm cổ cao, viền sọc, áo trong trắng, khăn thắt lưng tím
+  ctx.fillStyle = SHIRT; ctx.beginPath(); ctx.moveTo(sx - 10, sy); ctx.lineTo(sx + 10, sy); ctx.lineTo(11, hy + 12); ctx.lineTo(-11, hy + 12); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = TUNIC; ctx.beginPath(); ctx.moveTo(sx + 1, sy + 3); ctx.lineTo(sx + 8, sy + 3); ctx.lineTo(7, hy - 2); ctx.lineTo(2, hy - 2); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = TRIM; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx + 9, sy + 1); ctx.lineTo(10, hy + 11); ctx.stroke();
+  ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(sx - 9, sy + 1); ctx.lineTo(-10, hy + 11); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = SASH; ctx.fillRect(-11, hy - 4, 22, 6);
+  ctx.beginPath(); ctx.moveTo(-8, hy + 2); ctx.lineTo(-14 + sway, hy + 16); ctx.lineTo(-6, hy + 4); ctx.fill();
+  ctx.fillStyle = SHIRT; ctx.fillRect(sx - 4, sy - 8, 9, 9);                  // cổ áo cao
+  ctx.strokeStyle = TRIM; ctx.lineWidth = 1.5; ctx.strokeRect(sx - 4, sy - 8, 9, 9);
+  // mặt
+  ctx.fillStyle = SK; ctx.beginPath(); ctx.ellipse(cx + 1.5, cy + 1, 8.5, 10.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx + 6, cy + 7); ctx.lineTo(cx + 3, cy + 11.5); ctx.lineTo(cx - 2, cy + 9); ctx.fill();
+  // vệt đỏ quanh mắt (dòng họ Vermillion), mắt xanh sắc, nụ cười hoang dã
+  ctx.strokeStyle = '#d8282e'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(cx + 1.5, cy + 3.6); ctx.lineTo(cx + 8.5, cy + 3); ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(cx + 5, cy + 1, 3, 1.6, -.1, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a7ad8'; ctx.beginPath(); ctx.arc(cx + 5.6, cy + 1, 1.4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#14141a'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(cx + 1.6, cy - .4); ctx.lineTo(cx + 8.4, cy - .6); ctx.stroke();
+  ctx.strokeStyle = '#7a2a1a'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(cx + 1.5, cy - 4.5); ctx.lineTo(cx + 8, cy - 2.6); ctx.stroke();
+  ctx.strokeStyle = '#8a3a3a'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 4, cy + 7.6); ctx.quadraticCurveTo(cx + 6.5, cy + 9, cx + 8.5, cy + 7); ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(cx + 5, cy + 7.6, 2.5, 1);
+  // tóc trước: bồng dữ dội, tua tóc rủ hai bên mặt
+  ctx.fillStyle = HAIR; ctx.beginPath();
+  ctx.moveTo(cx - 12, cy + 4); ctx.lineTo(cx - 16, cy - 8); ctx.lineTo(cx - 11, cy - 18); ctx.lineTo(cx - 2, cy - 20); ctx.lineTo(cx + 6, cy - 18); ctx.lineTo(cx + 13, cy - 12);
+  ctx.lineTo(cx + 14, cy - 3); ctx.lineTo(cx + 10, cy - 6); ctx.lineTo(cx + 9, cy + 1); ctx.lineTo(cx + 6, cy - 5); ctx.lineTo(cx + 3, cy - 1); ctx.lineTo(cx, cy - 6);
+  ctx.lineTo(cx - 3, cy + 6); ctx.lineTo(cx - 5 + sway * .4, cy + 18); ctx.lineTo(cx - 8, cy + 8); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = HAIRHI; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(cx - 10, cy - 13); ctx.quadraticCurveTo(cx - 2, cy - 19, cx + 8, cy - 13); ctx.moveTo(cx - 14, cy - 4); ctx.lineTo(cx - 9, cy - 14); ctx.stroke();
+  arm(P.fa, true);
+  ctx.restore();
+  if (charged) { ctx.strokeStyle = 'rgb(255 140 40 / .6)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 18, 34 + Math.sin(S.t * 12) * 3, 0, Math.PI * 2); ctx.stroke(); }
+}
 function drawKurumi(b, charged) {
   const K = S.ku, d = b.face || 1, air = true, hover = 10 + Math.sin(S.t * 2.2) * 4, lean = clamp(b.vx / 450, -1, 1) * d, fy = b.y + R - 2 - hover;   // lơ lửng, không chạy bộ
   // Zafkiel sau lưng khi vừa dùng một viên đạn
@@ -8232,6 +8534,7 @@ function drawCharFx() {
   drawNamekFx();
   drawLuffyFx();
   drawKurumiFx();
+  drawMereoFx();
   drawSxFx();
   // Xayda: vụ nổ Tự phát nổ
   if (S.blast) {
@@ -8603,8 +8906,8 @@ function drawBall() {
   if (CHAR === 'pika' && DMAX) { drawMaxCore(b, pw && !blink); return; }
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
-const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e' };
-const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi };
+const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a' };
+const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo };
 // Khiên Hổ Phách của Stelle: vỏ lục giác màu hổ phách
 function drawAmber(b) {
   const r = R * 1.9 + Math.sin(S.t * 6) * 2, fade = S.amber < .8 && Math.floor(S.t * 14) % 2;
