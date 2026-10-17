@@ -618,6 +618,7 @@ function step(h) {
 const fellOff = () => S.ball.y > DEATH_Y || (MAP === 2 && S.ball.y > S.safeY + 620);
 function die(force) {   // force: chết chắc chắn, không gì đỡ được (Vegeta tự phát nổ)
   if (S.dead) return;
+  if (CHAR === 'kurumi' && S.ku.crim) { crimRebirth(force); return; }   // Hồng Liên Bất Diệt: không gì giết được, kể cả đòn chắc chắn chết
   // Goku ở trạng thái Bản Năng Vô Cực: cơ thể tự né mọi đòn
   if (!force && S.ui > 0 && !fellOff()) {
     S.safe = Math.max(S.safe, .6);
@@ -2311,7 +2312,7 @@ function bossContact(B, b, stopped) {
 }
 function bossVulnerable(B, kind) {
   if (kind === 'makanko') return !(B.dead || B.cut || B.fuse || B.trans);   // Makankosappo xuyên mọi khiên
-  if (kind === 'haki') return !(B.dead || B.cut || B.fuse || B.trans || B.nova || B.ts > 0);   // Haki vũ trang xuyên Khiên năng lượng
+  if (kind === 'haki' || kind === 'crim') return !(B.dead || B.cut || B.fuse || B.trans || B.nova || B.ts > 0);   // Haki vũ trang xuyên Khiên năng lượng
   if (B.shield > 0 || B.trans || B.nova) return false;   // Khiên năng lượng, đang biến khỉ, đang gồng tự phát nổ
   if (B.dead || B.cut || B.fuse || B.ts > 0) return false;
   if (B.phase === 4) return !!CH().pierce || kind === 'volt' || kind === 'anti' || S.power > 0 || B.exhaust > 0;
@@ -2319,7 +2320,7 @@ function bossVulnerable(B, kind) {
 }
 function damageBoss(u, base, kind) {
   const B = S.boss;
-  if (B.inv > 0 && kind !== 'volt' && kind !== 'makanko') return false;
+  if (B.inv > 0 && kind !== 'volt' && kind !== 'makanko' && kind !== 'crim') return false;
   const h = unitH(u);
   if (!bossVulnerable(B, kind)) {
     boltSpark(u.x, u.y - h / 2, '#c9b6ff', 8);
@@ -2328,7 +2329,7 @@ function damageBoss(u, base, kind) {
     return false;
   }
   // Goku né mọi đòn đơn lẻ; đòn thứ hai từ hướng khác tới trong lúc hắn đang né thì cả hai cùng trúng
-  if (MAP === 4 && kind !== 'volt' && kind !== 'makanko') {
+  if (MAP === 4 && kind !== 'volt' && kind !== 'makanko' && kind !== 'crim') {
     const d = hitDir(u, kind), P = B.pend;
     if (!P) {
       B.pend = { dirs: [d], base, t: B.phase === 2 ? .3 : .4 };
@@ -2750,7 +2751,7 @@ const CHAR_UI = {
       ['Rasiel', 'sách thiên thần, viền vàng; biết trước mọi đòn (tự né); J trang sách đuổi mục tiêu · giữ J bão trang sách · L Định Mệnh: mọi mục tiêu trên màn hình cùng trúng đòn sau 1,2 giây · K Lật trang: hiện sau lưng mục tiêu · U Khải Huyền: 10 cột sáng giáng khắp màn hình; sát thương ×2'],
       ['Nghịch chuyển', 'bóng tối nghịch thời, tím đen, cánh bóng tối; J đạn bóng tối xuyên · giữ J hố đen hút quái rồi nổ · L Thành Phố Ăn Thời Gian: bóng tối phủ mặt đất 5 giây, trói và hút máu · K Lặn bóng · U Yud Bet: xoá sạch quái trên màn hình, boss mất 15 máu; sát thương ×2'],
       ['Lucifugus', 'Ma Vương của White Queen — Yamauchi Sawa, người bạn thân đã chết của Kurumi, ở Lân Giới: quân phục trắng, tóc trắng bạc trong suốt, mắt đồng hồ xanh, kiếm saber, cánh pha lê và đồng hồ Hoàng Đạo. J chém saber · giữ J Đạn Nhân Mã · L Đạn Thiên Bình: đạn địch quay đầu 5 giây · K Đạn Cự Giải: dịch chuyển và che chắn · U Đạn Bọ Cạp: quái thành quân cờ đánh lại đồng bọn, boss mất 10 máu · T Đạn Bảo Bình: hồi đầy mạng; sát thương ×2'],
-      ['Hồng Liên', 'Kurumi đỏ rực, dạng mạnh nhất (sát thương ×3), bay tự do (▲ lên, ▼ xuống), lửa bốc quanh người thiêu mọi quái chạm vào; mọi chiêu phá tan công trình: bục, cửa đá, bẫy, bãi gai, khoét hố mặt đất. J Đạn Hoả Thần: 3 tia lửa nổ · giữ J Pháo Hồng Liên: tia lửa khổng lồ xuyên màn hình · L Hoả Ngục Thời Gian: dừng thời gian 3 giây, cột lửa trên mọi kẻ địch rồi nổ cùng lúc · K Bước Lửa: lướt xa để lại vệt lửa · U Tận Thế Hồng Liên: mưa thiên thạch lửa · T Phượng Hoàng Tái Sinh: hồi đầy mạng, vô địch 3 giây']],
+      ['Hồng Liên', 'Kurumi đỏ rực, dạng mạnh nhất (sát thương ×3). BẤT DIỆT: không gì giết được — kể cả rơi vực và tự phát nổ của Vegeta — trúng đòn chí mạng là bùng lửa tái sinh tại chỗ và nổ phản đòn. Lửa xuyên mọi khiên, Goku không né được, boss trúng lửa bị thiêu mất máu dần; đạn quái bay vào vùng lửa là cháy rụi. bay tự do (▲ lên, ▼ xuống), lửa bốc quanh người thiêu mọi quái chạm vào; mọi chiêu phá tan công trình: bục, cửa đá, bẫy, bãi gai, khoét hố mặt đất. J Đạn Hoả Thần: 3 tia lửa nổ · giữ J Pháo Hồng Liên: tia lửa khổng lồ xuyên màn hình · L Hoả Ngục Thời Gian: dừng thời gian 3 giây, cột lửa trên mọi kẻ địch rồi nổ cùng lúc · K Bước Lửa: lướt xa để lại vệt lửa · U Tận Thế Hồng Liên: mưa thiên thạch lửa · T Phượng Hoàng Tái Sinh: hồi đầy mạng, vô địch 3 giây']],
     passive: 'sắp chết thì tự tua ngược về chỗ đứng 1,5 giây trước (kể cả rơi vực), hồi 15 giây · cheat: mọi chiêu miễn phí, sát thương ×2.',
     tip: 'Kurumi: J súng kíp · giữ J súng hoả mai · L ngưng đọng thời gian (cả đồng hồ màn chơi cũng dừng) · K Aleph · U Zafkiel · E phân thân · T Dalet · F đổi dạng Rasiel / Nghịch chuyển / Lucifugus / Hồng Liên.' },
   luffy: { name: 'Luffy', from: 'One Piece', tag: 'Gear 2/3/4/5, ba loại Haki, mặt đất cao su (cheat)', energy: 'Sức',
@@ -5643,7 +5644,7 @@ function newKu() { return { shots: [], clones: [], hist: [], clock: 0, bullet: 0
 // thời gian đang ngưng đọng: mọi thứ trừ Kurumi đứng yên
 const worldStopped = () => CHAR === 'kurumi' && !!S.ku && S.ku.stop;
 const KU_NUM = { aleph: 1, dalet: 4, zayin: 7, zafkiel: 12, clone: 8, rasiel: 0, fate: 3, apoc: 6, inv: 0, city: 9, yud: 12, crim: 0, cbeam: 12, inferno: 7, firestep: 1, apocc: 12, phoenix: 4 };
-const KU_NAME = { aleph: 'Aleph — Đạn thứ nhất', dalet: 'Dalet — Đạn thứ tư', zayin: 'Zayin — Đạn thứ bảy: ngưng đọng thời gian', zafkiel: 'Zafkiel: Thành phố ăn thời gian', clone: 'Phân thân — Bóng tối của Kurumi', rasiel: 'Rasiel — Thiên Thư', fate: 'Rasiel: Định Mệnh', apoc: 'Rasiel: Khải Huyền', inv: 'Nghịch chuyển — Bóng tối nghịch thời', wq: 'Lucifugus — White Queen', crim: 'Hồng Liên — Kurumi đỏ rực', cbeam: 'Pháo Hồng Liên', inferno: 'Hoả Ngục Thời Gian', firestep: 'Bước Lửa', apocc: 'Tận Thế Hồng Liên', phoenix: 'Phượng Hoàng Tái Sinh', sagittarius: 'Đạn Nhân Mã', libra: 'Đạn Thiên Bình: đảo ngược nhân quả', cancer: 'Đạn Cự Giải', scorpio: 'Đạn Bọ Cạp', aquarius: 'Đạn Bảo Bình', city: 'Thành Phố Ăn Thời Gian', yud: 'Yud Bet — Đạn thứ mười hai' };
+const KU_NAME = { aleph: 'Aleph — Đạn thứ nhất', dalet: 'Dalet — Đạn thứ tư', zayin: 'Zayin — Đạn thứ bảy: ngưng đọng thời gian', zafkiel: 'Zafkiel: Thành phố ăn thời gian', clone: 'Phân thân — Bóng tối của Kurumi', rasiel: 'Rasiel — Thiên Thư', fate: 'Rasiel: Định Mệnh', apoc: 'Rasiel: Khải Huyền', inv: 'Nghịch chuyển — Bóng tối nghịch thời', wq: 'Lucifugus — White Queen', crim: 'Hồng Liên Bất Diệt — Kurumi đỏ rực', cbeam: 'Pháo Hồng Liên', inferno: 'Hoả Ngục Thời Gian', firestep: 'Bước Lửa', apocc: 'Tận Thế Hồng Liên', phoenix: 'Phượng Hoàng Tái Sinh', sagittarius: 'Đạn Nhân Mã', libra: 'Đạn Thiên Bình: đảo ngược nhân quả', cancer: 'Đạn Cự Giải', scorpio: 'Đạn Bọ Cạp', aquarius: 'Đạn Bảo Bình', city: 'Thành Phố Ăn Thời Gian', yud: 'Yud Bet — Đạn thứ mười hai' };
 function kuClock(kind, t = 1.4) { const K = S.ku; K.clock = t; K.clockMax = t; K.bullet = kind; S.pops.push({ x: S.ball.x, y: S.ball.y - 96, t: 1.4, text: KU_NAME[kind], c: '#ffd36a' }); }
 const kuCd = (k, t) => { const K = S.ku; if (K.cd[k] > 0) return false; K.cd[k] = t; return true; };
 function kuShot(x, y, vx, vy, o = {}) {
@@ -6131,7 +6132,7 @@ function kuYudBet() {
 function kuHit(t, dmg, from, kill) {
   if (!tAlive(t)) return;
   const p = tPos(t);
-  if (t.kind === 'boss') { LAST_PROBE = { x: from.x, y: from.y, t: S.t }; damageBoss(t.ref, dmg, kill ? 'volt' : 'shock'); }
+  if (t.kind === 'boss') { LAST_PROBE = { x: from.x, y: from.y, t: S.t }; damageBoss(t.ref, dmg, S.ku.crim ? 'crim' : kill ? 'volt' : 'shock'); if (S.ku.crim) S.ku.burn = { t: t, d: 5, tick: 0 }; }
   else if (t.kind === 'enemy') {
     // chiêu diện rộng của Kurumi đánh từ bóng tối / định mệnh nên khiên của lính khiên không đỡ được
     const e = t.ref; e.inv = 0; e.bub = 0; if (e.role === 'khien') e.dir = -(Math.sign(S.ball.x - e.x) || 1);
@@ -6591,7 +6592,38 @@ function crimBlast(x, y, r, dmg) {
   S.ku.booms.push({ x, y, r, t: .45 });
   for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 260; S.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, life: .5, c: ['#ff2a14', '#ffb02a', '#fff0c0'][i % 3], r: 3 + Math.random() * 4, g: 400 }); }
 }
+// Bất Diệt (Phượng Hoàng, kiểu Supernova của Phoenix Dota 2 / Dark Phoenix): mọi đòn chí mạng — kể cả rơi vực và tự phát nổ
+// của Vegeta — chỉ làm Kurumi bùng thành biển lửa rồi tái sinh tại chỗ, đồng thời nổ phản đòn thiêu mọi thứ quanh mình.
+function crimRebirth(force) {
+  const K = S.ku, b = S.ball;
+  if (K.rebT > S.t) return;
+  K.rebT = S.t + .3;
+  if (fellOff() || b.y > DEATH_Y - 140) { b.y = Math.min(S.safeY, DEATH_Y - 200) - 40; b.vy = 0; }
+  S.safe = Math.max(S.safe, 1); K.reborn = .8; K.rebirths = (K.rebirths || 0) + 1;
+  const r = force ? 320 : 200;
+  K.counter = { r, dmg: force ? 12 : 4 };   // nổ phản đòn ở khung hình sau (không chen vào giữa lượt xử lý của boss)
+  K.booms.push({ x: b.x, y: b.y - 20, r, t: .6 });
+  for (let i = 0; i < 50; i++) { const a = Math.random() * Math.PI * 2, sp = 200 + Math.random() * 500; S.parts.push({ x: b.x, y: b.y - 20, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .9, c: ['#ff1a1a', '#ff8a1a', '#ffe36a', '#ffffff'][i % 4], r: 4 + Math.random() * 7, g: 0 }); }
+  S.flash = Math.max(S.flash, force ? .8 : .35); sfx('boom');
+  kuPop(force ? 'Bất Diệt! Đòn chắc chắn chết cũng vô hiệu' : 'Bất Diệt! Phượng Hoàng tái sinh', '#ff9a3a');
+}
 function updateCrim(dt) {
+  {
+    const K = S.ku, b = S.ball;
+    K.reborn = Math.max(0, (K.reborn || 0) - dt);
+    if (K.counter) { const c = K.counter; K.counter = null; for (const t of nkTouch(b.x, b.y - 20, c.r)) kuHit(t, c.dmg, b, false); }
+    if (K.crim && !S.dead) {
+      // Hoả Giới: đạn / tên của quái bay vào vùng lửa quanh Kurumi là cháy rụi
+      for (const q of S.eshots) if (Math.hypot(q.x - b.x, q.y - (b.y - 20)) < 110) { q.dead = true; boltSpark(q.x, q.y, '#ff8a1a', 6); }
+      // Thiêu Đốt: boss trúng lửa Hồng Liên cháy âm ỉ, mất máu đều mỗi 0,5 giây trong 5 giây (không né, không khiên nào chặn)
+      const U = K.burn;
+      if (U) {
+        U.d -= dt; U.tick -= dt;
+        if (U.d <= 0 || !tAlive(U.t)) K.burn = null;
+        else if (U.tick <= 0) { U.tick = .5; const p = tPos(U.t); damageBoss(U.t.ref, 1, 'crim'); for (let i = 0; i < 6; i++) S.parts.push({ x: p.x + (Math.random() - .5) * 50, y: p.y - Math.random() * 60, vx: 0, vy: -160, life: .5, c: i % 2 ? '#ff5a14' : '#ffd23f', r: 3 + Math.random() * 3, g: -60 }); }
+      }
+    } else K.burn = null;
+  }
   const K = S.ku, b = S.ball;
   K.phoenix = Math.max(0, (K.phoenix || 0) - dt);
   for (const o of K.booms) o.t -= dt;
@@ -6637,6 +6669,12 @@ function updateCrim(dt) {
 }
 function drawCrimFx() {
   const K = S.ku;
+  if (K.reborn > 0) {
+    const b = S.ball, k = 1 - K.reborn / .8;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const [rr, c] of [[1, 'rgb(255 40 10 / '], [.7, 'rgb(255 160 40 / '], [.4, 'rgb(255 240 200 / ']]) { ctx.strokeStyle = c + ((1 - k) * .8).toFixed(2) + ')'; ctx.lineWidth = 14 * rr; ctx.beginPath(); ctx.arc(b.x, b.y - 20, 40 + k * 260 * rr, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  }
   if (K.cbeam && K.cbeam.len > 0) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; drawKameBeam(K.cbeam); ctx.restore();
   }
