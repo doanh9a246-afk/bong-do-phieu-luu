@@ -5980,7 +5980,12 @@ function drawKuFigure(x, fy, d, o) {
   const aim = K.gun > 0 || o.aim;
   arm(-4, run ? Math.sin(ph + Math.PI) * .5 + .35 : .55, 15, true, null);
   if (o.musket) arm(4.6, -1.57, 14, false, 'musket');
-  else if (o.wq) arm(4.6, aim || (K.slash && K.slash.t > 0) ? -1.5 : .5, 14, false, 'saber');
+  else if (o.wq) {
+    // tay cầm kiếm vung theo đường chém: chéo xuống, hất lên, xoay tròn
+    const sl = K.slash, q = sl ? 1 - sl.t / sl.dur : 0;
+    const swing = sl ? (sl.kind === 'spin' ? -1.57 + q * 6.28 : sl.kind === 'down' ? -2.9 + Math.min(1, q * 1.7) * 2.7 : -.2 - Math.min(1, q * 1.7) * 2.7) : aim ? -1.5 : .5;
+    arm(4.6, swing, 14, false, 'saber');
+  }
   else if (aim) arm(4.6, -1.5, 15, false, 'pistol');
   else if (run || air) arm(4.6, Math.sin(ph) * .5 + .2, 15, false, null);
   else arm(4.6, -2.75, 12, false, null);          // tay chạm cằm như poster
@@ -6285,11 +6290,17 @@ const ZODIAC = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '
 const WQ_SIGN = { saber: 0, sagittarius: 8, libra: 6, cancer: 3, scorpio: 7, aquarius: 10, wq: 11 };
 // J: chém kiếm saber — vệt chém bạc hình lưỡi liềm trước mặt
 function kuSaber() {
-  if (!canAct() || !kuCd('j', .22)) return;
-  const K = S.ku, b = S.ball, d = b.face || 1, cx = b.x + d * 50, cy = b.y - 30;
-  K.slash = { x: cx, y: cy, d, t: .22, up: !K.slash || !K.slash.up };
-  for (const t of nkTouch(cx, cy, 70)) kuHit(t, 4, b, false);
-  K.gun = .2; sfx('slash');
+  if (!canAct() || !kuCd('j', .2)) return;
+  const K = S.ku, b = S.ball, d = b.face || 1;
+  // chuỗi 3 nhát: chém chéo xuống · hất lên · xoay tròn quét quanh người (bấm liền tay trong 0,8 giây)
+  K.combo = S.t - (K.comboT || -9) < .8 ? (K.combo || 0) % 3 + 1 : 1;
+  K.comboT = S.t;
+  const kind = ['down', 'up', 'spin'][K.combo - 1], spin = kind === 'spin', r = spin ? 150 : 115, dur = spin ? .42 : .3;
+  K.slash = { kind, d, t: dur, dur, r };
+  if (spin) { K.cd.j = .38; S.flash = Math.max(S.flash, .12); }
+  const cx = spin ? b.x : b.x + d * 62, cy = b.y - 34;
+  for (const t of nkTouch(cx, cy, spin ? 150 : 105)) kuHit(t, spin ? 6 : 4, { x: cx, y: cy }, false);
+  K.gun = .25; sfx(spin ? 'wind' : 'slash');
 }
 // giữ J: Đạn Nhân Mã — ba viên đạn bạc tự đuổi ba mục tiêu
 function kuSagittarius() {
@@ -6403,15 +6414,52 @@ function drawWqWings(x, y, d) {
 }
 function drawWqFx() {
   const K = S.ku;
-  // vệt chém saber
+  // vệt chém saber: lưỡi liềm ánh sáng lớn quét theo đường kiếm — viền trắng sắc, thân xanh băng chuyển tím nhạt,
+  // quầng sáng cộng màu, tàn quang và kí hiệu Hoàng Đạo rơi theo mũi kiếm; nhát thứ ba xoay tròn quanh người
   if (K.slash) {
-    const sl = K.slash, k = 1 - sl.t / .22;
-    ctx.save(); ctx.translate(sl.x, sl.y); ctx.scale(sl.d, sl.up ? 1 : -1);
-    ctx.strokeStyle = `rgb(220 235 255 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.arc(-20, 0, 56, -1.1 + k * .4, 1 + k * .4); ctx.stroke();
-    ctx.strokeStyle = `rgb(120 180 255 / ${(.7 * (1 - k)).toFixed(2)})`; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(-20, 0, 64, -1, 1.1); ctx.stroke();
+    const sl = K.slash, b = S.ball, p = 1 - sl.t / sl.dur, sweep = Math.min(1, p * 1.7), fade = p < .55 ? 1 : 1 - (p - .55) / .45;
+    const spin = sl.kind === 'spin', r = sl.r * (spin ? .9 + p * .15 : 1);
+    const ox = spin ? b.x : b.x + sl.d * 18, oy = b.y - 34;
+    const a0 = spin ? -Math.PI / 2 : sl.kind === 'down' ? -1.45 : 1.35, span = spin ? Math.PI * 2 : (sl.kind === 'down' ? 2.6 : -2.6);
+    const a1 = a0 + span * sweep, lo = Math.min(a0, a1), hi = Math.max(a0, a1);
+    ctx.save(); ctx.translate(ox, oy); ctx.scale(sl.d, 1); ctx.globalCompositeOperation = 'lighter';
+    const crescent = (rr, th) => {
+      ctx.beginPath(); ctx.arc(0, 0, rr, lo, hi);
+      const tip = spin ? 0 : th * .15;
+      ctx.arc(spin ? 0 : th * .25 * Math.cos((lo + hi) / 2), spin ? 0 : th * .25 * Math.sin((lo + hi) / 2), rr - th, hi, lo, true);
+      ctx.closePath();
+    };
+    // quầng sáng ngoài
+    ctx.fillStyle = `rgb(110 170 255 / ${(.28 * fade).toFixed(2)})`; crescent(r + 14, 52); ctx.fill();
+    // thân lưỡi chém: dải màu từ tím nhạt ở trong ra trắng ở mép
+    const g = ctx.createRadialGradient(0, 0, r * .55, 0, 0, r);
+    g.addColorStop(0, 'rgb(170 140 255 / 0)'); g.addColorStop(.55, `rgb(170 150 255 / ${(.55 * fade).toFixed(2)})`);
+    g.addColorStop(.85, `rgb(150 210 255 / ${(.85 * fade).toFixed(2)})`); g.addColorStop(1, `rgb(255 255 255 / ${fade.toFixed(2)})`);
+    ctx.fillStyle = g; crescent(r, 34); ctx.fill();
+    // mép kiếm sắc
+    ctx.strokeStyle = `rgb(255 255 255 / ${fade.toFixed(2)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, lo, hi); ctx.stroke();
+    ctx.strokeStyle = `rgb(200 230 255 / ${(.6 * fade).toFixed(2)})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(0, 0, r - 10, lo, hi); ctx.stroke();
+    // ánh chớp ở mũi kiếm đang quét
+    if (sweep < 1 || spin) {
+      const ta = a1, tx = Math.cos(ta) * r, ty = Math.sin(ta) * r;
+      ctx.fillStyle = `rgb(255 255 255 / ${fade.toFixed(2)})`; starPath(tx, ty, spin ? 16 : 13); ctx.fill();
+      ctx.fillStyle = `rgb(140 200 255 / ${(.5 * fade).toFixed(2)})`; ctx.beginPath(); ctx.arc(tx, ty, 22, 0, Math.PI * 2); ctx.fill();
+    }
+    // nhát xoay: vòng sóng loang ra
+    if (spin) { ctx.strokeStyle = `rgb(180 210 255 / ${(.6 * (1 - p)).toFixed(2)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, r * (.6 + p * .9), 0, Math.PI * 2); ctx.stroke(); }
     ctx.restore();
+    // kí hiệu Hoàng Đạo trôi theo đường kiếm
+    ctx.font = '14px "Segoe UI Symbol", "Noto Sans Symbols", serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < (spin ? 6 : 3); i++) {
+      const a = a0 + span * sweep * (i + 1) / (spin ? 6.5 : 3.5), rr = r - 18;
+      ctx.fillStyle = `rgb(220 235 255 / ${(.85 * fade).toFixed(2)})`;
+      ctx.fillText(ZODIAC[(i * 5 + Math.floor(S.t * 3)) % 12], ox + sl.d * Math.cos(a) * rr, oy + Math.sin(a) * rr - p * 10);
+    }
+    // tàn quang bắn ra từ mũi kiếm
+    if (sweep < 1 && Math.random() < .8) {
+      const tx = ox + sl.d * Math.cos(a1) * r, ty = oy + Math.sin(a1) * r;
+      S.parts.push({ x: tx, y: ty, vx: (Math.random() - .5) * 160, vy: (Math.random() - .5) * 160, life: .35, c: Math.random() < .5 ? '#ffffff' : '#a8d0ff', r: 2 + Math.random() * 3, g: 0 });
+    }
   }
   // Thiên Bình: cán cân trong suốt quanh người, mũi tên đảo chiều
   if (K.libra > 0) {
