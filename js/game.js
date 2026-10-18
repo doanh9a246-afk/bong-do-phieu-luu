@@ -98,9 +98,11 @@ const CHAR_STATS = {
   mereo: { hp: 10000, atk: 180, def: 0 },
   zenitsu: { hp: 1400, atk: 170, def: 30 },
   yuutan: { hp: 2000, atk: 170, def: 50 },
-  yuutan2: { hp: 2200, atk: 170, def: 50 },   // YuuTan Song Sắc (thường phục)   // YuuTan: boss màn 5 làm nhân vật   // Zenitsu: nhanh gấp 10 lần   // Mereoleona: không giáp, máu cực nhiều, đánh là hút máu
+  yuutan2: { hp: 2200, atk: 170, def: 50 },
+  yuta: { hp: 2400, atk: 190, def: 60 },   // Okkotsu Yuta (khi sao chép vẫn giữ chỉ số này)
+  thiquy: { hp: 2600, atk: 180, def: 60 }, thiquyK: { hp: 6000, atk: 260, def: 120 },   // YuuTan Thi Quỷ: Song Thể / dạng Quỷ Thi Giải   // YuuTan Song Sắc (thường phục)   // YuuTan: boss màn 5 làm nhân vật   // Zenitsu: nhanh gấp 10 lần   // Mereoleona: không giáp, máu cực nhiều, đánh là hút máu
 };
-const stat = () => CHAR_STATS[CHAR] || CHAR_STATS.chii;
+const stat = () => (ytaCp() ? CHAR_STATS.yuta : CHAR === 'thiquy' && tqForm() ? CHAR_STATS.thiquyK : CHAR_STATS[CHAR]) || CHAR_STATS.chii;
 const DMG_K = 10;   // 1 điểm sát thương gốc của chiêu = 10 máu
 // sức đánh của quái / bẫy theo màn và của boss từng màn
 const MOB_ATK = [0, 60, 80, 100, 120, 150, 180, 200], BOSS_ATK = [0, 150, 200, 260, 320, 1100, 520, 300];
@@ -439,6 +441,8 @@ function groundYAt(x) { for (const [a, b, f] of GROUNDS) if (x >= a && x <= b) r
 /* ---------- Trạng thái ---------- */
 const S = {};
 function reset() {
+  const ytaFix = !!(S.yta && S.yta.cp);
+  if (ytaFix) CHAR = 'yuta';   // đang sao chép mà chơi lại: trở về Yuta
   Object.assign(S, {
     ball: { x: SPAWN.x, y: SPAWN.y, vx: 0, vy: 0, rot: 0, squash: 0, run: 0, face: 1 },
     spawn: { ...SPAWN }, safeY: SPAWN.y,
@@ -470,6 +474,8 @@ function reset() {
     alert: {}, eshots: [],   // nhóm quái đang báo động, tên của cung thủ
     wt: 0,                   // đồng hồ thế giới (bẫy, bục di chuyển); đứng yên khi ngưng đọng thời gian
     zoom: null,              // cảnh phim: phóng to quanh một điểm
+    yta: newYta(),           // Yuta: Rika, sao chép nhân vật / đòn quái, Ngôn Linh
+    tq: newTq(),             // YuuTan Thi Quỷ: đồng đội tóc bạc, Quỷ Thi Giải, Đạo Ngũ Hành
     yb: newYb(),             // YuuTan Song Sắc: tơ, Bỉ Ngạn, lưới, cánh đồng hoa
     yt: newYt(),             // YuuTan: tràng chém đang chạy, hàng chờ, Huyết Nhãn
     zn: newZn(),             // Zenitsu: vệt sét, Lục Liên, Thức thứ bảy
@@ -491,6 +497,7 @@ function reset() {
   $('hint').classList.remove('gone');
   hud();
   if (CHAR === 'saiyan') applyChar();   // chơi lại: Xayda về hình người
+  if (ytaFix) applyChar();
 }
 
 /* ---------- Điều khiển ---------- */
@@ -577,7 +584,7 @@ const SFX = {
   ki()      { tone(900, 300, .1, 'sine', .06); noise(.08, .04, 3000); },
   ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
-const JUMP_SFX = { yuutan: 'hop', yuutan2: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
+const JUMP_SFX = { yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
 function sfx(name) { if (!muted && audio()) SFX[name](); }
 function setMuted(m) {
   muted = m;
@@ -589,16 +596,28 @@ function setMuted(m) {
 function setKey(k, on) {
   audio();
   if (S.boss && S.boss.cine) { keys[k] = false; return; }   // cảnh kết của Zoro
+  if (isYuta() && (k === 'learn' || k === 'zmove')) { if (on && !keys[k]) (k === 'learn' ? ytaCopy() : ytaRevert()); keys[k] = on; return; }   // Yuta: Y sao chép, Z trở về
   if (CH().simple && (k === 'web' || k === 'volt')) return;   // Chiikawa không có L và U
   if (on && !keys[k] && (k === 'web' || k === 'volt' || k === 'skill')) noteLearn(k);   // boss màn 3, 4 học chiêu của bạn
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
-  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : fireVolt());
+  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
   if (CHAR === 'kurumi' && on && !keys[k]) {
     if (k === 'egg') kuCloneArmy();
     else if (k === 'heal') kuDalet();
     else if (k === 'terra') kuRasiel();
+  }
+  if (CHAR === 'yuta' && on && !keys[k]) {
+    if (k === 'egg') ytaRika();
+    else if (k === 'heal') ytaMobUse();
+    else if (k === 'regen') ytaMobCycle();
+    else if (k === 'terra') ytaHeal();
+  }
+  if (CHAR === 'thiquy' && on && !keys[k]) {
+    if (k === 'egg') tqDan();
+    else if (k === 'heal') tqElement();
+    else if (k === 'terra') tqTransform();
   }
   if (CHAR === 'yuutan2' && on && !keys[k]) {
     if (k === 'egg') ybWhite();
@@ -661,6 +680,8 @@ function activateSkill() {
   if (CHAR === 'kurumi' && !S.bound) { if (!S.dead && !S.won && !S.lost) kuAleph(); return; }   // Kurumi: K là Aleph
   if (CHAR === 'zenitsu' && !S.bound) { if (!S.dead && !S.won && !S.lost) znBlink(); return; }   // Zenitsu: K Lôi Bộ
   if (CHAR === 'yuutan' && !S.bound) { if (!S.dead && !S.won && !S.lost) ytBlink(); return; }   // YuuTan: K Ảnh Bộ
+  if (CHAR === 'yuta' && !S.bound) { if (!S.dead && !S.won && !S.lost) ytaDash(); return; }   // Yuta: K lướt
+  if (CHAR === 'thiquy' && !S.bound) { if (!S.dead && !S.won && !S.lost) tqStep(); return; }   // Thi Quỷ: K Thế Thân / Thiên Tiên Bộ
   if (CHAR === 'yuutan2' && !S.bound) { if (!S.dead && !S.won && !S.lost) ybStep(); return; }   // YuuTan Song Sắc: K Bạch Ảnh Thế Thân
   if (CHAR === 'mereo' && !S.bound) { if (!S.dead && !S.won && !S.lost) mrDash(); return; }   // Mereoleona: K Sư Tử Lao
   if (CHAR === 'luffy' && !S.bound) { if (!S.dead && !S.won && !S.lost) lfK(); return; }   // Luffy: K né / phòng thủ theo Gear
@@ -799,6 +820,7 @@ const fellOff = () => S.ball.y > DEATH_Y || (MAP === 2 && S.ball.y > S.safeY + 6
 function die(force) {   // force: chết chắc chắn, không gì đỡ được (Vegeta tự phát nổ)
   if (BET_CTX) { betStrike(force); return; }   // đấu trường cá cược: boss đánh trúng boss đối thủ
   if (S.dead) return;
+  if (!force && isYuta() && S.yta.rika > 0 && !fellOff()) { ytaBlock(); return; }   // Rika đỡ đòn thay Yuta
   if (CHAR === 'kurumi' && S.ku.crim) { crimRebirth(force); return; }   // Hồng Liên Bất Diệt: không gì giết được, kể cả đòn chắc chắn chết
   // Goku ở trạng thái Bản Năng Vô Cực: cơ thể tự né mọi đòn
   if (!force && S.ui > 0 && !fellOff()) {
@@ -833,6 +855,7 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
   const dmg = force === 'nova' ? Math.max(0, Math.min(S.hp - 1, Math.ceil(S.maxHp * .6))) : force ? S.hp : fell ? Math.ceil(S.maxHp * .25) : incomingDmg();
   S.hitAtk = 0;
   if (!TEST_MODE || (BET && BET.fight)) S.hp = Math.max(0, S.hp - dmg);
+  if (S.hp <= 0 && !fell && tqRevive()) { hud(); return; }   // Thi Quỷ: vỡ Đan Điền, tách thành hai
   S.pops.push({ x: S.ball.x, y: S.ball.y - 56, t: 1, text: `-${dmg}`, c: '#ff4d55', big: true });
   if (S.hp > 0 && !fell) {
     const b = S.ball, side = -(b.face || 1);
@@ -1305,12 +1328,17 @@ const CHARS = {
   yuutan: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .35, regen: 6, speed: 1000, airJumps: 2, dmgK: 2, pierce: true },
   // YuuTan Song Sắc: cheat, tơ chỉ tầm trung
   yuutan2: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 480, airJumps: 2, dmgK: 2, pierce: true },
+  // Okkotsu Yuta: cheat, kiếm sĩ
+  yuta:    { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .4, regen: 6, speed: 470, airJumps: 2, dmgK: 2, pierce: true },
+  // YuuTan Thi Quỷ: Song Thể đi bộ; dạng Quỷ Thi Giải bay tự do
+  thiquy:  { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 480, airJumps: 2, dmgK: 2, pierce: true },
+  thiquyK: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 520, airJumps: 2, dmgK: 2, pierce: true, fly: true },
   // Xayda hoá Super Saiyan Blue (khỉ bị đánh bại): bộ chiêu cheat
   ssb:    { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 1, regen: 6, speed: 430, airJumps: 2, dmgK: 2, pierce: true },
 };
 // bay tự do: Goku luôn bay, Kurumi bay được khi ngưng đọng thời gian hoặc ở dạng Hồng Liên
 const flying = () => CH().fly || (CHAR === 'kurumi' && !!S.ku && (S.ku.stop || S.ku.crim));
-const CH = () => CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
+const CH = () => CHAR === 'thiquy' && tqForm() ? CHARS.thiquyK : CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
 const cost = k => CH().cost[k];
 /* ---------- Pikachu: Dynamax (G) và tuyệt kĩ Z (Z) ----------
    Dynamax: to gấp 10 lần, vĩnh viễn (lưu trên máy tới khi bấm G lần nữa), bộ chiêu chuyển sang hack.
@@ -1377,6 +1405,8 @@ const MOVES = {
   zenitsu: { tap: znTap, hold: znChain, web: znGod },
   yuutan: { tap: ytTap, hold: ytSky, web: ytSweep },
   yuutan2: { tap: ybTap, hold: ybNet, web: ybSnap },
+  thiquy: { tap: tqTap, hold: tqHold, web: tqL },
+  yuta: { tap: ytaSlash, hold: ytaThrust, web: ytaSpeech },
 };
 // chiêu U: sát thương lên boss (trước hệ số nhân vật), thời gian choáng, số tia, âm thanh
 const ULTS = {
@@ -2070,6 +2100,8 @@ function updateCharMoves(dt) {
   updateZenitsu(dt);
   updateYuutan(dt);
   updateYb(dt);
+  updateTq(dt);
+  updateYta(dt);
   updateSaiyanX(dt);
   updatePain(dt);
   S.swing = Math.max(0, S.swing - dt);
@@ -2928,7 +2960,7 @@ function hud() {
 const CHAR_KEY = 'bongdo.char';
 // mật khẩu chỉ lưu dưới dạng mã băm; mở rồi thì máy đó nhớ
 const PW_HASH = 2576725674;   // 123456
-const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan', 'yuutan2']
+const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan', 'yuutan2', 'thiquy', 'yuta']
   .map(id => [id, { hash: PW_HASH, key: 'bongdo.lock.' + id }]));
 // Kurumi khoá riêng bằng mật khẩu đặc biệt (khoá mới: máy đã mở bằng mật khẩu cũ cũng phải nhập lại)
 Object.assign(LOCKS.kurumi, { hash: 890022063, key: 'bongdo.lock2.kurumi' });   // mật khẩu: 0
@@ -3042,6 +3074,38 @@ const CHAR_UI = {
       ['F', 'Đảo Sắc: Bạch (mỗi nhát hút 0,4% máu) ↔ Huyết (sát thương ×1,6, mỗi nhát gieo gấp đôi ấn, mắt đỏ rực)']],
     passive: 'tơ xuyên mọi khiên, Goku không né được · cheat: mọi chiêu miễn phí, sát thương ×2.',
     tip: 'YuuTan Song Sắc: J phóng tơ gieo Huyết Ấn · giữ J Mạng Tơ · L búng tay cho ấn nở · K Thế Thân · U Bỉ Ngạn Khai Hoa · E hồi máu · T trói · F Đảo Sắc Bạch/Huyết.' },
+  thiquy: { name: 'YuuTan Thi Quỷ', from: "Hell's Paradise", tag: 'Hai YuuTan cùng chiến đấu rồi Quỷ Thi Giải hợp thể thành Thiên Tiên trắng đỏ (cheat)', energy: 'Đạo',
+    btn: { bolt: ['Đạo', 'Song Kích / Đạo Chưởng'], web: ['Luân', 'Búng Tay / Âm Dương Luân'], skill: ['Tiên', 'Thế Thân / Thiên Tiên Bộ'], volt: ['Quan Âm', 'Song Ảnh / Thiên Thủ Quan Âm'] },
+    short: ['Song Kích / Đạo Chưởng', 'Mạng Tơ / Hoa Táng', 'Búng Tay / Âm Dương Luân', 'Thế Thân / Thiên Tiên Bộ', 'Song Ảnh Bỉ Ngạn / Thiên Thủ Quan Âm'],
+    more: ' · <kbd>E</kbd> Đan Điền · <kbd>T</kbd> Ngũ Hành · <kbd>F</kbd> Quỷ Thi Giải', moreTap: ' · Đan · Hành · Thi',
+    kit: [['Song Thể', 'YuuTan Song Sắc (bạn điều khiển) + YuuTan tóc bạc đi theo, lao vào chém 4–8 nhát mỗi khi bạn ra chiêu. 2.600 máu · công 180 · thủ 60'],
+      ['Thi Quỷ', 'Quỷ Thi Giải: tượng Thiên Tiên trắng đỏ sáu tay, mắt thứ ba, bay tự do. 6.000 máu · công 260 · thủ 120 · hồi 2% máu mỗi giây'],
+      ['J', 'Song Kích: tơ Song Sắc + YuuTan bạc chém mục tiêu · Thi Quỷ: Đạo Chưởng — hai bàn tay Đạo bay xuyên mục tiêu'],
+      ['Giữ J', 'Mạng Tơ + chém 3 mục tiêu · Thi Quỷ: Hoa Táng — hoa trồi lên dưới chân kẻ địch, quái hoá hoa, boss bị hoa hoá mất máu dần'],
+      ['L', 'Búng Tay (nở Huyết Ấn) · Thi Quỷ: Âm Dương Luân — bánh xe âm dương lăn dọc mặt đất, cứa liên tục'],
+      ['K', 'Bạch Ảnh Thế Thân · Thi Quỷ: Thiên Tiên Bộ — hoá cánh hoa, dịch chuyển 280'],
+      ['U', 'Song Ảnh Bỉ Ngạn: cánh đồng hoa + YuuTan bạc lướt chém mọi mục tiêu · Thi Quỷ: Thiên Thủ Quan Âm — 7 bàn tay vàng khổng lồ giáng xuống, trói, rồi mọi Huyết Ấn nở ×2'],
+      ['E', 'Đan Điền Tái Sinh (hồi 14 giây): hồi 25% máu (Thi Quỷ 40%), không bị đánh trúng 2,5 giây'],
+      ['T', 'Đổi Đạo theo Ngũ Hành: Mộc hồi máu · Hỏa thiêu boss · Thổ trói · Kim sát thương ×1,6 · Thủy giảm hồi chiêu'],
+      ['F', 'Quỷ Thi Giải: hai YuuTan xoay thành vòng âm dương rồi hợp thể (tự động khi máu dưới 50%); bấm lại để tách ra']],
+    passive: 'Thiên Tiên bất tử — ở dạng Thi Quỷ, đòn chí mạng chỉ làm vỡ Đan Điền: tách lại thành hai YuuTan với 35% máu (hồi 40 giây) · mỗi nhát gieo Huyết Ấn · cheat: mọi chiêu miễn phí, sát thương ×2.',
+    tip: 'YuuTan Thi Quỷ: hai YuuTan cùng đánh · F Quỷ Thi Giải hợp thể · T đổi Ngũ Hành · E Đan Điền hồi máu · J/giữ J/L/K/U đổi chiêu theo dạng.' },
+  yuta: { name: 'Okkotsu Yuta', from: 'Jujutsu Kaisen', tag: 'Sao chép mọi chiêu của nhân vật và quái, triệu hồi Rika (cheat)', energy: 'Chú lực',
+    btn: { bolt: ['Kiếm', 'Kiếm chú lực'], web: ['Ngôn', 'Ngôn Linh'], skill: ['Lướt', 'Lướt'], volt: ['Thuần', 'Tình Yêu Thuần Khiết'] },
+    short: ['Kiếm chú lực', 'Đột Kích', 'Ngôn Linh', 'Lướt', 'Tình Yêu Thuần Khiết'],
+    more: ' · <kbd>E</kbd> Rika · <kbd>T</kbd> đòn quái · <kbd>H</kbd> đổi đòn quái · <kbd>F</kbd> Phản Chuyển · <kbd>Y</kbd> sao chép nhân vật · <kbd>Z</kbd> về Yuta', moreTap: ' · Rika · Quái · Đổi · Hồi · Chép · Yuta',
+    kit: [['Y', 'Sao chép nhân vật: lấy NGUYÊN bộ chiêu của một nhân vật trong game (bấm Y tiếp để đổi người khác). Vẫn là Yuta với chỉ số của Yuta, bóng nhân vật bị chép hiện sau lưng'],
+      ['Z', 'Thôi sao chép, trở về bộ chiêu của Yuta'],
+      ['Quái', 'Mỗi loại quái Yuta hạ được, Rika chép lại đòn của nó (nhớ cả khi chơi lại)'],
+      ['T', 'Dùng đòn quái đã chép (bắn tên, ném bom, cầu lửa ma, mưa cột băng, khiên lính, nhảy vòng ninja…)'], ['H', 'Đổi đòn quái đã chép'],
+      ['J', 'Kiếm chú lực: 3 nhát chém nối, nhát thứ ba mạnh hơn'], ['Giữ J', 'Đột Kích: lao xuyên 320, chém mọi thứ trên đường'],
+      ['L', 'Ngôn Linh (chép của Inumaki): lần lượt “Đứng yên!” trói mọi kẻ địch quanh mình 2 giây / “Nổ tung!” nổ mọi kẻ địch quanh mình'],
+      ['K', 'Lướt chú lực 240, không bị đánh trúng'],
+      ['U', 'Tình Yêu Thuần Khiết (hồi 10 giây): Rika và Yuta bắn luồng chú lực trắng tím khổng lồ dài 1.500 (tự triệu hồi Rika nếu chưa có)'],
+      ['E', 'Triệu hồi Rika 30 giây (bấm lại để thu hồi): Rika tự cào, tóm, cắn kẻ địch gần nhất và ĐỠ ĐÒN thay Yuta 6 lần'],
+      ['F', 'Phản Chuyển Thuật Thức (hồi 12 giây): hồi 30% máu']],
+    passive: '2.400 máu · công 190 · thủ 60 · chú lực xuyên khiên, Goku không né được · cheat: mọi chiêu miễn phí, sát thương ×2.',
+    tip: 'Yuta: J kiếm · giữ J Đột Kích · L Ngôn Linh · K lướt · U Tình Yêu Thuần Khiết · E Rika · T/H đòn quái Rika chép · F hồi máu · Y SAO CHÉP nhân vật khác · Z về Yuta.' },
   mereo: { name: 'Mereoleona', from: 'Black Clover', tag: 'Sư tử dữ: không giáp, 10.000 máu, đánh là hút máu, cận chiến lửa (cheat)', energy: 'Ma lực',
     btn: { bolt: ['Đấm', 'Đấm lửa'], web: ['Vùng', 'Mana Zone'], skill: ['Lao', 'Sư Tử Lao'], volt: ['Luyện', 'Calidos Brachium Purgatorium'] },
     short: ['Đấm lửa liên hoàn', 'Calidos Brachium', 'Mana Zone', 'Sư Tử Lao', 'Calidos Brachium Purgatorium'],
@@ -3152,6 +3216,9 @@ function applyChar() {
   document.querySelectorAll('.touch .zn').forEach(el => { el.hidden = CHAR !== 'zenitsu'; });
   document.querySelectorAll('.touch .yt').forEach(el => { el.hidden = CHAR !== 'yuutan'; });
   document.querySelectorAll('.touch .yb').forEach(el => { el.hidden = CHAR !== 'yuutan2'; });
+  document.querySelectorAll('.touch .tq').forEach(el => { el.hidden = CHAR !== 'thiquy'; });
+  document.querySelectorAll('.touch .yta').forEach(el => { el.hidden = CHAR !== 'yuta'; });
+  document.querySelectorAll('.touch .ytc').forEach(el => { el.hidden = !isYuta(); });
   document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
   document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !flying(); });
   document.querySelector('.touch [data-key="jump"]').setAttribute('aria-label', flying() ? 'Bay lên' : 'Nhảy');
@@ -3230,6 +3297,7 @@ function closeChars() {
   $('charBtn').blur();
 }
 function setChar(id) {
+  if (S.yta) S.yta.cp = null;
   $('charsTitle').textContent = 'Chọn nhân vật';
   CHAR = id; lsSet(CHAR_KEY, id);
   applyChar(); reset(); closeChars();
@@ -4990,6 +5058,7 @@ const SX_LEARN = {
   quy: { name: 'Ném đá (Quỷ đất)', use: (b, d) => { sxShoot('rock', b.x + d * 20, b.y - 30, d * 540, -380, 18, 3, { g: 1300, life: 1.6 }); sfx('toss'); } },
 };
 function sxLearn(kind) {
+  if (isYuta()) return ytaLearnMob(kind);   // Yuta: Rika chép đòn quái
   if (CHAR !== 'saiyan' || !SX_LEARN[kind]) return;
   const X = S.sx;
   if (X.learned.includes(kind)) return;
@@ -10094,7 +10163,7 @@ function updateYb(dt) {
   for (const f of Y.th) f.t += dt;
   Y.th = Y.th.filter(f => f.t < f.max);
   for (const f of Y.fx) f.t += dt;
-  if (CHAR !== 'yuutan2' || S.dead) { Y.net = null; Y.field = null; Y.fx = Y.fx.filter(f => f.t < f.max); return; }
+  if (!(CHAR === 'yuutan2' || (CHAR === 'thiquy' && !S.tq.form)) || S.dead) { Y.net = null; Y.field = null; Y.fx = Y.fx.filter(f => f.t < f.max); return; }
   // hình nhân hoa trắng nổ
   for (const f of Y.fx) if (f.k === 'decoy' && !f.done && f.t >= .45) {
     f.done = true;
@@ -10210,7 +10279,7 @@ function drawYbFx() {
     }
   }
   // Huyết Ấn trên đầu mục tiêu
-  if (CHAR === 'yuutan2') {
+  if (CHAR === 'yuutan2' || CHAR === 'thiquy') {
     ctx.font = '900 13px "Baloo 2", sans-serif'; ctx.textAlign = 'center';
     for (const t of nkTargets(S.ball.x, S.ball.y, 1600, 40)) {
       const n = t.ref.ybM; if (!n) continue;
@@ -10330,6 +10399,843 @@ function drawYuutan2(b, charged) {
   drawYbFig(Y.u, 0, 0, d, Y.u.cur, 1, Y.red);
   ctx.restore();
   if (charged) { ctx.strokeStyle = Y.red ? 'rgb(255 40 60 / .7)' : 'rgb(240 244 255 / .75)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 18, 34 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
+}
+/* ---------- YuuTan Thi Quỷ (tham khảo Hell's Paradise / Jigokuraku): cheat ----------
+   Song Thể: hai YuuTan cùng xuất hiện — YuuTan Song Sắc (bạn điều khiển, bộ tơ chỉ / Huyết Ấn) và YuuTan tóc bạc đồng phục
+   (đồng đội tự đi theo, lao vào chém mỗi khi bạn ra chiêu). F (hoặc tự động khi máu dưới 50%): QUỶ THI GIẢI — như Thiên Tiên
+   Chu Cận, hai nửa âm dương hợp thể thành dạng thật: tượng Quan Âm trắng đỏ lơ lửng, vầng hào quang hoa, sáu tay, mắt thứ ba,
+   thân dưới là cánh hoa và rễ. Đạo (Tao) theo Ngũ Hành (T đổi hành): Mộc hồi máu · Hỏa thiêu boss · Thổ trói · Kim sát thương
+   ×1,6 · Thủy giảm hồi chiêu. Thiên Tiên bất tử: dạng Thi Quỷ hồi 2% máu mỗi giây; đòn chí mạng làm vỡ Đan Điền, tách lại thành
+   hai YuuTan với 35% máu (hồi 40 giây). */
+const TQ_EL = [{ n: 'Mộc', c: '#5fd35a' }, { n: 'Hỏa', c: '#ff7a2a' }, { n: 'Thổ', c: '#d0a050' }, { n: 'Kim', c: '#eef2fa' }, { n: 'Thủy', c: '#4ab4ff' }];
+const TQ_SC = .85, TQ_TF = 1.6;
+function newTq() {
+  return { form: false, tf: 0, cd: {}, el: 0, auto: false, palms: [], wheels: [], blooms: [], hands: [], dots: [], fx: [], uEnd: 0, reg: 0, hudT: 0,
+    p: { x: 0, y: 0, face: 1, cur: null, q: [], gt: 0, u: { mt: 0, vx: 0, ground: true, pose: null, poseK: 1, cur: null, yt2: false } } };
+}
+function tqForm() { try { return !!(S.tq && S.tq.form); } catch (e) { return false; } }
+function tqCd(k, t) { const T = S.tq; if (T.cd[k] > 0) return false; T.cd[k] = t; return true; }
+function tqPop(text, c) { S.pops.push({ x: S.ball.x, y: S.ball.y - (S.tq.form ? 190 : 90), t: 1, text, c: c || TQ_EL[S.tq.el].c }); }
+function tqDeny(name, k) { tqPop(`${name} hồi ${Math.ceil(S.tq.cd[k])} giây`, '#c9d1db'); sfx('deny'); }
+const tqBusy = () => S.tq.tf > 0 || !canAct();
+// một đòn Đạo: sát thương + Huyết Ấn, thêm hiệu ứng Ngũ Hành
+function tqHit(t, dmg, p, marks = 1) {
+  if (!tAlive(t)) return;
+  const T = S.tq, el = T.el;
+  ybHit(t, el === 3 ? dmg * 1.6 : dmg, p, marks);
+  if (el === 0) healHp(.003);
+  if (!tAlive(t)) return;
+  if (el === 1 && t.kind === 'boss') tqDot(t.ref, 'fire');
+  else if (el === 2 && (t.kind !== 'boss' || !(T.cd.earth > 0))) { ybBind(t, .5); if (t.kind === 'boss') T.cd.earth = 2; }
+  else if (el === 4) for (const k in T.cd) if (k !== 'rev') T.cd[k] = Math.max(0, T.cd[k] - .15);
+}
+// đốt / hoa hoá: boss mất máu dần 6 giây, tối đa 10 tầng
+function tqDot(ref, k) {
+  const d = S.tq.dots.find(o => o.ref === ref && o.k === k);
+  if (d) { d.n = Math.min(10, d.n + 1); d.t = 6; } else S.tq.dots.push({ ref, k, n: 1, t: 6, tick: .5 });
+}
+// YuuTan tóc bạc (đồng đội) lao tới các điểm, chém hits nhát mỗi điểm rồi quay về
+function tqPartner(pts, hits) {
+  const P = S.tq.p;
+  if (!pts.length || P.q.length > 3) return;
+  P.q.push({ pts: pts.map(p => ({ x: p.x, y: Math.abs(p.y - S.ball.y) < 150 ? S.ball.y : p.y, done: 0 })), hits, t: 0, D: .22 });
+}
+const tqTargetsPts = (r, n) => nkTargets(S.ball.x, S.ball.y, r, n).map(t => tPos(t));
+// J: Song Sắc phóng tơ + YuuTan bạc lao vào chém · Thi Quỷ: Đạo Chưởng (bàn tay Đạo bay ra từ sáu tay)
+function tqTap() {
+  if (tqBusy()) return;
+  const b = S.ball, d = ytDir();
+  if (!S.tq.form) {
+    const t = ybAim(600);
+    ybTap();
+    tqPartner([t ? tPos(t) : { x: b.x + (b.face || d) * 170, y: b.y }], 5);
+    return;
+  }
+  if (!tqCd('j', .2)) return;
+  const t = ybAim(900), o = { x: b.x + d * 30, y: b.y - 90 }, e = t ? tPos(t) : { x: b.x + d * 600, y: o.y };
+  if (t) b.face = Math.sign(e.x - b.x) || d;
+  const a = Math.atan2(e.y - o.y, e.x - o.x);
+  for (const s of [-1, 1]) S.tq.palms.push({ x: o.x, y: o.y + s * 26, vx: Math.cos(a) * 950, vy: Math.sin(a) * 950, life: .75, hit: new Set(), el: S.tq.el, a });
+  sfx('ki');
+}
+// giữ J: Mạng Tơ + đồng đội chém 3 mục tiêu · Thi Quỷ: Hoa Táng (hoa trồi lên dưới chân kẻ địch, hoa hoá)
+function tqHold() {
+  if (tqBusy()) return;
+  const b = S.ball, d = ytDir();
+  if (!S.tq.form) { const ok = !(S.yb.cd.hold > 0); ybNet(); if (ok) tqPartner(tqTargetsPts(700, 3), 6); return; }
+  if (!tqCd('hold', 1.2)) return tqDeny('Hoa Táng', 'hold');
+  const tg = nkTargets(b.x, b.y, 850, 6), pts = tg.length ? tg.map(t => tPos(t)) : [1, 2, 3].map(i => ({ x: b.x + d * i * 160, y: b.y }));
+  for (const p of pts) { const gy = groundYAt(p.x); S.tq.blooms.push({ x: p.x, y: gy != null && Math.abs(gy - p.y) < 300 ? gy : p.y + 40, ty: p.y, t: 0, max: 1.2, done: false }); }
+  tqPop('Hoa Táng!'); sfx('web');
+}
+// L: Búng Tay + đồng đội chém chéo · Thi Quỷ: Âm Dương Luân (bánh xe âm dương lăn dọc mặt đất)
+function tqL() {
+  if (tqBusy()) return;
+  const b = S.ball, d = ytDir();
+  if (!S.tq.form) { const ok = !(S.yb.cd.l > 0); ybSnap(); if (ok) tqPartner(tqTargetsPts(500, 2), 4); return; }
+  if (!tqCd('l', 1.4)) return tqDeny('Âm Dương Luân', 'l');
+  b.face = d;
+  S.tq.wheels.push({ x: b.x + d * 50, y: b.y, vx: d * 720, r: 58, life: 1.7, rot: 0, hit: new Map() });
+  tqPop('Âm Dương Luân!'); sfx('zap');
+}
+// K: Bạch Ảnh Thế Thân · Thi Quỷ: Thiên Tiên Bộ (hoá cánh hoa, dịch chuyển)
+function tqStep() {
+  if (S.tq.tf > 0 || !canAct()) return;
+  if (!S.tq.form) { ybStep(); return; }
+  if (!tqCd('k', .45)) return;
+  const b = S.ball, d = ytDir(), x0 = b.x;
+  znDash(d, 280, 0, { has: () => true, add() {} });
+  for (let i = 0; i < 18; i++) S.parts.push({ x: x0 + (b.x - x0) * Math.random(), y: b.y - 40 - Math.random() * 120, vx: (Math.random() - .5) * 200, vy: -60 - Math.random() * 120, life: .6, c: i % 2 ? '#c2182a' : '#f4f6ff', r: 3 + Math.random() * 3, g: 0 });
+  S.safe = Math.max(S.safe, .5); sfx('tele');
+}
+// U: Song Ảnh Bỉ Ngạn (cánh đồng hoa + đồng đội lướt qua mọi mục tiêu) · Thi Quỷ: Thiên Thủ Quan Âm (bàn tay khổng lồ giáng xuống)
+function tqU() {
+  if (tqBusy()) return;
+  const b = S.ball;
+  if (!S.tq.form) { const ok = !(S.yb.cd.u > 0); ybU(); if (ok) tqPartner(tqTargetsPts(950, 6), 8); return; }
+  if (!tqCd('u', 8)) return tqDeny('Thiên Thủ Quan Âm', 'u');
+  const tg = nkTargets(b.x, b.y, 1000, 7), xs = tg.map(t => tPos(t).x);
+  for (let k = 0; k < 40 && xs.length < 7; k++) { const x = clamp(b.x + (Math.random() - .5) * 1800, ytLo(), ytHi()); if (xs.every(v => Math.abs(v - x) > 200)) xs.push(x); }
+  xs.forEach((x, i) => { const gy = groundYAt(x); S.tq.hands.push({ x, ty: gy != null && Math.abs(gy - b.y) < 400 ? gy : b.y + R, t: -i * .08, max: 1.3, slam: false }); });
+  S.tq.uEnd = 1.3;
+  S.flash = Math.max(S.flash, .4); sfx('roar');
+  S.pops.push({ x: b.x, y: b.y - 230, t: 1.4, text: 'THIÊN THỦ QUAN ÂM', c: '#ffd36a', big: true });
+}
+// E: Đan Điền Tái Sinh — hồi máu, bất khả xâm phạm
+function tqDan() {
+  if (tqBusy()) return;
+  if (!tqCd('e', 14)) return tqDeny('Đan Điền', 'e');
+  const b = S.ball, g = healHp(S.tq.form ? .4 : .25);
+  S.safe = Math.max(S.safe, 2.5);
+  S.tq.fx.push({ k: 'dan', t: 0, max: 2.5 });
+  tqPop(healText(g, 'Đan Điền Tái Sinh'), '#ffd36a'); sfx('tele');
+}
+// T: đổi hành theo vòng tương sinh Mộc → Hỏa → Thổ → Kim → Thủy
+function tqElement() {
+  if (S.dead || S.won || S.lost || !tqCd('t', .3)) return;
+  const T = S.tq;
+  T.el = (T.el + 1) % 5;
+  T.fx.push({ k: 'ring', t: 0, max: .5, c: TQ_EL[T.el].c });
+  tqPop(`Đạo: ${TQ_EL[T.el].n} — ${['đòn trúng hồi máu', 'thiêu boss mất máu dần', 'trói kẻ địch', 'sát thương ×1,6', 'giảm hồi chiêu'][T.el]}`);
+  sfx('ki');
+}
+// F: Quỷ Thi Giải (hợp thể) / tách lại thành hai
+function tqTransform() {
+  const T = S.tq, b = S.ball;
+  if (S.dead || S.won || S.lost || T.tf > 0 || !tqCd('f', 3)) return;
+  if (!T.form) {
+    T.tf = TQ_TF; S.safe = Math.max(S.safe, TQ_TF + .5);
+    S.pops.push({ x: b.x, y: b.y - 170, t: 1.8, text: 'QUỶ THI GIẢI', c: '#ff3a4a', big: true }); sfx('roar');
+  } else {
+    T.form = false; applyChar();
+    tqBurst(b.x, b.y - 60, 30); tqPop('Tách thành hai YuuTan', '#eef2ff');
+    Object.assign(T.p, { x: b.x - (b.face || 1) * 50, y: b.y, cur: null });
+  }
+}
+// Thiên Tiên bất tử: đòn chí mạng ở dạng Thi Quỷ làm vỡ Đan Điền, tách lại thành hai
+function tqRevive() {
+  const T = S.tq, b = S.ball;
+  if (CHAR !== 'thiquy' || !T.form || T.cd.rev > 0) return false;
+  T.form = false; T.cd.rev = 40; applyChar();
+  S.hp = Math.ceil(S.maxHp * .35); S.safe = Math.max(S.safe, 2.5); S.flash = .8;
+  Object.assign(T.p, { x: b.x - (b.face || 1) * 50, y: b.y, cur: null });
+  tqBurst(b.x, b.y - 60, 50);
+  S.pops.push({ x: b.x, y: b.y - 120, t: 1.6, text: 'Đan Điền vỡ — tách thành hai YuuTan!', c: '#ffd36a', big: true });
+  sfx('boom');
+  return true;
+}
+function tqBurst(x, y, n) {
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = 100 + Math.random() * 350; S.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .8, c: i % 3 ? (i % 2 ? '#c2182a' : '#f4f6ff') : '#ffd36a', r: 3 + Math.random() * 4, g: 0 }); }
+}
+function updateTq(dt) {
+  const T = S.tq, b = S.ball, P = T.p;
+  for (const k in T.cd) T.cd[k] = Math.max(0, T.cd[k] - dt);
+  for (const f of T.fx) f.t += dt;
+  T.fx = T.fx.filter(f => f.t < f.max);
+  if (CHAR !== 'thiquy' || S.dead) { T.palms.length = T.wheels.length = T.blooms.length = T.hands.length = T.dots.length = 0; T.tf = 0; P.cur = null; P.q.length = 0; return; }
+  if (!T.auto && !T.form && T.tf <= 0 && S.maxHp && S.hp < S.maxHp / 2) { T.auto = true; T.cd.f = 0; tqTransform(); }   // máu dưới 50%: tự Quỷ Thi Giải
+  // hợp thể
+  if (T.tf > 0) {
+    T.tf -= dt; b.vx = 0; b.vy = 0; S.safe = Math.max(S.safe, .3);
+    if (Math.random() < dt * 50) { const a = Math.random() * Math.PI * 2; S.parts.push({ x: b.x + Math.cos(a) * 160, y: b.y - 60 + Math.sin(a) * 100, vx: -Math.cos(a) * 260, vy: -Math.sin(a) * 160, life: .6, c: Math.random() < .5 ? '#c2182a' : '#f4f6ff', r: 3 + Math.random() * 3, g: 0 }); }
+    if (T.tf <= 0) {
+      T.tf = 0; T.form = true; applyChar();
+      S.flash = Math.max(S.flash, .8); sfx('boom');
+      tqBurst(b.x, b.y - 80, 60); T.fx.push({ k: 'ring', t: 0, max: .8, c: '#ffd36a' });
+      S.pops.push({ x: b.x, y: b.y - 240, t: 1.6, text: 'THIÊN TIÊN — Thi Quỷ', c: '#ffd36a', big: true });
+    }
+  }
+  // Thiên Tiên hồi máu liên tục
+  if (T.form && S.hp < S.maxHp) {
+    T.reg += S.maxHp * .02 * dt;
+    if (T.reg >= 1) { const n = Math.floor(T.reg); T.reg -= n; S.hp = Math.min(S.maxHp, S.hp + n); }
+    if ((T.hudT -= dt) <= 0) { T.hudT = .3; hud(); }
+  }
+  // YuuTan tóc bạc
+  P.u.mt += dt;
+  if (Math.abs(P.x - b.x) > 700 || Math.abs(P.y - b.y) > 500) { P.x = b.x - (b.face || 1) * 48; P.y = b.y; }
+  if (!P.cur && P.q.length && !T.form) P.cur = P.q.shift();
+  const C = P.cur;
+  if (C && !T.form) {
+    C.t += dt;
+    const i = Math.floor(C.t / C.D);
+    if (i >= C.pts.length) {
+      S.yt.fx.push({ k: 'ghost', x: P.x, y: P.y, dir: P.face, pose: 'lunge', t: 0, max: .2 });
+      P.cur = null; P.u.pose = null;
+    } else {
+      const z = C.pts[i], lt = C.t - i * C.D, s = lt * 125;
+      P.x = clamp(z.x + Math.sin(s) * 85, ytLo(), ytHi()); P.y = z.y; P.face = Math.cos(s) >= 0 ? 1 : -1;
+      P.u.pose = ['jab', 'cross', 'kick'][Math.floor(lt * 60) % 3]; P.u.poseK = 1; P.u.ground = true; P.u.vx = 0;
+      if ((P.gt -= dt) <= 0) { P.gt = .025; S.yt.fx.push({ k: 'ghost', x: P.x, y: P.y, dir: P.face, pose: P.u.pose, t: 0, max: .14 }); }
+      if (Math.random() < dt * 50) { const a = (Math.random() - .5) * 3; S.yt.fx.push({ k: 'arc', x: z.x + (Math.random() - .5) * 180, y: z.y - 20 - Math.random() * 90, dir: Math.random() < .5 ? 1 : -1, r: 30 + Math.random() * 40, t: 0, max: .16, c: Math.random() < .7 ? '#ffffff' : '#ff8aa8', a0: a - .9, a1: a + .9 }); }
+      const want = Math.min(C.hits, Math.floor(lt / C.D * C.hits) + 1);
+      for (; z.done < want; z.done++) for (const t of ybInBox({ x0: z.x - 110, x1: z.x + 110, y0: z.y - 120, y1: z.y + 70 })) tqHit(t, 1, tPos(t), 1);
+      if (z.done === 1 && lt < dt * 1.5) sfx('dash');
+    }
+  } else {
+    const tx = b.x - (b.face || 1) * 48;
+    P.x += (tx - P.x) * Math.min(1, dt * 10); P.y += (b.y - P.y) * Math.min(1, dt * 12);
+    P.face = b.face || 1; P.u.vx = b.vx; P.u.ground = S.onGround; P.u.pose = null;
+  }
+  mhBlend(P.u, dt, false, false);
+  // Đạo Chưởng
+  for (const q of T.palms) {
+    q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt;
+    for (const t of nkTouch(q.x, q.y, 52)) if (!q.hit.has(t.ref)) { q.hit.add(t.ref); tqHit(t, 3, tPos(t), 1); }
+  }
+  T.palms = T.palms.filter(q => q.life > 0);
+  // Âm Dương Luân
+  for (const w of T.wheels) {
+    w.x += w.vx * dt; w.rot += w.vx * dt / w.r; w.life -= dt;
+    const gy = groundYAt(w.x); if (gy != null && Math.abs(gy - w.r - w.y) < 120) w.y = gy - w.r;
+    if (w.x < ytLo() - 40 || w.x > ytHi() + 40) w.life = 0;
+    for (const t of nkTouch(w.x, w.y, w.r + 12)) { const k = w.hit.get(t.ref) || 0; if (S.t >= k) { w.hit.set(t.ref, S.t + .15); tqHit(t, 1.5, tPos(t), 1); } }
+  }
+  T.wheels = T.wheels.filter(w => w.life > 0);
+  // Hoa Táng
+  for (const f of T.blooms) {
+    f.t += dt;
+    if (!f.done && f.t >= .25) {
+      f.done = true; sfx('hit');
+      for (const t of nkTargets(f.x, f.ty, 140, 10)) { tqHit(t, 4, tPos(t), 2); if (t.kind === 'boss' && tAlive(t)) tqDot(t.ref, 'bloom'); }
+      const u = bossUnitAt(f.x, f.ty, 60); if (u && !nkTargets(f.x, f.ty, 140, 10).some(t => t.ref === u)) { const t = { ref: u, kind: 'boss' }; tqHit(t, 4, tPos(t), 2); tqDot(u, 'bloom'); }
+    }
+  }
+  T.blooms = T.blooms.filter(f => f.t < f.max);
+  // Thiên Thủ Quan Âm
+  for (const h of T.hands) {
+    h.t += dt;
+    if (!h.slam && h.t >= .45) {
+      h.slam = true; S.flash = Math.max(S.flash, .15); sfx('stomp' in SFX ? 'stomp' : 'boom');
+      for (const t of nkTargets(h.x, h.ty - 50, 170, 10)) { tqHit(t, 6, tPos(t), 2); ybBind(t, 1.5); }
+      const u = bossUnitAt(h.x, h.ty - 60, 90); if (u) { const t = { ref: u, kind: 'boss' }; tqHit(t, 6, tPos(t), 2); }
+      for (let i = 0; i < 10; i++) S.parts.push({ x: h.x + (Math.random() - .5) * 120, y: h.ty - 4, vx: (Math.random() - .5) * 400, vy: -100 - Math.random() * 250, life: .6, c: i % 2 ? '#ffd36a' : '#f4f6ff', r: 4, g: 1 });
+    }
+  }
+  T.hands = T.hands.filter(h => h.t < h.max);
+  if (T.uEnd > 0 && (T.uEnd -= dt) <= 0) {
+    let n = 0;
+    for (const t of nkTargets(b.x, b.y, 1800, 40)) if (t.ref.ybM > 0 && ybBloom(t, 2)) n++;
+    if (n) tqPop(`Bỉ Ngạn nở ×2 — ${n} đoá`, '#ff4a5a');
+  }
+  // đốt / hoa hoá trên boss
+  for (const d of T.dots) {
+    d.t -= dt;
+    if ((d.tick -= dt) <= 0) { d.tick = .5; if (bossOpen() && !d.ref.hidden && !S.boss.dead) damageBoss(d.ref, .35 * d.n, 'crim'); }
+  }
+  T.dots = T.dots.filter(d => d.t > 0 && !S.boss.dead);
+}
+// sen trắng
+function drawLotus(x, y, s, c = '#fdf2f6') {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  for (const [a, w, h] of [[-1.1, 4, 10], [1.1, 4, 10], [-.55, 4.5, 12], [.55, 4.5, 12], [0, 5, 14]]) {
+    ctx.save(); ctx.rotate(a); ctx.fillStyle = c; ctx.strokeStyle = '#e8a6bc'; ctx.lineWidth = .8;
+    ctx.beginPath(); ctx.ellipse(0, -h * .6, w, h * .6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  ctx.restore();
+}
+// biểu tượng âm dương trắng đỏ
+function drawYinYang(x, y, r, rot, a = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha *= a;
+  ctx.fillStyle = '#f4f6ff'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c2182a'; ctx.beginPath(); ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2); ctx.arc(0, r / 2, r / 2, Math.PI / 2, -Math.PI / 2, true); ctx.arc(0, -r / 2, r / 2, Math.PI / 2, -Math.PI / 2, false); ctx.fill();
+  ctx.fillStyle = '#c2182a'; ctx.beginPath(); ctx.arc(0, -r / 2, r / 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f4f6ff'; ctx.beginPath(); ctx.arc(0, r / 2, r / 7, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#ffd36a'; ctx.lineWidth = Math.max(1, r / 14); ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+// dạng Quỷ Thi Giải: tượng Quan Âm trắng đỏ, gốc toạ độ ở đáy (chân không chạm đất), chính diện
+function drawKishiFig(x, fy, s, alpha, el) {
+  const t = S.t, ec = TQ_EL[el].c, skin = '#f3e6ec', skinSh = '#dcc6d2';
+  ctx.save(); ctx.translate(x, fy); ctx.scale(s, s); ctx.globalAlpha *= alpha; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // quầng Đạo
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(0, -110, 10, 0, -110, 150); g.addColorStop(0, 'rgb(255 230 200 / .25)'); g.addColorStop(1, 'rgb(255 200 200 / 0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -110, 150, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  // vầng hào quang hoa sau đầu
+  ctx.save(); ctx.translate(0, -158); ctx.rotate(t * .3);
+  ctx.strokeStyle = '#f6e2a8'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 62, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = ec; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(0, 0, 54, 0, Math.PI * 2); ctx.stroke();
+  for (let i = 0; i < 12; i++) {
+    ctx.save(); ctx.rotate(i * Math.PI / 6);
+    ctx.fillStyle = i % 2 ? '#c2182a' : '#f4f6ff'; ctx.beginPath(); ctx.ellipse(0, -70, 5.5, 13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#f6e2a8'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(0, -40); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+  // tóc khổng lồ bồng bềnh như trong nước: nửa trái bạc, nửa phải đỏ
+  const w = Math.sin(t * 1.6) * 6, w2 = Math.cos(t * 1.3) * 5;
+  for (const sd of [-1, 1]) {
+    ctx.fillStyle = sd < 0 ? '#eef0f8' : '#c2182a';
+    ctx.beginPath(); ctx.moveTo(0, -176);
+    ctx.bezierCurveTo(sd * 34, -186, sd * 62, -150 + w, sd * 68, -104);
+    ctx.bezierCurveTo(sd * 76, -64, sd * (60 + w2), -36, sd * (82 + w), -8);
+    ctx.lineTo(sd * (66 + w), -20); ctx.lineTo(sd * (62 + w2), 2); ctx.lineTo(sd * 50, -26);
+    ctx.bezierCurveTo(sd * 42, -64, sd * 28, -112, sd * 10, -150); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = sd < 0 ? '#b7bccb' : 'rgb(255 130 140 / .7)'; ctx.lineWidth = 1.2;
+    for (const o of [0, 12]) { ctx.beginPath(); ctx.moveTo(sd * (14 + o * .5), -164); ctx.bezierCurveTo(sd * (44 + o), -140, sd * (56 + o * .3), -80 + w, sd * (66 + w + o * .2), -20); ctx.stroke(); }
+  }
+  // bốn tay phía sau: hai tay trên cầm sen trắng và Bỉ Ngạn đỏ, hai tay dưới xoè bắt ấn
+  const sw = i => Math.sin(t * 1.3 + i) * .1;
+  const hand = (hx, hy, r) => { ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(hx, hy, 4.2 * r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = skin; ctx.lineWidth = 2; for (let i = 0; i < 4; i++) { const a = -Math.PI / 2 + (i - 1.5) * .35; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + Math.cos(a) * 9 * r, hy + Math.sin(a) * 9 * r); ctx.stroke(); } };
+  for (const sd of [-1, 1]) {
+    const [ux, uy] = limb(sd * 17, -122, sd * (2.3 + sw(1)), 26, sd * (2.85 + sw(2)), 24, 6.5, 5.5, skinSh);
+    hand(ux, uy, .9);
+    if (sd < 0) drawLotus(ux, uy - 8, 1); else drawLily(ux, uy - 8, 1, YB_RED, 1);
+    const [lx, ly] = limb(sd * 18, -114, sd * (1.85 + sw(3)), 25, sd * (1.4 + sw(4)), 22, 6.5, 5.5, skinSh);
+    hand(lx, ly, .9);
+  }
+  // thân dưới: váy cánh hoa đỏ trắng và rễ buông lơ lửng
+  for (let i = -3; i <= 3; i++) {
+    ctx.strokeStyle = '#7a1a2a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(i * 7, -14); ctx.quadraticCurveTo(i * 10 + Math.sin(t * 2 + i) * 8, 6, i * 13 + Math.sin(t * 2.4 + i) * 10, 26 + Math.abs(i) * 2); ctx.stroke();
+  }
+  for (const [lay, cA, cB, wd] of [[0, '#8a0c1c', '#b0101e', 1.25], [1, '#f4f6ff', '#c2182a', 1]]) {
+    for (let i = -4; i <= 4; i++) {
+      const tipX = i * 12 * wd + Math.sin(t * 2 + i) * 3, tipY = -4 + Math.abs(i) * 4 - lay * 8;
+      ctx.fillStyle = (i + lay) % 2 ? cA : cB;
+      ctx.beginPath(); ctx.moveTo(i * 3, -86); ctx.quadraticCurveTo(i * 9 * wd - 9, -40, tipX, tipY); ctx.quadraticCurveTo(i * 9 * wd + 9, -40, i * 3 + 3, -86); ctx.fill();
+    }
+  }
+  // thân trên
+  ctx.fillStyle = skin; ctx.beginPath(); ctx.moveTo(-20, -122); ctx.quadraticCurveTo(-15, -100, -11, -84); ctx.lineTo(11, -84); ctx.quadraticCurveTo(15, -100, 20, -122); ctx.quadraticCurveTo(0, -128, -20, -122); ctx.fill();
+  // khăn choàng chéo trắng đỏ
+  const sg = ctx.createLinearGradient(-14, -86, 16, -124); sg.addColorStop(0, '#c2182a'); sg.addColorStop(.5, '#c2182a'); sg.addColorStop(.52, '#f4f6ff'); sg.addColorStop(1, '#f4f6ff');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(13, -125); ctx.lineTo(20, -120); ctx.lineTo(-9, -84); ctx.lineTo(-16, -88); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#d8b25a'; ctx.fillRect(-12, -88, 24, 4);   // đai vàng
+  for (let i = 0; i < 7; i++) { const a = Math.PI * (.15 + i * .7 / 6); ctx.fillStyle = i % 2 ? '#ffd36a' : '#c2182a'; ctx.beginPath(); ctx.arc(Math.cos(a) * 11, -126 + Math.sin(a) * 9, 1.6, 0, Math.PI * 2); ctx.fill(); }   // chuỗi hạt
+  drawYinYang(0, -104, 6, t * 1.5);   // Đan Điền âm dương trước ngực
+  // hai tay chính: tay trái giơ lên thí vô uý (như tư thế búng tay), tay phải buông xuống dữ nguyện
+  const [ax, ay] = limb(-19, -121, -1.2, 20, -2.9 + Math.sin(t * 2) * .05, 20, 7, 6, skin); hand(ax, ay, 1.05);
+  const [bx, by] = limb(19, -121, 1.0, 20, .35, 20, 7, 6, skin);
+  ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(bx, by, 4.4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = skin; ctx.lineWidth = 2; for (let i = 0; i < 4; i++) { const a = Math.PI / 2 + (i - 1.5) * .3; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(a) * 9, by + Math.sin(a) * 9); ctx.stroke(); }
+  // cổ, đầu
+  ctx.fillStyle = skin; ctx.fillRect(-3.5, -136, 7, 12);
+  ctx.beginPath(); ctx.ellipse(0, -152, 12.5, 15, 0, 0, Math.PI * 2); ctx.fill();
+  // mắt khép hờ: trái đỏ rỉ huyết lệ, phải xanh; mắt thứ ba dọc trên trán
+  for (const [ex, ir] of [[-5, '#ff1a2e'], [5, '#3a9cff']]) {
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(ex, -150, 3.6, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = ir; ctx.beginPath(); ctx.arc(ex, -149.6, 1.6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#2a1a22'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(ex - 4, -150.6); ctx.quadraticCurveTo(ex, -152.6, ex + 4, -150.6); ctx.stroke();
+  }
+  ctx.strokeStyle = '#a00818'; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(-5, -148); ctx.quadraticCurveTo(-5.6, -144, -5, -140); ctx.stroke();
+  ctx.fillStyle = '#c0101e'; ctx.beginPath(); ctx.arc(-5, -140 + (t * .6 % 1) * 5, .9, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const eg = ctx.createRadialGradient(0, -161, .5, 0, -161, 9); eg.addColorStop(0, 'rgb(255 220 120 / .9)'); eg.addColorStop(1, 'rgb(255 160 60 / 0)');
+  ctx.fillStyle = eg; ctx.fillRect(-9, -170, 18, 18); ctx.restore();
+  ctx.fillStyle = '#ffd36a'; ctx.beginPath(); ctx.ellipse(0, -161, 1.6, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = ec; ctx.beginPath(); ctx.ellipse(0, -161, .7, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#b8323e'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-2.5, -142); ctx.quadraticCurveTo(0, -140.8, 2.5, -142); ctx.stroke();
+  // mái chẻ đôi bạc / đỏ, tóc mai rủ hai bên má
+  for (const sd of [-1, 1]) {
+    ctx.fillStyle = sd < 0 ? '#eef0f8' : '#c2182a';
+    ctx.beginPath(); ctx.moveTo(0, -168); ctx.quadraticCurveTo(sd * 11, -170, sd * 14, -157); ctx.lineTo(sd * 13, -128); ctx.lineTo(sd * 10.5, -150); ctx.lineTo(sd * 8, -158); ctx.lineTo(sd * 5, -153); ctx.lineTo(sd * 2.5, -164); ctx.closePath(); ctx.fill();
+  }
+  // vương miện hoa
+  drawLily(-9, -170, .55, YB_RED, 1); drawLily(9, -170, .55, YB_WHITE, 1); drawLotus(0, -171, .7);
+  // cánh hoa bay quanh người
+  for (let i = 0; i < 8; i++) {
+    const a = t * .8 + i * .785, px = Math.cos(a) * 82, py = -110 + Math.sin(t * 1.3 + i * 2) * 70;
+    ctx.fillStyle = i % 2 ? '#c2182a' : '#f4f6ff'; ctx.beginPath(); ctx.ellipse(px, py, 4, 1.8, a, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawTqFx() {
+  const T = S.tq;
+  if (CHAR !== 'thiquy' && !T.fx.length) return;
+  ctx.save();
+  // Hoa Táng: thân hoa trồi lên, nở bung
+  for (const f of T.blooms) {
+    const k = Math.min(1, f.t / .3), a = Math.min(1, (f.max - f.t) / .3);
+    for (let i = -3; i <= 3; i++) {
+      const sx = f.x + i * 18, h = (60 + Math.abs(Math.sin(i * 7.3)) * 70) * k, sway = Math.sin(S.t * 3 + i) * 6;
+      ctx.globalAlpha = a; ctx.strokeStyle = '#2f5a2c'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(sx, f.y); ctx.quadraticCurveTo(sx + sway, f.y - h / 2, sx + sway * 1.5, f.y - h); ctx.stroke();
+      if (k >= 1) { if (i % 3 === 0) drawLotus(sx + sway * 1.5, f.y - h, 1.2); else drawLily(sx + sway * 1.5, f.y - h, 1.1, i % 2 ? YB_RED : YB_WHITE, a); }
+    }
+  }
+  ctx.globalAlpha = 1;
+  // Đạo Chưởng: bàn tay sáng bay
+  ctx.globalCompositeOperation = 'lighter';
+  for (const q of T.palms) {
+    const c = TQ_EL[q.el].c;
+    ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.a); ctx.globalAlpha = Math.min(1, q.life * 3);
+    const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 38); g.addColorStop(0, 'rgb(255 255 255 / .8)'); g.addColorStop(1, 'rgb(255 255 255 / 0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(-4, 0, 15, 13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = c; ctx.lineWidth = 6; for (let i = 0; i < 4; i++) { const y = -9 + i * 6; ctx.beginPath(); ctx.moveTo(8, y); ctx.lineTo(24 - Math.abs(i - 1.5) * 3, y * 1.1); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(8, -20); ctx.stroke();
+    ctx.strokeStyle = 'rgb(255 255 255 / .5)'; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-60, 0); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  // Âm Dương Luân
+  for (const w of T.wheels) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgb(255 210 120 / .5)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(w.x, w.y, w.r + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    drawYinYang(w.x, w.y, w.r, w.rot, Math.min(1, w.life * 3));
+  }
+  // Thiên Thủ Quan Âm: bàn tay vàng khổng lồ giáng xuống
+  for (const h of T.hands) {
+    if (h.t < 0) continue;
+    const k = Math.min(1, h.t / .45), y = h.ty - 640 * (1 - k * k), a = h.t > .9 ? Math.max(0, (h.max - h.t) / .4) : Math.min(1, h.t * 4);
+    ctx.save(); ctx.translate(h.x, y); ctx.globalAlpha = a; ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(0, -80, 10, 0, -80, 150); g.addColorStop(0, 'rgb(255 220 140 / .45)'); g.addColorStop(1, 'rgb(255 200 100 / 0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -80, 150, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgb(255 236 190 / .75)'; ctx.strokeStyle = '#ffd36a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-46, 0); ctx.quadraticCurveTo(-56, -70, -34, -120); ctx.lineTo(34, -120); ctx.quadraticCurveTo(56, -70, 46, 0); ctx.closePath(); ctx.fill(); ctx.stroke();   // lòng bàn tay
+    for (let i = 0; i < 4; i++) { const fx = -33 + i * 22; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(fx - 9, -4, 18, 46 - Math.abs(i - 1.5) * 8, 9) : ctx.rect(fx - 9, -4, 18, 40); ctx.fill(); ctx.stroke(); }
+    ctx.beginPath(); ctx.ellipse(-58, -40, 10, 26, -.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();   // ngón cái
+    ctx.strokeStyle = '#ff9a3a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -60, 16, 0, Math.PI * 2); ctx.stroke();   // ấn giữa lòng bàn tay
+    ctx.restore();
+    if (h.slam) { const r = (h.t - .45) / .85; ctx.save(); ctx.strokeStyle = `rgb(255 211 106 / ${(1 - r).toFixed(2)})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.ellipse(h.x, h.ty, 40 + 220 * r, (40 + 220 * r) * .25, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+  }
+  // đốt / hoa hoá trên boss
+  for (const d of T.dots) {
+    if (d.ref.hidden) continue;
+    const p = tPos({ ref: d.ref, kind: 'boss' });
+    for (let i = 0; i < Math.min(d.n, 6); i++) {
+      const ox = Math.sin(i * 2.4) * 30, oy = Math.cos(i * 1.7) * 40;
+      if (d.k === 'bloom') drawLily(p.x + ox, p.y + oy, .7, i % 2 ? YB_RED : YB_WHITE, .9);
+      else { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgb(255 ${120 + i * 15} 40 / .55)`; ctx.beginPath(); ctx.ellipse(p.x + ox, p.y + oy - Math.abs(Math.sin(S.t * 9 + i)) * 8, 6, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    }
+  }
+  const b = S.ball;
+  for (const f of T.fx) {
+    const k = f.t / f.max;
+    if (f.k === 'ring') { ctx.strokeStyle = f.c; ctx.globalAlpha = 1 - k; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(b.x, b.y - 60, 30 + 260 * k, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+    else if (f.k === 'dan') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(b.x, b.y - 50, 4, b.x, b.y - 50, 110); g.addColorStop(0, `rgb(255 220 120 / ${(.5 * (1 - k)).toFixed(2)})`); g.addColorStop(1, 'rgb(255 200 80 / 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y - 50, 110, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  }
+  ctx.restore();
+}
+function drawThiQuy(b, charged) {
+  const T = S.tq, d = b.face || 1, fy = b.y + R - 2;
+  if (T.tf > 0) {
+    // hợp thể: hai YuuTan xoay quanh nhau thành vòng âm dương rồi Thi Quỷ hiện ra
+    const k = 1 - T.tf / TQ_TF, ang = k * k * 14, r = 70 * (1 - k), cy = fy - k * 50;
+    drawYinYang(b.x, b.y - 60, 30 + 110 * k, S.t * 4, .25 + .4 * k);
+    const fa = 1 - clamp((k - .65) / .25, 0, 1);
+    if (fa > 0) {
+      for (const [sd, draw] of [[1, () => drawMhFig(T.p.u, 0, 0, -1, 'raise', 1, false, false)], [-1, () => drawYbFig(S.yb.u, 0, 0, 1, null, 1, true)]]) {
+        ctx.save(); ctx.globalAlpha = fa; ctx.translate(b.x + Math.cos(ang) * r * sd, cy + Math.sin(ang) * r * .4 * sd); ctx.scale(YT_SC, YT_SC); draw(); ctx.restore();
+      }
+    }
+    if (k > .6) drawKishiFig(b.x, fy - 10, TQ_SC * (.6 + .4 * k), (k - .6) / .4, T.el);
+    return;
+  }
+  if (T.form) {
+    const hov = 10 + Math.sin(S.t * 2) * 4;
+    drawKishiFig(b.x, fy - hov, TQ_SC, 1, T.el);
+  } else {
+    // YuuTan tóc bạc đứng sau, sợi tơ đỏ trắng nối hai người
+    const P = T.p, px = Math.abs(P.x - b.x) > 900 ? b.x - d * 48 : P.x, py = Math.abs(P.x - b.x) > 900 ? b.y : P.y;
+    if (!P.cur) { ctx.strokeStyle = 'rgb(255 80 100 / .35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, py - 30); ctx.quadraticCurveTo((px + b.x) / 2, py - 10, b.x, b.y - 30); ctx.stroke(); }
+    ctx.save(); ctx.translate(px, py + R - 2); ctx.scale(YT_SC, YT_SC); drawMhFig(P.u, 0, 0, P.face, P.u.pose, 1, false, false, P.u.cur); ctx.restore();
+    ctx.save(); ctx.translate(b.x, fy); ctx.scale(YT_SC, YT_SC); drawYbFig(S.yb.u, 0, 0, d, S.yb.u.cur, 1, false); ctx.restore();
+  }
+  // hành đang dùng
+  const top = T.form ? fy - 200 : fy - 96;
+  ctx.font = '800 12px "Baloo 2", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = TQ_EL[T.el].c; ctx.fillText(TQ_EL[T.el].n, b.x, top);
+  if (charged) { ctx.strokeStyle = 'rgb(255 211 106 / .7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 18, 34 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
+}
+/* ---------- Okkotsu Yuta (Jujutsu Kaisen): cheat ----------
+   Đồng phục trắng, tóc đen rối, quầng mắt thâm, katana bọc chú lực, nhẫn đính ước với Rika.
+   Thuật thức Sao Chép (Mô Phỏng): nhờ Rika, Yuta chép được kĩ năng của người khác.
+   · Y Sao chép nhân vật: lấy nguyên bộ chiêu của một nhân vật trong game (bấm Y lần nữa đổi người khác, Z trở về Yuta) —
+     vẫn là hình Yuta, chỉ số của Yuta, bóng của nhân vật bị chép hiện mờ sau lưng.
+   · Quái: mỗi loại quái Yuta hạ được, Rika chép lại đòn của nó (T dùng, H đổi; nhớ cả khi chơi lại).
+   J Kiếm chú lực (3 nhát nối) · giữ J Đột Kích · L Ngôn Linh (chép của Inumaki: “Đứng yên!” / “Nổ tung!”) · K Lướt ·
+   U Tình Yêu Thuần Khiết (Rika + Yuta bắn luồng chú lực khổng lồ) · E Triệu hồi Rika (30 giây: tự đánh, đỡ đòn thay 6 lần) ·
+   F Phản Chuyển Thuật Thức (hồi máu). */
+const YTA_SC = .64, YTA_CE = '#7fc8ff';
+function newYta() {
+  let mob = [];
+  try { mob = JSON.parse(lsGet('bongdo.ytaMob', '[]')).filter(k => SX_LEARN[k]); } catch (e) {}
+  return { cd: {}, cp: null, last: -1, mob, msel: Math.max(0, mob.length - 1), word: 0, combo: 0, poseT: 0, rika: 0, beam: null, fx: [],
+    u: { mt: 0, vx: 0, ground: true, pose: null, poseK: 1, cur: null },
+    rk: { x: 0, y: 0, face: 1, atkT: .3, swing: null, hp: 6, mt: 0, a: 0 } };
+}
+function ytaCp() { try { return !!(S.yta && S.yta.cp); } catch (e) { return false; } }
+function isYuta() { return CHAR === 'yuta' || ytaCp(); }
+function ytaCd(k, t) { const Y = S.yta; if (Y.cd[k] > 0) return false; Y.cd[k] = t; return true; }
+function ytaPop(text, c = YTA_CE, big) { S.pops.push({ x: S.ball.x, y: S.ball.y - 90, t: 1.1, text, c, big }); }
+function ytaDeny(name, k) { ytaPop(`${name} hồi ${Math.ceil(S.yta.cd[k])} giây`, '#c9d1db'); sfx('deny'); }
+function ytaPose(p, t) { S.yta.u.pose = p; S.yta.poseT = t; S.yta.u.poseK = 1; }
+function ytaHit(t, dmg, p) {
+  if (!tAlive(t)) return;
+  boltSpark(p.x, p.y, YTA_CE, 6);
+  if (t.kind === 'boss') { LAST_PROBE = { x: S.ball.x, y: S.ball.y, t: S.t }; damageBoss(t.ref, dmg, 'crim'); }
+  else if (t.kind === 'enemy') { const e = t.ref; e.inv = 0; e.bub = 0; if (e.role === 'khien') e.dir = -(Math.sign(S.ball.x - e.x) || 1); if (dmg >= 3) e.hp = 1; killEnemy(e, '#1a2a4a'); }
+  else if (t.kind === 'flyer') killFlyer(t.ref);
+  else { const T = S.turret; T.hp -= dmg; T.flash = .15; if (T.hp <= 0) breakTurret(); }
+}
+// Rika chép đòn của quái vừa bị hạ
+function ytaLearnMob(kind) {
+  const Y = S.yta;
+  if (!SX_LEARN[kind] || Y.mob.includes(kind)) return;
+  Y.mob.push(kind); Y.msel = Y.mob.length - 1;
+  lsSet('bongdo.ytaMob', JSON.stringify(Y.mob));
+  S.pops.push({ x: S.ball.x, y: S.ball.y - 110, t: 1.6, text: `Rika chép được: ${SX_LEARN[kind].name}! (T dùng, H đổi)`, c: '#c9a8ff' });
+  sfx('star');
+}
+function ytaMobUse() {
+  if (!canAct()) return;
+  const Y = S.yta;
+  if (!Y.mob.length) { ytaPop('Rika chưa chép đòn quái nào — hạ quái để chép', '#c9a8ff'); sfx('deny'); return; }
+  if (!ytaCd('mob', .5)) return;
+  const k = Y.mob[Y.msel % Y.mob.length], b = S.ball;
+  SX_LEARN[k].use(b, b.face || 1);
+  ytaPop(`Chép: ${SX_LEARN[k].name}`, '#c9a8ff');
+}
+function ytaMobCycle() {
+  const Y = S.yta;
+  if (!Y.mob.length) { ytaPop('Rika chưa chép đòn quái nào — hạ quái để chép', '#c9a8ff'); return; }
+  Y.msel = (Y.msel + 1) % Y.mob.length;
+  ytaPop(`Đòn quái: ${SX_LEARN[Y.mob[Y.msel]].name} (${Y.msel + 1}/${Y.mob.length})`, '#c9a8ff');
+}
+// Y: sao chép nhân vật kế tiếp (lấy nguyên bộ chiêu)
+const ytaList = () => Object.keys(CHAR_UI).filter(id => id !== 'yuta');
+function ytaCopy() {
+  const Y = S.yta;
+  if (S.dead || S.won || S.lost || !ytaCd('copy', .35)) return;
+  const L = ytaList(), next = L[(Y.last + 1) % L.length];
+  for (const k of ['bolt', 'web', 'volt', 'skill', 'egg', 'heal', 'terra', 'regen', 'whistle', 'boom']) keys[k] = false;
+  S.charging = false;
+  Y.last = L.indexOf(next); Y.cp = next; CHAR = next;
+  applyChar();
+  Y.fx.push({ k: 'copy', t: 0, max: .6 });
+  ytaPop(`Sao chép: ${CHAR_UI[next].name} (Y đổi · Z về Yuta)`, '#c9a8ff', true);
+  sfx('tele');
+}
+function ytaRevert() {
+  const Y = S.yta;
+  if (!Y.cp) return;
+  for (const k of ['bolt', 'web', 'volt', 'skill', 'egg', 'heal', 'terra', 'regen', 'whistle', 'boom']) keys[k] = false;
+  S.charging = false;
+  Y.cp = null; CHAR = 'yuta'; applyChar();
+  Y.fx.push({ k: 'copy', t: 0, max: .6 });
+  ytaPop('Trở về Yuta', YTA_CE); sfx('tele');
+}
+// J: Kiếm chú lực, 3 nhát nối
+function ytaSlash() {
+  if (!canAct() || !ytaCd('j', .22)) return;
+  const b = S.ball, d = ytDir(), Y = S.yta;
+  b.face = d; Y.combo = (Y.combo + 1) % 3;
+  ytaPose(Y.combo === 1 ? 'slashB' : Y.combo === 2 ? 'lunge' : 'slashA', .22);
+  for (const t of ybInBox({ x0: Math.min(b.x, b.x + d * 150), x1: Math.max(b.x, b.x + d * 150), y0: b.y - 100, y1: b.y + 30 })) ytaHit(t, Y.combo === 2 ? 4 : 3, tPos(t));
+  Y.fx.push({ k: 'arc', x: b.x + d * 50, y: b.y - 34, d, r: 62, a0: Y.combo === 1 ? .9 : -1.3, a1: Y.combo === 1 ? -1.3 : 1, t: 0, max: .22 });
+  sfx('slash' in SFX ? 'slash' : 'hit');
+}
+// giữ J: Đột Kích — lao xuyên 320, chém mọi thứ trên đường
+function ytaThrust() {
+  if (!canAct() || !ytaCd('hold', .7)) return;
+  const b = S.ball, d = ytDir(), x0 = b.x;
+  ytaPose('lunge', .35);
+  znDash(d, 320, 0, { has: () => true, add() {} });
+  ybLine(x0, b.y - 20, b.x + d * 40, b.y - 20, 55, t => ytaHit(t, 6, tPos(t)));
+  S.yta.fx.push({ k: 'streak', x0, x1: b.x + d * 40, y: b.y - 30, t: 0, max: .3 });
+  S.safe = Math.max(S.safe, .3); sfx('dash');
+}
+// L: Ngôn Linh (chép của Inumaki) — “Đứng yên!” trói mọi kẻ địch / “Nổ tung!” nổ mọi kẻ địch quanh mình
+function ytaSpeech() {
+  if (!canAct()) return;
+  if (!ytaCd('l', 1.2)) return ytaDeny('Ngôn Linh', 'l');
+  const b = S.ball, Y = S.yta, w = Y.word; Y.word ^= 1;
+  ytaPose('roar', .5);
+  Y.fx.push({ k: 'word', text: w ? '“NỔ TUNG!”' : '“ĐỨNG YÊN!”', t: 0, max: .9 }, { k: 'ring', t: 0, max: .6 });
+  for (const t of nkTargets(b.x, b.y, w ? 650 : 750, 20)) {
+    const p = tPos(t);
+    if (w) { ytaHit(t, 5, p); for (let i = 0; i < 6; i++) S.parts.push({ x: p.x, y: p.y, vx: (Math.random() - .5) * 400, vy: (Math.random() - .5) * 400, life: .5, c: i % 2 ? '#ffffff' : '#9a7aff', r: 5, g: 0 }); }
+    else ybBind(t, 2);
+  }
+  sfx(w ? 'boom' : 'roar');
+}
+// K: Lướt chú lực
+function ytaDash() {
+  if (!canAct() || !ytaCd('k', .4)) return;
+  const b = S.ball, d = ytDir(), x0 = b.x;
+  znDash(d, 240, 0, { has: () => true, add() {} });
+  b.face = d; S.yta.fx.push({ k: 'streak', x0, x1: b.x, y: b.y - 30, t: 0, max: .25 });
+  S.safe = Math.max(S.safe, .4); sfx('tele');
+}
+// E: triệu hồi / thu hồi Rika
+function ytaRika() {
+  if (S.dead || S.won || S.lost) return;
+  const Y = S.yta, b = S.ball;
+  if (Y.rika > 0) { Y.rika = 0; Y.cd.rika = 3; ytaPop('Thu hồi Rika', '#c9a8ff'); return; }
+  if (Y.cd.rika > 0) return ytaDeny('Rika', 'rika');
+  ytaSummon(30);
+}
+function ytaSummon(t) {
+  const Y = S.yta, b = S.ball;
+  Y.rika = t; Y.rk.hp = 6; Y.rk.x = b.x - (b.face || 1) * 70; Y.rk.y = b.y; Y.rk.a = 0; Y.rk.atkT = .4;
+  S.flash = Math.max(S.flash, .4); sfx('roar');
+  S.pops.push({ x: b.x, y: b.y - 160, t: 1.4, text: 'RIKA!!', c: '#e8dcff', big: true });
+  for (let i = 0; i < 30; i++) { const a = Math.random() * Math.PI * 2, v = 80 + Math.random() * 260; S.parts.push({ x: Y.rk.x, y: b.y - 60, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .8, c: i % 2 ? '#2a1a40' : '#e8e4e0', r: 4 + Math.random() * 5, g: 0 }); }
+}
+// Rika đỡ đòn thay Yuta
+function ytaBlock() {
+  const Y = S.yta, b = S.ball;
+  Y.rk.hp--; S.safe = Math.max(S.safe, .8); S.hurtT = S.t + .8; S.hitAtk = 0;
+  boltSpark(Y.rk.x, Y.rk.y - 80, '#e8dcff', 14); sfx('hurt');
+  S.pops.push({ x: Y.rk.x, y: Y.rk.y - 170, t: .9, text: Y.rk.hp > 0 ? `Rika đỡ đòn! (${Y.rk.hp})` : 'Rika tan biến!', c: '#e8dcff' });
+  if (Y.rk.hp <= 0) { Y.rika = 0; Y.cd.rika = 12; }
+}
+// U: Tình Yêu Thuần Khiết — Rika và Yuta bắn luồng chú lực khổng lồ
+function ytaU() {
+  if (!canAct()) return;
+  if (!ytaCd('u', 10)) return ytaDeny('Tình Yêu Thuần Khiết', 'u');
+  const Y = S.yta, b = S.ball, d = ytDir();
+  b.face = d;
+  if (Y.rika <= 0) ytaSummon(12);
+  Y.beam = { t: 0, dur: 1.7, d, x0: b.x + d * 30, y: b.y - 40, tick: 0 };
+  ytaPose('throw', 1.7);
+  S.pops.push({ x: b.x, y: b.y - 200, t: 1.6, text: 'TÌNH YÊU THUẦN KHIẾT', c: '#e8dcff', big: true });
+  sfx('kame' in SFX ? 'kame' : 'roar');
+}
+// F: Phản Chuyển Thuật Thức — hồi máu
+function ytaHeal() {
+  if (!canAct()) return;
+  if (!ytaCd('f', 12)) return ytaDeny('Phản Chuyển Thuật Thức', 'f');
+  const g = healHp(.3);
+  S.yta.fx.push({ k: 'heal', t: 0, max: 1.2 });
+  ytaPop(healText(g, 'Phản Chuyển Thuật Thức'), '#bff7d0'); sfx('amber' in SFX ? 'amber' : 'tele');
+}
+function updateYta(dt) {
+  const Y = S.yta, b = S.ball, rk = Y.rk;
+  for (const k in Y.cd) Y.cd[k] = Math.max(0, Y.cd[k] - dt);
+  for (const f of Y.fx) f.t += dt;
+  Y.fx = Y.fx.filter(f => f.t < f.max);
+  if (!isYuta() || S.dead) { Y.beam = null; Y.rika = 0; return; }
+  const u = Y.u;
+  u.mt += dt; u.ground = S.onGround; u.vx = b.vx;
+  if ((Y.poseT -= dt) <= 0 && u.pose) u.pose = null;
+  mhBlend(u, dt, true, false);
+  // luồng chú lực
+  const B = Y.beam;
+  if (B) {
+    B.t += dt; b.vx = 0; B.y = b.y - 40; B.x0 = b.x + B.d * 30;
+    if (B.t > .35 && (B.tick -= dt) <= 0) {
+      B.tick = .1;
+      const x1 = B.x0 + B.d * 1500;
+      for (const t of ybInBox({ x0: Math.min(B.x0, x1), x1: Math.max(B.x0, x1), y0: B.y - 100, y1: B.y + 100 })) ytaHit(t, 2.5, tPos(t));
+      S.flash = Math.max(S.flash, .08);
+    }
+    if (B.t >= B.dur) Y.beam = null;
+  }
+  // Rika
+  if (Y.rika > 0) {
+    Y.rika -= dt; rk.mt += dt; rk.a = Math.min(1, rk.a + dt * 3);
+    if (Y.rika <= 0) { Y.cd.rika = 8; ytaPop('Rika trở về nhẫn', '#c9a8ff'); }
+    const sw = rk.swing, tx = sw ? rk.x : b.x - (b.face || 1) * 75;
+    rk.x += (tx - rk.x) * Math.min(1, dt * 6); rk.y += (b.y - rk.y) * Math.min(1, dt * 6);
+    if (!sw) rk.face = b.face || 1;
+    if (sw) {
+      sw.t += dt;
+      if (!sw.hit && sw.t >= .15) {
+        sw.hit = true;
+        const t = sw.tg;
+        if (tAlive(t)) {
+          const p = tPos(t);
+          if (sw.kind === 'grab') { ybBind(t, 1.2); ytaHit(t, 3, p); }
+          else ytaHit(t, sw.kind === 'bite' ? 6 : 4, p);
+          for (let i = 0; i < 3; i++) Y.fx.push({ k: 'claw', x: p.x + (i - 1) * 14, y: p.y, d: rk.face, t: 0, max: .3 });
+          sfx(sw.kind === 'bite' ? 'stomp' : 'hit');
+        }
+      }
+      if (sw.t >= sw.max) rk.swing = null;
+    } else if ((rk.atkT -= dt) <= 0) {
+      const t = nkTargets(b.x, b.y, 560, 1)[0];
+      rk.atkT = .55;
+      if (t) { const p = tPos(t); rk.face = Math.sign(p.x - rk.x) || 1; rk.swing = { tg: t, tx: p.x, ty: p.y, t: 0, max: .38, kind: ['claw', 'claw', 'grab', 'bite'][Math.floor(Math.random() * 4)], hit: false }; }
+    }
+  } else rk.a = Math.max(0, rk.a - dt * 3);
+}
+// Rika: lời nguyền khổng lồ trắng xám, lưng gai đen, đầu to miệng rộng đầy răng, tay dài móng vuốt
+function drawRika(rk, s, alpha) {
+  if (alpha <= 0) return;
+  const t = rk.mt, sw = rk.swing, d = rk.face, x = rk.x, fy = rk.y + R - 10 - Math.sin(t * 2) * 5;
+  const body = '#e9e5df', sh = '#aaa39c', dark = '#16121c';
+  ctx.save(); ctx.translate(x, fy); ctx.scale(d * s, s); ctx.globalAlpha *= alpha; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // khí nguyền đen tím
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(0, -120, 10, 0, -120, 150); g.addColorStop(0, 'rgb(120 70 200 / .25)'); g.addColorStop(1, 'rgb(60 20 120 / 0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -120, 150, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  // thân dưới tan thành khói
+  ctx.fillStyle = sh; ctx.beginPath(); ctx.moveTo(-40, -90); ctx.quadraticCurveTo(-30, -30, -10 + Math.sin(t * 3) * 6, 0); ctx.quadraticCurveTo(10, -30, 30, -80); ctx.closePath(); ctx.fill();
+  // tay sau
+  const arm = (sx, sy, front) => {
+    let a1, a2;
+    if (sw) {
+      const k = Math.min(1, sw.t / .15), lx = (sw.tx - x) * d / s, ly = (sw.ty - fy) / s, ang = Math.atan2(lx - sx, ly - sy);
+      a1 = (front ? 2.4 : 2.0) * (1 - k) + ang * k; a2 = (front ? 1.2 : 1.0) * (1 - k) + ang * k;
+    } else { a1 = (front ? .5 : .2) + Math.sin(t * 1.5 + sx) * .1; a2 = (front ? .1 : -.1) + Math.sin(t * 1.7 + sx) * .1; }
+    const [hx, hy, ha] = limb(sx, sy, a1, 62, a2, 62, front ? 13 : 11, front ? 10 : 9, front ? body : sh);
+    ctx.strokeStyle = dark; ctx.lineWidth = 3.5;
+    for (let i = 0; i < 4; i++) { const a = ha + (i - 1.5) * .28; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(hx + Math.cos(a) * 14, hy + Math.sin(a) * 14 + 4, hx + Math.cos(a + .3) * 26, hy + Math.sin(a + .3) * 26); ctx.stroke(); }
+  };
+  arm(-6, -150, false);
+  // thân gù
+  const bg = ctx.createLinearGradient(0, -190, 0, -70); bg.addColorStop(0, body); bg.addColorStop(1, sh);
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.ellipse(-8, -125, 46, 58, -.25, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgb(60 50 60 / .35)'; ctx.lineWidth = 2; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-20 + i * 6, -150 + i * 14); ctx.quadraticCurveTo(5 + i * 4, -140 + i * 14, 25, -150 + i * 16); ctx.stroke(); }   // xương sườn
+  // gai đen trên lưng
+  ctx.fillStyle = dark;
+  for (let i = 0; i < 6; i++) { const a = -2.4 + i * .28, px = -8 + Math.cos(a) * 46, py = -125 + Math.sin(a) * 58; ctx.beginPath(); ctx.moveTo(px - 6, py + 4); ctx.lineTo(px + Math.cos(a) * 26 + Math.sin(t * 2 + i) * 3, py + Math.sin(a) * 26); ctx.lineTo(px + 6, py - 2); ctx.closePath(); ctx.fill(); }
+  // tóc đen rủ sau đầu
+  ctx.strokeStyle = dark; ctx.lineWidth = 3;
+  for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(18 - i * 4, -200); ctx.quadraticCurveTo(-10 - i * 6, -180 + Math.sin(t * 2 + i) * 6, -24 - i * 5, -140 + i * 6); ctx.stroke(); }
+  // đầu: to, miệng ngoác đầy răng
+  const open = sw ? Math.min(1, sw.t / .12) * (sw.kind === 'bite' ? 1 : .5) : S.yta.beam ? 1 : .15 + .1 * Math.sin(t * 3);
+  ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(34, -178, 38, 32 + open * 6, .1, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(28, -196, 26, 10, .1, 0, Math.PI * 2); ctx.fill();
+  // mắt hõm sâu, đồng tử trắng
+  for (const ex of [22, 46]) { ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(ex, -190, 7, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(ex + 1.5, -189, 2.2, 0, Math.PI * 2); ctx.fill(); }
+  // miệng
+  const my = -168, mh = 6 + open * 26;
+  ctx.fillStyle = '#1a0a12'; ctx.beginPath(); ctx.moveTo(4, my); ctx.quadraticCurveTo(36, my - 6, 70, my - 2); ctx.quadraticCurveTo(40, my + mh * 1.2, 4, my); ctx.fill();
+  ctx.fillStyle = '#fbf8f2';
+  for (let i = 0; i < 9; i++) {
+    const tx = 8 + i * 7, ty = my - 3 + Math.abs(i - 4) * .3;
+    ctx.beginPath(); ctx.moveTo(tx - 3, ty); ctx.lineTo(tx, ty + 6); ctx.lineTo(tx + 3, ty); ctx.fill();
+    const by = my + mh * (.85 - Math.abs(i - 4) / 14);
+    ctx.beginPath(); ctx.moveTo(tx - 3, by); ctx.lineTo(tx, by - 6); ctx.lineTo(tx + 3, by); ctx.fill();
+  }
+  arm(18, -140, true);
+  ctx.restore();
+}
+// Yuta: đồng phục trắng dài, quần tối, tóc đen rối, katana chú lực
+function drawYutaFig(u, x, y, dir, cur, alpha) {
+  const P = cur || mhPose(u.pose, u, true);
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.globalAlpha *= alpha; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const skin = '#f2dccb', wh = '#eef0f4', whSh = '#c5c9d4', pant = '#1b1e28', hair = '#14141a';
+  const hy = P.hy, sx = Math.sin(P.lean) * 36, sy = hy - Math.cos(P.lean) * 36;
+  const cx = sx + Math.sin(P.lean) * 15, cy = sy - Math.cos(P.lean) * 15;
+  const leg = (a, back) => {
+    const [fx, fy] = limb(back ? -3 : 3, hy, a[0], 28, a[1], 28, 10.5, 9, back ? '#11131a' : pant);
+    ctx.fillStyle = '#0c0c10'; ctx.beginPath(); ctx.ellipse(fx + 4, fy - 1, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
+  };
+  const sword = (hx, hy2, ang) => {
+    const L = 54, ex = hx + Math.cos(ang) * L, ey = hy2 + Math.sin(ang) * L;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgb(110 190 255 / .45)'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(hx, hy2); ctx.lineTo(ex, ey); ctx.stroke(); ctx.restore();
+    ctx.strokeStyle = '#dfe6ee'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(hx + Math.cos(ang) * 6, hy2 + Math.sin(ang) * 6); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = '#2a2230'; ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(hx - Math.cos(ang) * 9, hy2 - Math.sin(ang) * 9); ctx.lineTo(hx + Math.cos(ang) * 5, hy2 + Math.sin(ang) * 5); ctx.stroke();   // chuôi
+    ctx.strokeStyle = '#b89a50'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(hx + Math.cos(ang) * 6 - Math.sin(ang) * 4, hy2 + Math.sin(ang) * 6 + Math.cos(ang) * 4); ctx.lineTo(hx + Math.cos(ang) * 6 + Math.sin(ang) * 4, hy2 + Math.sin(ang) * 6 - Math.cos(ang) * 4); ctx.stroke();   // chắn kiếm
+  };
+  const arm = (a, front) => {
+    const [fx, fy, fa] = limb(sx + (front ? 4 : -4), sy + 4, a[0], 21, a[1], 20, 8, 7, front ? wh : whSh);
+    ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(fx, fy, 3.8, 0, Math.PI * 2); ctx.fill();
+    if (front) { ctx.strokeStyle = '#e6e8f0'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(fx + 1.5, fy, 1.6, 0, Math.PI * 2); ctx.stroke(); sword(fx, fy, fa + .15); }   // nhẫn
+  };
+  // bao kiếm đeo sau lưng
+  ctx.strokeStyle = '#3a2a40'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(sx - 12, sy - 4); ctx.lineTo(-14, hy + 8); ctx.stroke();
+  arm(P.ba, false);
+  leg(P.bl, true);
+  leg(P.fl, false);
+  // áo khoác đồng phục trắng dài tới giữa đùi
+  const fl = clamp(-u.vx / 800, -.3, .5) + Math.sin(u.mt * 6) * .03;
+  ctx.fillStyle = wh; ctx.beginPath();
+  ctx.moveTo(sx - 10, sy); ctx.lineTo(sx + 10, sy); ctx.lineTo(11, hy + 2); ctx.lineTo(13 - fl * 10, hy + 20); ctx.lineTo(-14 - fl * 30, hy + 21); ctx.lineTo(-11, hy + 2); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = whSh; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(sx + 5, sy + 2); ctx.lineTo(4, hy + 20); ctx.stroke();
+  ctx.fillStyle = '#20232e'; for (let i = 0; i < 4; i++) { const k = i / 4; ctx.beginPath(); ctx.arc(sx + 7 + (6 - sx - 7) * k, sy + 6 + (hy - sy) * k, 1.1, 0, Math.PI * 2); ctx.fill(); }   // cúc áo
+  ctx.fillStyle = wh; ctx.beginPath(); ctx.moveTo(sx - 6, sy - 1); ctx.lineTo(sx - 4, sy - 8); ctx.lineTo(sx + 6, sy - 8); ctx.lineTo(sx + 8, sy - 1); ctx.fill();   // cổ đứng
+  ctx.fillStyle = skin; ctx.fillRect(sx - 2.5, sy - 9, 5, 3);
+  // đầu
+  ctx.fillStyle = skin; ctx.beginPath(); ctx.ellipse(cx + 1.5, cy + 1, 8.3, 10.3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx + 6, cy + 7); ctx.lineTo(cx + 3, cy + 11); ctx.lineTo(cx - 2, cy + 9); ctx.fill();
+  // mắt mệt mỏi, quầng thâm
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(cx + 5.2, cy + 1.4, 3, 2, -.1, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a2a3a'; ctx.beginPath(); ctx.arc(cx + 5.8, cy + 1.5, 1.7, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#14141a'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(cx + 2, cy); ctx.lineTo(cx + 8.6, cy - .4); ctx.stroke();
+  ctx.strokeStyle = 'rgb(90 70 110 / .55)'; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(cx + 2.6, cy + 4); ctx.quadraticCurveTo(cx + 5.5, cy + 5.2, cx + 8.2, cy + 3.6); ctx.stroke();   // quầng thâm
+  ctx.strokeStyle = '#9a6a6a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx + 5, cy + 7.6); ctx.lineTo(cx + 7.6, cy + 7.4); ctx.stroke();
+  // tóc đen rối, mái che trán
+  ctx.fillStyle = hair; ctx.beginPath();
+  ctx.moveTo(cx - 10, cy + 4); ctx.lineTo(cx - 13, cy - 6); ctx.lineTo(cx - 9, cy - 14); ctx.lineTo(cx - 2, cy - 16.5); ctx.lineTo(cx + 6, cy - 15); ctx.lineTo(cx + 11, cy - 9);
+  ctx.lineTo(cx + 12, cy - 2); ctx.lineTo(cx + 9, cy - 4.5); ctx.lineTo(cx + 8, cy + .5); ctx.lineTo(cx + 5.5, cy - 4); ctx.lineTo(cx + 3, cy - 1); ctx.lineTo(cx + 1.5, cy - 5);
+  ctx.lineTo(cx - 2, cy + 1); ctx.lineTo(cx - 4, cy + 9); ctx.lineTo(cx - 7, cy + 6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#3a3a48'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - 7, cy - 12); ctx.quadraticCurveTo(cx, cy - 15, cx + 6, cy - 12); ctx.stroke();
+  arm(P.fa, true);
+  ctx.restore();
+}
+function drawYtaFx() {
+  const Y = S.yta;
+  if (!isYuta() && !Y.fx.length) return;
+  const b = S.ball, B = Y.beam;
+  ctx.save();
+  if (B && B.t > .2) {
+    // Tình Yêu Thuần Khiết: luồng chú lực trắng tím khổng lồ
+    const k = Math.min(1, (B.t - .2) / .15) * Math.min(1, (B.dur - B.t) / .25), x1 = B.x0 + B.d * 1500, w = 80 * k;
+    ctx.globalCompositeOperation = 'lighter';
+    for (const [ww, c] of [[w * 1.6, 'rgb(90 50 200 / .3)'], [w, 'rgb(150 120 255 / .55)'], [w * .55, 'rgb(200 230 255 / .8)'], [w * .25, '#ffffff']]) {
+      ctx.strokeStyle = c; ctx.lineWidth = Math.max(1, ww + Math.sin(S.t * 50) * 4); ctx.beginPath(); ctx.moveTo(B.x0, B.y); ctx.lineTo(x1, B.y); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgb(220 210 255 / .7)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); for (let s = 0; s <= 30; s++) { const xx = B.x0 + (x1 - B.x0) * s / 30, yy = B.y + Math.sin(s * 1.7 + S.t * 40 + i * 2) * w * .7; s ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); } ctx.stroke(); }
+    const g = ctx.createRadialGradient(B.x0, B.y, 4, B.x0, B.y, 120); g.addColorStop(0, 'rgb(255 255 255 / .9)'); g.addColorStop(1, 'rgb(140 110 255 / 0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(B.x0, B.y, 120, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  for (const f of Y.fx) {
+    const k = f.t / f.max;
+    if (f.k === 'arc') {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(f.x, f.y); ctx.scale(f.d, 1);
+      for (const [w, a, c] of [[16, .3, '#5a8aff'], [7, .7, YTA_CE], [2.5, 1, '#ffffff']]) { ctx.strokeStyle = c; ctx.globalAlpha = a * (1 - k); ctx.lineWidth = w; ctx.beginPath(); ctx.arc(0, 0, f.r, Math.min(f.a0, f.a1), Math.max(f.a0, f.a1)); ctx.stroke(); }
+      ctx.restore();
+    } else if (f.k === 'streak') { ctx.strokeStyle = `rgb(127 200 255 / ${(.8 * (1 - k)).toFixed(2)})`; ctx.lineWidth = 8 * (1 - k); ctx.beginPath(); ctx.moveTo(f.x0, f.y); ctx.lineTo(f.x1, f.y); ctx.stroke(); }
+    else if (f.k === 'claw') {
+      ctx.strokeStyle = `rgb(240 236 255 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 4 * (1 - k * .5);
+      ctx.beginPath(); ctx.moveTo(f.x - 26 * f.d, f.y - 36); ctx.lineTo(f.x + 26 * f.d, f.y + 30); ctx.stroke();
+    } else if (f.k === 'ring' || f.k === 'copy') {
+      ctx.strokeStyle = f.k === 'copy' ? `rgb(200 170 255 / ${(1 - k).toFixed(2)})` : `rgb(255 255 255 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(b.x, b.y - 30, 20 + (f.k === 'copy' ? 90 : 300) * k, 0, Math.PI * 2); ctx.stroke();
+    } else if (f.k === 'word') {
+      ctx.globalAlpha = Math.min(1, (1 - k) * 2); ctx.font = '900 30px "Baloo 2", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#2a1a40'; ctx.fillText(f.text, b.x + 2, b.y - 120 - k * 20 + 2); ctx.fillStyle = '#ffffff'; ctx.fillText(f.text, b.x, b.y - 120 - k * 20);
+      ctx.globalAlpha = 1;
+    } else if (f.k === 'heal') {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(b.x, b.y - 30, 4, b.x, b.y - 30, 80); g.addColorStop(0, `rgb(190 255 220 / ${(.5 * (1 - k)).toFixed(2)})`); g.addColorStop(1, 'rgb(120 255 180 / 0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y - 30, 80, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function drawYuta(b, charged) {
+  const Y = S.yta, d = b.face || 1, fy = b.y + R - 2;
+  drawRika(Y.rk, .8, Y.rk.a);
+  if (Y.cp && CHAR_DRAW[Y.cp] && Y.cp !== 'yuta') {
+    // bóng mờ của nhân vật đang bị sao chép hiện sau lưng
+    ctx.save(); ctx.globalAlpha = .28; ctx.translate(-d * 26, -6);
+    try { CHAR_DRAW[Y.cp](b, false); } catch (e) {}
+    ctx.restore(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = `rgb(200 170 255 / ${(.45 + .25 * Math.sin(S.t * 6)).toFixed(2)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(b.x, b.y - 18, 30, 46, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = '800 12px "Baloo 2", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#e0d0ff'; ctx.fillText(`Chép: ${CHAR_UI[Y.cp].name}`, b.x, b.y - 92);
+  }
+  ctx.save(); ctx.translate(b.x, fy); ctx.scale(YTA_SC, YTA_SC);
+  drawYutaFig(Y.u, 0, 0, d, Y.u.cur, 1);
+  ctx.restore();
+  if (charged) { ctx.strokeStyle = 'rgb(127 200 255 / .7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 18, 34 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
 }
 function drawKurumi(b, charged) {
   const K = S.ku, d = b.face || 1, air = true, hover = 10 + Math.sin(S.t * 2.2) * 4, lean = clamp(b.vx / 450, -1, 1) * d, fy = b.y + R - 2 - hover;   // lơ lửng, không chạy bộ
@@ -10852,6 +11758,8 @@ function drawCharFx() {
   drawZenitsuFx();
   drawYuutanFx();
   drawYbFx();
+  drawTqFx();
+  drawYtaFx();
   drawSxFx();
   // Xayda: vụ nổ Tự phát nổ
   if (S.blast) {
@@ -11190,7 +12098,7 @@ function drawBolts() {
 function drawBall() {
   if (BET_NOBALL) return;   // thế giới chỉ có boss (đấu trường cá cược)
   if (S.dead) return;
-  if (S.safe && Math.floor(S.t * 12) % 2 && !(CHAR === 'yuutan' && S.yt.cur)) return;   // nhấp nháy khi vừa hồi sinh (YuuTan đang chém thì vẫn hiện)
+  if (S.safe && Math.floor(S.t * 12) % 2 && !(CHAR === 'yuutan' && S.yt.cur) && !(CHAR === 'thiquy' && S.tq.tf > 0)) return;   // nhấp nháy khi vừa hồi sinh (YuuTan đang chém thì vẫn hiện)
   const b = S.ball, sq = b.squash;
   // Vô địch: hào quang vàng nhấp nháy, nháy nhanh khi sắp hết
   const pw = S.power > 0;
@@ -11222,11 +12130,12 @@ function drawBall() {
     ctx.beginPath(); ctx.ellipse(b.x, gy - 2, R * 1.1 * k, 5 * k, 0, 0, Math.PI * 2); ctx.fill();
   }
   if (S.amber > 0) drawAmber(b);
+  if (ytaCp()) { drawYuta(b, pw && !blink); return; }   // Yuta đang sao chép: vẫn là hình Yuta
   if (CHAR === 'pika' && DMAX) { drawMaxCore(b, pw && !blink); return; }
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
-const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a' };
-const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2 };
+const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
+const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
 // Khiên Hổ Phách của Stelle: vỏ lục giác màu hổ phách
 function drawAmber(b) {
   const r = R * 1.9 + Math.sin(S.t * 6) * 2, fade = S.amber < .8 && Math.floor(S.t * 14) % 2;
@@ -12396,7 +13305,7 @@ const betCoins = () => Math.max(0, Math.floor(Number(lsGet(BET_KEY, '1000')) || 
 const betSetCoins = n => { lsSet(BET_KEY, String(Math.max(0, Math.floor(n)))); $('betCoins').textContent = betCoins().toLocaleString('vi-VN'); };
 const BET_SIDE = ['#ff5a5a', '#5ab4ff'];
 const BET_PH = () => [null, PHASES_LN, PHASES_Z, PHASES_V, PHASES_G, PHASES_W, PHASES_J, PHASES_ZR];
-const BET_MELEE = new Set(['kiem', 'asta', 'mereo', 'zenitsu', 'yuutan', 'luffy', 'goku']);
+const BET_MELEE = new Set(['yuta', 'kiem', 'asta', 'mereo', 'zenitsu', 'yuutan', 'luffy', 'goku']);
 
 /* ----- thế giới: chụp / nạp toàn bộ S cùng các biến toàn cục theo người chơi ----- */
 function betSnap() { return { s: Object.assign({}, S), g: { CHAR, DMAX, MAP, PHASES, ACT_LIST, keys: { ...keys } } }; }
