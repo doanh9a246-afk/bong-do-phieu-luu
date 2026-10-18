@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=46b2eb44">
+<link rel="stylesheet" href="css/style.css?v=243fcfd8">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -58,6 +58,7 @@
 
 <div class="hint" id="hint">
   <span class="keys"><kbd>←</kbd> <kbd>→</kbd> chạy · <kbd>↑</kbd>/<kbd>Space</kbd> nhảy · <kbd>J</kbd> tia sét (giữ rồi thả: Quả cầu điện) · <kbd>L</kbd> Lưới điện · <kbd>Shift</kbd> Lao điện · <kbd>U</kbd> 100.000 Vôn · về đích trong 5 phút</span>
+  <span class="keys mkeys">🖱 Chuột: trái = <kbd>J</kbd> (giữ: gồng) · phải = <kbd>L</kbd> · giữa = <kbd>U</kbd> · lăn lên = <kbd>K</kbd> · lăn xuống = <kbd>E</kbd> · nút bên = <kbd>T</kbd>/<kbd>O</kbd> · nhân vật quay theo con trỏ</span>
   <span class="tap">◀ ▶ chạy · ▲ nhảy · Sét (giữ: Quả cầu điện) · Lưới · ⚡ Lao điện · 100K khi đầy điện · về đích trong 5 phút</span>
 </div>
 
@@ -164,10 +165,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=46b2eb44&t=' + Date.now();
+  s.src = 'js/game.js?v=243fcfd8&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=46b2eb44&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=243fcfd8&t=' + Date.now();
 })();
 </script>
 </body>
