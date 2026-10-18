@@ -96,7 +96,8 @@ const CHAR_STATS = {
   goku: { hp: 2000, atk: 160, def: 60 }, namek: { hp: 2000, atk: 140, def: 80 }, luffy: { hp: 1800, atk: 150, def: 50 },
   kurumi: { hp: 1600, atk: 150, def: 40 },
   mereo: { hp: 10000, atk: 180, def: 0 },
-  zenitsu: { hp: 1400, atk: 170, def: 30 },   // Zenitsu: nhanh gấp 10 lần   // Mereoleona: không giáp, máu cực nhiều, đánh là hút máu
+  zenitsu: { hp: 1400, atk: 170, def: 30 },
+  yuutan: { hp: 2000, atk: 170, def: 50 },   // YuuTan: boss màn 5 làm nhân vật   // Zenitsu: nhanh gấp 10 lần   // Mereoleona: không giáp, máu cực nhiều, đánh là hút máu
 };
 const stat = () => CHAR_STATS[CHAR] || CHAR_STATS.chii;
 const DMG_K = 10;   // 1 điểm sát thương gốc của chiêu = 10 máu
@@ -468,6 +469,7 @@ function reset() {
     alert: {}, eshots: [],   // nhóm quái đang báo động, tên của cung thủ
     wt: 0,                   // đồng hồ thế giới (bẫy, bục di chuyển); đứng yên khi ngưng đọng thời gian
     zoom: null,              // cảnh phim: phóng to quanh một điểm
+    yt: newYt(),             // YuuTan: tràng chém đang chạy, hàng chờ, Huyết Nhãn
     zn: newZn(),             // Zenitsu: vệt sét, Lục Liên, Thức thứ bảy
     mr: newMr(),             // Mereoleona: cánh tay lửa, Mana Zone, Hoả Táng
     ku: newKu(),             // Kurumi: đạn, phân thân, Zafkiel, Rasiel
@@ -573,7 +575,7 @@ const SFX = {
   ki()      { tone(900, 300, .1, 'sine', .06); noise(.08, .04, 3000); },
   ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
-const JUMP_SFX = { zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
+const JUMP_SFX = { yuutan: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
 function sfx(name) { if (!muted && audio()) SFX[name](); }
 function setMuted(m) {
   muted = m;
@@ -590,11 +592,16 @@ function setKey(k, on) {
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
-  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : fireVolt());
+  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : fireVolt());
   if (CHAR === 'kurumi' && on && !keys[k]) {
     if (k === 'egg') kuCloneArmy();
     else if (k === 'heal') kuDalet();
     else if (k === 'terra') kuRasiel();
+  }
+  if (CHAR === 'yuutan' && on && !keys[k]) {
+    if (k === 'egg') ytClones();
+    else if (k === 'heal') ytRain();
+    else if (k === 'terra') ytBlood();
   }
   if (CHAR === 'luffy' && on && !keys[k]) {
     if (k === 'regen') lfObs();
@@ -646,6 +653,7 @@ function activateSkill() {
   // bị Vegeta trói: Shift/K giật đứt dây
   if (CHAR === 'kurumi' && !S.bound) { if (!S.dead && !S.won && !S.lost) kuAleph(); return; }   // Kurumi: K là Aleph
   if (CHAR === 'zenitsu' && !S.bound) { if (!S.dead && !S.won && !S.lost) znBlink(); return; }   // Zenitsu: K Lôi Bộ
+  if (CHAR === 'yuutan' && !S.bound) { if (!S.dead && !S.won && !S.lost) ytBlink(); return; }   // YuuTan: K Ảnh Bộ
   if (CHAR === 'mereo' && !S.bound) { if (!S.dead && !S.won && !S.lost) mrDash(); return; }   // Mereoleona: K Sư Tử Lao
   if (CHAR === 'luffy' && !S.bound) { if (!S.dead && !S.won && !S.lost) lfK(); return; }   // Luffy: K né / phòng thủ theo Gear
   if (CHAR === 'namek' && !S.bound) { if (!S.dead && !S.won && !S.lost) nkShield(); return; }   // Namek: K bật/tắt khiên
@@ -747,7 +755,7 @@ function step(h) {
   // Khựng: đổi hướng thì phanh mạnh, nhả phím thì dừng nhanh. Trên vũng băng thì trơn trượt.
   const slick = S.slick && S.onGround;
   const turning = input && Math.sign(b.vx) === -input;
-  const accel = (S.onGround ? 1150 : 800) * (turning ? 2.6 : 1) * (slick ? .4 : 1) * (CHAR === 'zenitsu' ? 10 : 1);   // Zenitsu tăng tốc ×10
+  const accel = (S.onGround ? 1150 : 800) * (turning ? 2.6 : 1) * (slick ? .4 : 1) * (CHAR === 'zenitsu' ? 10 : CHAR === 'yuutan' ? 4 : 1);   // Zenitsu tăng tốc ×10
   if (S.dash) { b.vx = S.dash.dir * TACKLE_SPEED; b.vy = Math.min(b.vy, 0); }
   else if (input) b.vx += input * accel * h;
   else b.vx *= 1 - (S.onGround ? (slick ? .5 : 10) : 2) * h;
@@ -934,7 +942,7 @@ function update(dt) {
 
     if (!worldStopped()) { S.wt += dt; updateEShots(dt); }
     updateObstacles(dt);
-    const steps = CHAR === 'zenitsu' ? 20 : 4;   // nhanh gấp 10 thì chia nhỏ bước để không xuyên tường
+    const steps = CHAR === 'zenitsu' ? 20 : CHAR === 'yuutan' ? 10 : 4;   // nhanh gấp 10 thì chia nhỏ bước để không xuyên tường
     for (let i = 0; i < steps; i++) step(dt / steps);
   } else S.jumpBuf = 0;
   b.rot += frozen ? 0 : b.vx * dt / R;
@@ -1285,6 +1293,8 @@ const CHARS = {
   mereo:  { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .5, regen: 6, speed: 410, airJumps: 2, dmgK: 2, pierce: true },
   // Zenitsu (Kimetsu no Yaiba): cheat, tốc độ gấp 10 lần
   zenitsu: { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .4, regen: 6, speed: 4000, airJumps: 2, dmgK: 2, pierce: true },
+  // YuuTan (boss màn 5): cheat, chạy nhanh, mỗi chiêu 50 nhát chém
+  yuutan: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .35, regen: 6, speed: 1000, airJumps: 2, dmgK: 2, pierce: true },
   // Xayda hoá Super Saiyan Blue (khỉ bị đánh bại): bộ chiêu cheat
   ssb:    { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 1, regen: 6, speed: 430, airJumps: 2, dmgK: 2, pierce: true },
 };
@@ -1355,6 +1365,7 @@ const MOVES = {
   kurumi: { tap: kuPistol, hold: kuMusket, web: kuZayin },
   mereo:  { tap: mrTap, hold: mrBrachium, web: mrZone },
   zenitsu: { tap: znTap, hold: znChain, web: znGod },
+  yuutan: { tap: ytTap, hold: ytSky, web: ytSweep },
 };
 // chiêu U: sát thương lên boss (trước hệ số nhân vật), thời gian choáng, số tia, âm thanh
 const ULTS = {
@@ -2046,6 +2057,7 @@ function updateCharMoves(dt) {
   updateKurumi(dt);
   updateMereo(dt);
   updateZenitsu(dt);
+  updateYuutan(dt);
   updateSaiyanX(dt);
   updatePain(dt);
   S.swing = Math.max(0, S.swing - dt);
@@ -2904,7 +2916,7 @@ function hud() {
 const CHAR_KEY = 'bongdo.char';
 // mật khẩu chỉ lưu dưới dạng mã băm; mở rồi thì máy đó nhớ
 const PW_HASH = 2576725674;   // 123456
-const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu']
+const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan']
   .map(id => [id, { hash: PW_HASH, key: 'bongdo.lock.' + id }]));
 // Kurumi khoá riêng bằng mật khẩu đặc biệt (khoá mới: máy đã mở bằng mật khẩu cũ cũng phải nhập lại)
 Object.assign(LOCKS.kurumi, { hash: 890022063, key: 'bongdo.lock2.kurumi' });   // mật khẩu: 0
@@ -2988,6 +3000,21 @@ const CHAR_UI = {
       ['T', 'Ngủ (bật/tắt, 10 giây): nhắm mắt chiến đấu trong giấc ngủ — sát thương ×2, tự Phích Lịch Nhất Thiểm vào kẻ địch gần nhất']],
     passive: 'tốc độ ×10; sét xuyên Khiên năng lượng, Goku không né được · cheat: mọi chiêu miễn phí, sát thương ×2.',
     tip: 'Zenitsu: chạy nhanh gấp 10 lần · J Phích Lịch Nhất Thiểm · giữ J Lục Liên/Bát Liên · L Thần Tốc · K Lôi Bộ · U Thức thứ bảy (50 nhát) · T Ngủ.' },
+  yuutan: { name: 'YuuTan', from: 'Boss màn 5', tag: 'Tóc bạc wolfcut, mỗi chiêu là một tràng 50 nhát chém trong chớp mắt, Huyết Nhãn ×100 (cheat)', energy: 'Kiếm khí',
+    btn: { bolt: ['Bão', 'Bão Liên Hoàn'], web: ['Quét', 'Quét Sàn'], skill: ['Ảnh', 'Ảnh Bộ'], volt: ['Tam', 'Tam Ảnh Sát'] },
+    short: ['Bão Liên Hoàn ×50', 'Thiên Trảm ×50', 'Quét Sàn ×50', 'Ảnh Bộ', 'Tam Ảnh Sát (Huyết Nhãn: Thiên Địa Nhất Trảm)'],
+    more: ' · <kbd>E</kbd> Phân Thân · <kbd>T</kbd> Huyết Vũ · <kbd>F</kbd> Huyết Nhãn', moreTap: ' · Thân · Vũ · Huyết',
+    kit: [['Chạy', 'rất nhanh, để lại bóng mờ'],
+      ['J', 'Bão Liên Hoàn ×50: lướt qua lại chém 50 nhát vào vùng trước mặt (mục tiêu gần nhất), xong quay về chỗ cũ'],
+      ['Giữ J', 'Thiên Trảm ×50: cột chém dọc từ trời xuống mục tiêu, trúng cả quái bay'],
+      ['L', 'Quét Sàn ×50 (hồi 1 giây): dải chém sát đất dài gần hết màn hình'],
+      ['K', 'Ảnh Bộ: dịch chuyển ra sau lưng mục tiêu phía trước, không bị đánh trúng (và xuyên qua boss như mọi nhân vật)'],
+      ['U', 'Tam Ảnh Sát (hồi 4 giây): 3 tràng chém nối nhau vào 3 mục tiêu · Huyết Nhãn: THIÊN ĐỊA NHẤT TRẢM (hồi 8 giây) — chém cả màn hình'],
+      ['E', 'Huyết Ảnh Phân Thân (hồi 3 giây): phân thân chém 3 vùng cùng lúc'],
+      ['T', 'Huyết Vũ Thiên Trảm (hồi 5 giây): mưa 5 cột chém quanh mình'],
+      ['F', 'Huyết Nhãn bật/tắt: mắt đỏ chảy máu, tóc dài một bên đỏ — 100 nhát mỗi chiêu, nhanh hơn, sát thương ×1,5, mỗi nhát trúng hút 1% máu']],
+    passive: 'máu dưới 50% thì tự thức tỉnh Huyết Nhãn · chém xuyên Khiên năng lượng, Goku không né được · cheat: mọi chiêu miễn phí, sát thương ×2.',
+    tip: 'YuuTan: J Bão Liên Hoàn · giữ J Thiên Trảm · L Quét Sàn · K Ảnh Bộ · U Tam Ảnh Sát · E Phân Thân · T Huyết Vũ · F Huyết Nhãn.' },
   mereo: { name: 'Mereoleona', from: 'Black Clover', tag: 'Sư tử dữ: không giáp, 10.000 máu, đánh là hút máu, cận chiến lửa (cheat)', energy: 'Ma lực',
     btn: { bolt: ['Đấm', 'Đấm lửa'], web: ['Vùng', 'Mana Zone'], skill: ['Lao', 'Sư Tử Lao'], volt: ['Luyện', 'Calidos Brachium Purgatorium'] },
     short: ['Đấm lửa liên hoàn', 'Calidos Brachium', 'Mana Zone', 'Sư Tử Lao', 'Calidos Brachium Purgatorium'],
@@ -3096,6 +3123,7 @@ function applyChar() {
   document.querySelectorAll('.touch .ku').forEach(el => { el.hidden = CHAR !== 'kurumi'; });
   document.querySelectorAll('.touch .mr').forEach(el => { el.hidden = CHAR !== 'mereo'; });
   document.querySelectorAll('.touch .zn').forEach(el => { el.hidden = CHAR !== 'zenitsu'; });
+  document.querySelectorAll('.touch .yt').forEach(el => { el.hidden = CHAR !== 'yuutan'; });
   document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
   document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !flying(); });
   document.querySelector('.touch [data-key="jump"]').setAttribute('aria-label', flying() ? 'Bay lên' : 'Nhảy');
@@ -9640,6 +9668,236 @@ function drawZenitsu(b, charged) {
   drawZenitsuFig(b, Z.pose, false);
   if (charged) { ctx.strokeStyle = 'rgb(255 220 60 / .7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 18, 34 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
 }
+/* ---------- YuuTan (boss màn 5) làm nhân vật: cheat, mỗi chiêu là một tràng 50 nhát chém ----------
+   Cùng hình với boss: tóc bạc wolfcut, mắt xanh, đồng phục thuỷ thủ. Chạy rất nhanh, để lại bóng mờ.
+   Mỗi chiêu đánh dấu một vùng rồi lướt qua lại chém 50 nhát (Huyết Nhãn: 100 nhát) trong chớp mắt, xong quay về chỗ cũ.
+   J Bão Liên Hoàn: vùng trước mặt · giữ J Thiên Trảm: cột chém dọc vào mục tiêu (cả quái bay) · L Quét Sàn: dải chém sát
+   đất dài gần hết màn hình · K Ảnh Bộ: dịch chuyển ra sau lưng mục tiêu phía trước · U Tam Ảnh Sát: 3 tràng nối nhau
+   (Huyết Nhãn: Thiên Địa Nhất Trảm — chém cả màn hình) · E Huyết Ảnh Phân Thân: 3 vùng cùng lúc · T Huyết Vũ Thiên Trảm:
+   mưa cột chém · F Huyết Nhãn bật/tắt (tự thức tỉnh khi máu dưới 50%): mắt đỏ, tóc dài một bên đỏ, ×100 nhát, sát thương
+   ×1,5, mỗi nhát trúng hút 1% máu tối đa. */
+const YT_SC = .64;   // cùng hình với boss màn 5, thu nhỏ bằng cỡ nhân vật khác
+function newYt() { return { cd: {}, q: [], cur: null, fx: [], blood: false, auto: false, gt: 0, u: { mt: 0, vx: 0, ground: true, pose: null, poseK: 0, cur: null, yt2: false } }; }
+const ytP = () => S.yt.blood;
+function ytCd(k, t) { const Y = S.yt; if (Y.cd[k] > 0) return false; Y.cd[k] = t; return true; }
+function ytPop(text, c) { S.pops.push({ x: S.ball.x, y: S.ball.y - 90, t: .9, text, c: c || (ytP() ? '#ff4a5a' : '#ff8aa8') }); }
+function ytDeny(name, k) { ytPop(`${name} hồi ${Math.ceil(S.yt.cd[k])} giây`, '#c9d1db'); sfx('deny'); }
+const ytDir = () => (keys.right ? 1 : 0) - (keys.left ? 1 : 0) || S.ball.face || 1;
+const ytLo = () => S.fight ? ARENA.l + R : R, ytHi = () => S.fight ? ARENA.r - R : LEVEL_W - R;
+// vùng chém: hộp quanh một điểm, cột dọc
+const ytBox = (x, y) => ({ x0: x - 120, x1: x + 120, y0: y - 110, y1: y + 80 });
+const ytCol = (x, y) => ({ x0: x - 85, x1: x + 85, y0: y - 520, y1: y + 110 });
+// mục tiêu phía trước (hoặc sát bên)
+function ytFront(range, n) {
+  const b = S.ball, d = ytDir();
+  return nkTargets(b.x, b.y, range, 12).filter(t => Math.sign(tPos(t).x - b.x) === d || Math.abs(tPos(t).x - b.x) < 100).slice(0, n);
+}
+// xếp một tràng chém vào hàng chờ; hits: số lần thực sự gây sát thương trong tràng (hình thì đủ 50 / 100 nhát)
+function ytQueue(type, zs, hits, dmg, big) {
+  const P = ytP();
+  S.yt.q.push({ type, zs, hits, dmg, big, t: 0, W: big ? .3 : .05, D: (P ? .15 : .25) * (zs.length > 1 ? 1.6 : 1) * (big ? 2 : 1), N: P ? 100 : 50, cuts: 0 });
+}
+function ytHit(t, dmg, p) {
+  if (!tAlive(t)) return;
+  const k = ytP() ? 1.5 : 1;
+  ytSpark(p.x, p.y);
+  if (t.kind === 'boss') {
+    LAST_PROBE = { x: S.ball.x, y: S.ball.y, t: S.t };
+    if (damageBoss(t.ref, dmg * k, 'crim') && ytP()) healHp(.01);   // Huyết Nhãn: hút máu
+  }
+  else if (t.kind === 'enemy') { const e = t.ref; e.inv = 0; e.bub = 0; if (e.role === 'khien') e.dir = -(Math.sign(S.ball.x - e.x) || 1); e.hp = 1; killEnemy(e, ytP() ? '#ff2a3a' : '#ff8aa8'); if (ytP()) healHp(.01); }
+  else if (t.kind === 'flyer') killFlyer(t.ref);
+  else { const T = S.turret; T.hp -= dmg * k; T.flash = .15; if (T.hp <= 0) breakTurret(); }
+}
+function ytSpark(x, y) {
+  for (let i = 0; i < 4; i++) { const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 200; S.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .3, c: i % 2 ? '#ffffff' : ytP() ? '#ff2a3a' : '#ff8aa8', r: 3 + Math.random() * 3, g: 0 }); }
+}
+function ytHitZone(q, A) {
+  const cx = (q.x0 + q.x1) / 2, cy = (q.y0 + q.y1) / 2;
+  for (const t of nkTargets(cx, cy, 2400, 40)) {
+    const p = tPos(t), pad = t.kind === 'boss' ? 40 : 10;
+    if (p.x < q.x0 - pad || p.x > q.x1 + pad || p.y < q.y0 - pad || p.y > q.y1 + pad) continue;
+    ytHit(t, A.dmg, p);
+  }
+}
+// J: Bão Liên Hoàn ×50
+function ytTap() {
+  if (!canAct() || S.yt.cur || !ytCd('j', .3)) return;
+  const b = S.ball, t = ytFront(420, 1)[0], p = t ? tPos(t) : { x: b.x + ytDir() * 150, y: b.y };
+  ytQueue('flurry', [ytBox(p.x, p.y)], 5, 1);
+}
+// giữ J: Thiên Trảm ×50 — cột chém dọc
+function ytSky() {
+  if (!canAct() || S.yt.cur || !ytCd('hold', .6)) return;
+  const b = S.ball, t = ytFront(700, 1)[0], p = t ? tPos(t) : { x: b.x + ytDir() * 260, y: b.y };
+  ytQueue('sky', [ytCol(p.x, Math.max(p.y, b.y))], 8, 1);
+}
+// L: Quét Sàn ×50 — dải chém sát đất
+function ytSweep() {
+  if (!canAct() || S.yt.cur) return;
+  if (!ytCd('l', 1)) return ytDeny('Quét Sàn', 'l');
+  const b = S.ball, d = ytDir(), x0 = clamp(b.x - d * 150, ytLo(), ytHi()), x1 = clamp(b.x + d * 1100, ytLo(), ytHi());
+  ytQueue('sweep', [{ x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: b.y - 110, y1: b.y + 70 }], 8, 1.2);
+}
+// K: Ảnh Bộ — dịch chuyển ra sau lưng mục tiêu phía trước (không có thì lướt 240)
+function ytBlink() {
+  if (!canAct() || S.yt.cur || !ytCd('k', .35)) return;
+  const b = S.ball, d = ytDir(), t = nkTargets(b.x, b.y, 520, 6).find(t2 => Math.sign(tPos(t2).x - b.x) === d);
+  S.yt.fx.push({ k: 'ghost', x: b.x, y: b.y, dir: b.face || 1, pose: 'lunge', t: 0, max: .3 });
+  const x0 = b.x, dist = t ? Math.abs(tPos(t).x - b.x) + (t.kind === 'boss' ? 110 : 70) : 240;
+  znDash(d, dist, 0, { has: () => true, add() {} });   // chỉ mượn đường lướt (dừng trước tường, bám mặt đất), không chém ai
+  b.face = t ? -d : d; b.vx = 0;
+  S.yt.fx.push({ k: 'streak', x0, x1: b.x, y: b.y - 30, t: 0, max: .2 });
+  S.safe = Math.max(S.safe, .4); sfx('tele');
+}
+// U: Tam Ảnh Sát (3 tràng nối nhau) · Huyết Nhãn: Thiên Địa Nhất Trảm (chém cả màn hình)
+function ytU() {
+  if (!canAct() || S.yt.cur) return;
+  const b = S.ball;
+  if (ytP()) {
+    if (!ytCd('u', 8)) return ytDeny('Thiên Địa Nhất Trảm', 'u');
+    ytQueue('world', [{ x0: clamp(b.x - 950, ytLo(), ytHi()), x1: clamp(b.x + 950, ytLo(), ytHi()), y0: b.y - 600, y1: b.y + 60 }], 20, 2, true);
+    S.flash = Math.max(S.flash, .4); sfx('roar');
+    S.pops.push({ x: b.x, y: b.y - 170, t: 1.2, text: 'THIÊN ĐỊA NHẤT TRẢM', c: '#ff3a4a', big: true });
+    return;
+  }
+  if (!ytCd('u', 4)) return ytDeny('Tam Ảnh Sát', 'u');
+  const tg = nkTargets(b.x, b.y, 800, 3);
+  for (let i = 0; i < 3; i++) {
+    const p = tg.length ? tPos(tg[i % tg.length]) : { x: b.x + ytDir() * (150 + i * 220), y: b.y };
+    ytQueue('triple', [ytBox(p.x, p.y)], 6, 1.5);
+  }
+  ytPop('Tam Ảnh Sát!');
+}
+// E: Huyết Ảnh Phân Thân — 3 vùng cùng lúc, phân thân chém ở các vùng còn lại
+function ytClones() {
+  if (!canAct() || S.yt.cur) return;
+  if (!ytCd('e', 3)) return ytDeny('Phân Thân', 'e');
+  const b = S.ball, tg = nkTargets(b.x, b.y, 800, 3), d = ytDir();
+  const zs = tg.length ? tg.map(t => { const p = tPos(t); return ytBox(p.x, p.y); }) : [0, 1, 2].map(i => ytBox(b.x + d * (150 + i * 250), b.y));
+  ytQueue('clones', zs, 6, 1.5);
+  ytPop('Huyết Ảnh Phân Thân!');
+}
+// T: Huyết Vũ Thiên Trảm — mưa cột chém trên các mục tiêu quanh mình
+function ytRain() {
+  if (!canAct() || S.yt.cur) return;
+  if (!ytCd('t', 5)) return ytDeny('Huyết Vũ', 't');
+  const b = S.ball, zs = nkTargets(b.x, b.y, 900, 5).map(t => { const p = tPos(t); return ytCol(p.x, Math.max(p.y, b.y)); });
+  for (let k = 0; k < 60 && zs.length < 5; k++) {
+    const x = clamp(b.x + (Math.random() - .5) * 1400, ytLo(), ytHi());
+    if (zs.every(z => Math.abs((z.x0 + z.x1) / 2 - x) > 230)) zs.push(ytCol(x, b.y));
+  }
+  ytQueue('rain', zs, 10, 1.2);
+  ytPop('Huyết Vũ Thiên Trảm!');
+}
+// F: Huyết Nhãn bật/tắt
+function ytBlood(on = !S.yt.blood) {
+  const Y = S.yt, b = S.ball;
+  if (S.dead || S.won || S.lost || on === Y.blood) return;
+  if (!ytCd('f', 1)) return;
+  Y.blood = on; Y.u.yt2 = on;
+  if (on) {
+    S.flash = Math.max(S.flash, .7); sfx('roar');
+    S.pops.push({ x: b.x, y: b.y - 150, t: 1.6, text: 'HUYẾT NHÃN — ×100 nhát!', c: '#ff3a4a', big: true });
+    Y.fx.push({ k: 'ring', x: b.x, y: b.y - 30, t: 0, max: .6 });
+  } else ytPop('Thu Huyết Nhãn', '#bfe0ff');
+}
+function updateYuutan(dt) {
+  const Y = S.yt, b = S.ball, u = Y.u;
+  for (const k in Y.cd) Y.cd[k] = Math.max(0, Y.cd[k] - dt);
+  for (const f of Y.fx) f.t += dt;
+  Y.fx = Y.fx.filter(f => f.t < f.max);
+  if (CHAR !== 'yuutan' || S.dead) { Y.q.length = 0; Y.cur = null; return; }
+  u.mt += dt; u.ground = S.onGround; u.vx = b.vx;
+  if (!Y.auto && S.maxHp && S.hp < S.maxHp / 2) { Y.auto = true; Y.cd.f = 0; ytBlood(true); }   // máu dưới 50%: tự thức tỉnh Huyết Nhãn
+  // chạy nhanh: bóng mờ phía sau
+  if (!Y.cur && Math.abs(b.vx) > 650 && (Y.gt -= dt) <= 0) { Y.gt = .03; Y.fx.push({ k: 'ghost', x: b.x, y: b.y, dir: b.face || 1, pose: 'lunge', t: 0, max: .2 }); }
+  if (!Y.cur && Y.q.length) {
+    const A = Y.cur = Y.q.shift();
+    A.x0 = b.x; A.y0 = b.y;
+    Y.fx.push({ k: 'ghost', x: b.x, y: b.y, dir: b.face || 1, pose: 'lunge', t: 0, max: .25 });
+    sfx(A.type === 'world' ? 'boom' : 'dash');
+  }
+  const A = Y.cur;
+  if (!A) { if (u.pose) u.pose = null; mhBlend(u, dt, false, false); return; }
+  A.t += dt; S.safe = Math.max(S.safe, .2); b.vx = 0; b.vy = 0; b.y = A.y0;
+  if (A.t < A.W) { u.pose = 'crouch'; mhBlend(u, dt, false, false); return; }
+  // lướt qua lại khắp các vùng đánh dấu như boss
+  const st = A.t - A.W, zs = A.zs, P = ytP(), w = P ? 250 : 125;
+  const z = zs[Math.floor(st / A.D * zs.length * 2) % zs.length], s = Math.sin(st * w);
+  b.x = clamp(z.x0 + (z.x1 - z.x0) * (.5 + .5 * s), ytLo(), ytHi()); b.face = Math.cos(st * w) >= 0 ? 1 : -1;
+  u.pose = ['jab', 'cross', 'kick'][Math.floor(st * 60) % 3]; u.poseK = 1;
+  if ((Y.gt -= dt) <= 0) { Y.gt = .02; Y.fx.push({ k: 'ghost', x: b.x, y: b.y, dir: b.face, pose: u.pose, t: 0, max: .14 }); }
+  if (A.type === 'clones') for (const q of zs) if (q !== z && Math.random() < dt * 40) Y.fx.push({ k: 'ghost', x: (q.x0 + q.x1) / 2 + (Math.random() - .5) * 120, y: A.y0, dir: Math.random() < .5 ? 1 : -1, pose: Math.random() < .5 ? 'slashA' : 'kick', t: 0, max: .14 });
+  const want = Math.min(A.N, Math.floor(st / A.D * A.N) + 1), every = Math.max(1, Math.floor(A.N / A.hits));
+  for (; A.cuts < want; A.cuts++) {
+    const q = zs[A.cuts % zs.length], top = Math.max(q.y0, q.y1 - 260);
+    const a = (Math.random() - .5) * 3;
+    if (A.cuts % (P ? 3 : 2) === 0) Y.fx.push({ k: 'arc', x: q.x0 + Math.random() * (q.x1 - q.x0), y: top + Math.random() * (q.y1 - top), dir: Math.random() < .5 ? 1 : -1, r: 30 + Math.random() * 40, t: 0, max: .16, c: A.cuts % 4 ? '#ffffff' : P ? '#ff2a3a' : '#ff8aa8', a0: a - .9, a1: a + .9 });
+    if (A.cuts % every === 0) for (const q2 of zs) ytHitZone(q2, A);
+    if (A.cuts % 10 === 0) sfx('hit');
+  }
+  mhBlend(u, dt, false, false);
+  if (st >= A.D) {
+    // xong tràng: quay về chỗ cũ
+    Y.fx.push({ k: 'ghost', x: b.x, y: b.y, dir: b.face, pose: 'lunge', t: 0, max: .2 });
+    b.x = A.x0; b.y = A.y0; b.vx = 0; b.vy = 0;
+    const cz = zs[0];
+    S.pops.push({ x: clamp((cz.x0 + cz.x1) / 2, b.x - 600, b.x + 600), y: Math.max(cz.y0, b.y - 260) - 10, t: .7, text: `×${A.N}`, c: P ? '#ff4a5a' : '#ff8aa8', big: A.big });
+    if (A.type === 'world') { S.flash = Math.max(S.flash, .6); sfx('boom'); }
+    Y.cur = null; u.pose = null;
+  }
+}
+function drawYuutanFx() {
+  const Y = S.yt;
+  if (CHAR !== 'yuutan' && !Y.fx.length) return;
+  // vùng đang bị chém
+  const A = Y.cur;
+  if (A) {
+    ctx.save();
+    for (const z of A.zs) {
+      ctx.fillStyle = A.t < A.W ? 'rgb(255 40 80 / .18)' : 'rgb(255 230 240 / .22)';
+      ctx.fillRect(z.x0, z.y0, z.x1 - z.x0, z.y1 - z.y0);
+      ctx.strokeStyle = ytP() ? '#ff2a3a' : '#ff8aa8'; ctx.lineWidth = 2; ctx.setLineDash([12, 7]); ctx.lineDashOffset = -S.t * 60;
+      ctx.strokeRect(z.x0, z.y0, z.x1 - z.x0, z.y1 - z.y0); ctx.setLineDash([]);
+    }
+    if (A.type === 'world' && A.t >= A.W) {
+      ctx.globalCompositeOperation = 'lighter';
+      const z = A.zs[0], y = A.y0 - 20, f = Math.min(1, (A.t - A.W) / .12);
+      for (const [lw, c] of [[26, 'rgb(255 30 50 / .35)'], [10, 'rgb(255 120 130 / .8)'], [3, '#ffffff']]) { ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(z.x0, y + 30); ctx.lineTo(z.x0 + (z.x1 - z.x0) * f, y - 30 * f); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+  // bóng mờ
+  for (const f of Y.fx) if (f.k === 'ghost') {
+    ctx.save(); ctx.globalAlpha = .35 * (1 - f.t / f.max);
+    ctx.translate(f.x, f.y + R - 2); ctx.scale(YT_SC, YT_SC);
+    drawMhFig(Y.u, 0, 0, f.dir, f.pose, 1, false, false);
+    ctx.restore();
+  }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const f of Y.fx) {
+    const k = f.t / f.max;
+    if (f.k === 'arc') {
+      ctx.save(); ctx.translate(f.x, f.y); ctx.scale(f.dir, 1);
+      for (const [w, a] of [[14, .25], [7, .6], [2.5, 1]]) { ctx.strokeStyle = f.c; ctx.globalAlpha = a * (1 - k); ctx.lineWidth = w * (1 - k * .5); ctx.beginPath(); ctx.arc(0, 0, f.r * (.8 + k * .3), f.a0, f.a1); ctx.stroke(); }
+      ctx.restore();
+    } else if (f.k === 'streak') {
+      ctx.strokeStyle = `rgb(220 230 255 / ${(.7 * (1 - k)).toFixed(2)})`; ctx.lineWidth = 6 * (1 - k); ctx.beginPath(); ctx.moveTo(f.x0, f.y); ctx.lineTo(f.x1, f.y); ctx.stroke();
+    } else if (f.k === 'ring') {
+      ctx.strokeStyle = `rgb(255 40 60 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(f.x, f.y, 20 + 240 * k, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+function drawYuutan(b, charged) {
+  const Y = S.yt, d = b.face || 1, fy = b.y + R - 2;
+  if (Y.blood) { ctx.save(); ctx.translate(b.x, fy); ctx.scale(YT_SC, YT_SC); drawYtAura(0, 0, false); ctx.restore(); }
+  ctx.save(); ctx.translate(b.x, fy); ctx.scale(YT_SC, YT_SC);
+  drawMhFig(Y.u, 0, 0, d, Y.u.pose, 1, false, false, Y.u.cur);
+  ctx.restore();
+  if (charged) { ctx.strokeStyle = Y.blood ? 'rgb(255 40 60 / .7)' : 'rgb(200 220 255 / .7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 18, 34 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
+}
 function drawKurumi(b, charged) {
   const K = S.ku, d = b.face || 1, air = true, hover = 10 + Math.sin(S.t * 2.2) * 4, lean = clamp(b.vx / 450, -1, 1) * d, fy = b.y + R - 2 - hover;   // lơ lửng, không chạy bộ
   // Zafkiel sau lưng khi vừa dùng một viên đạn
@@ -10159,6 +10417,7 @@ function drawCharFx() {
   drawKurumiFx();
   drawMereoFx();
   drawZenitsuFx();
+  drawYuutanFx();
   drawSxFx();
   // Xayda: vụ nổ Tự phát nổ
   if (S.blast) {
@@ -10497,7 +10756,7 @@ function drawBolts() {
 function drawBall() {
   if (BET_NOBALL) return;   // thế giới chỉ có boss (đấu trường cá cược)
   if (S.dead) return;
-  if (S.safe && Math.floor(S.t * 12) % 2) return;   // nhấp nháy khi vừa hồi sinh
+  if (S.safe && Math.floor(S.t * 12) % 2 && !(CHAR === 'yuutan' && S.yt.cur)) return;   // nhấp nháy khi vừa hồi sinh (YuuTan đang chém thì vẫn hiện)
   const b = S.ball, sq = b.squash;
   // Vô địch: hào quang vàng nhấp nháy, nháy nhanh khi sắp hết
   const pw = S.power > 0;
@@ -10532,8 +10791,8 @@ function drawBall() {
   if (CHAR === 'pika' && DMAX) { drawMaxCore(b, pw && !blink); return; }
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
-const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a' };
-const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu };
+const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee' };
+const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan };
 // Khiên Hổ Phách của Stelle: vỏ lục giác màu hổ phách
 function drawAmber(b) {
   const r = R * 1.9 + Math.sin(S.t * 6) * 2, fade = S.amber < .8 && Math.floor(S.t * 14) % 2;
@@ -11617,7 +11876,7 @@ function render() {
   const lockA = S.fight && ARENA.r + 40 - ARENA.gateX <= viewW + 2;
   const tx = lockA ? ARENA.gateX - 10 : clamp(b.x - viewW * .4, 0, Math.max(0, LEVEL_W - viewW));
   const ty = clamp(camTargetY(), camMinY(), CAM_Y[1]);
-  cam.x += (tx - cam.x) * (CHAR === 'zenitsu' ? .4 : .12); cam.y += (ty - cam.y) * .08;
+  cam.x += (tx - cam.x) * (CHAR === 'zenitsu' ? .4 : CHAR === 'yuutan' ? .25 : .12); cam.y += (ty - cam.y) * .08;
   if (BET && BET.fight) { cam.x = ARENA.gateX - 10; cam.y = BET.camY; }   // đấu trường cá cược: khung nhìn đứng yên
   const cx = Math.round(cam.x), cy = Math.round(cam.y);
 
@@ -11703,7 +11962,7 @@ const betCoins = () => Math.max(0, Math.floor(Number(lsGet(BET_KEY, '1000')) || 
 const betSetCoins = n => { lsSet(BET_KEY, String(Math.max(0, Math.floor(n)))); $('betCoins').textContent = betCoins().toLocaleString('vi-VN'); };
 const BET_SIDE = ['#ff5a5a', '#5ab4ff'];
 const BET_PH = () => [null, PHASES_LN, PHASES_Z, PHASES_V, PHASES_G, PHASES_W, PHASES_J, PHASES_ZR];
-const BET_MELEE = new Set(['kiem', 'asta', 'mereo', 'zenitsu', 'luffy', 'goku']);
+const BET_MELEE = new Set(['kiem', 'asta', 'mereo', 'zenitsu', 'yuutan', 'luffy', 'goku']);
 
 /* ----- thế giới: chụp / nạp toàn bộ S cùng các biến toàn cục theo người chơi ----- */
 function betSnap() { return { s: Object.assign({}, S), g: { CHAR, DMAX, MAP, PHASES, ACT_LIST, keys: { ...keys } } }; }

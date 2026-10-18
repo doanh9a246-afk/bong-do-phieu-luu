@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=dfcf74be">
+<link rel="stylesheet" href="css/style.css?v=662cee65">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -193,6 +193,9 @@
     <button class="tbtn ku" type="button" data-key="terra" aria-label="Rasiel" hidden>Sách</button>
     <button class="tbtn mr" type="button" data-key="heal" aria-label="Hoả Táng" hidden>Hoả</button>
     <button class="tbtn zn" type="button" data-key="heal" aria-label="Ngủ" hidden>Ngủ</button>
+    <button class="tbtn yt" type="button" data-key="egg" aria-label="Huyết Ảnh Phân Thân" hidden>Thân</button>
+    <button class="tbtn yt" type="button" data-key="heal" aria-label="Huyết Vũ Thiên Trảm" hidden>Vũ</button>
+    <button class="tbtn yt" type="button" data-key="terra" aria-label="Huyết Nhãn" hidden>Huyết</button>
     <button class="tbtn web" type="button" data-key="web" aria-label="Lưới điện">Lưới</button>
     <button class="tbtn volt" id="voltBtn" type="button" data-key="volt" aria-label="100.000 Vôn">100K</button>
     <button class="tbtn power" id="skillBtn" type="button" data-key="skill" aria-label="Lao điện">⚡</button>
@@ -206,10 +209,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=dfcf74be&t=' + Date.now();
+  s.src = 'js/game.js?v=662cee65&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=dfcf74be&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=662cee65&t=' + Date.now();
 })();
 </script>
 </body>
