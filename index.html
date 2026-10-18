@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=243fcfd8">
+<link rel="stylesheet" href="css/style.css?v=4081c9e2">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -23,6 +23,7 @@
   </div>
   <div class="btns">
     <button class="restart" id="mapBtn" type="button">Màn 1 (N)</button>
+    <button class="restart" id="betBtn" type="button">Cá cược (Q)</button>
     <button class="restart" id="charBtn" type="button">Nhân vật (P)</button>
     <button class="restart" id="mute" type="button" aria-pressed="true">Âm thanh: Bật (M)</button>
     <button class="restart" id="restart" type="button">Chơi lại (R)</button>
@@ -126,6 +127,45 @@
   </div>
 </div>
 
+<div class="overlay" id="bet" hidden>
+  <div class="card charcard" role="dialog" aria-modal="true" aria-labelledby="betTitle">
+    <h2 id="betTitle">Đấu trường cá cược</h2>
+    <p class="betcoin">Xu của bạn: <b id="betCoins">1000</b></p>
+    <div class="charlist" id="betList"></div>
+    <p class="betvs" id="betVs"></p>
+    <div class="betrow">
+      <button type="button" class="betside" id="betA" hidden></button>
+      <button type="button" class="betside" id="betB" hidden></button>
+    </div>
+    <div class="betrow">
+      <label for="betAmt">Số xu cược</label>
+      <input id="betAmt" type="number" min="1" step="10" value="100" inputmode="numeric">
+      <button type="button" class="betchip" data-amt="100">100</button>
+      <button type="button" class="betchip" data-amt="500">500</button>
+      <button type="button" class="betchip" data-amt="half">Một nửa</button>
+      <button type="button" class="betchip" data-amt="all">Tất tay</button>
+    </div>
+    <p class="betwin" id="betWin"></p>
+    <div class="betrow">
+      <button type="button" id="betGo" disabled>Bắt đầu trận!</button>
+      <button type="button" id="betClose">Đóng (Esc)</button>
+    </div>
+  </div>
+</div>
+<div class="bethud" id="betHud" hidden>
+  <button class="restart" id="betSpeed" type="button">Tốc độ ×1</button>
+  <button class="restart" id="betQuit" type="button">Rời trận (mất cược)</button>
+</div>
+<div class="overlay" id="betRes" hidden>
+  <div class="card">
+    <h2 id="betResT">Thắng!</h2>
+    <p id="betResP"></p>
+    <p id="betResC"></p>
+    <button type="button" id="betAgain">Trận mới</button>
+    <button type="button" id="betBack">Về game</button>
+  </div>
+</div>
+
 <div class="touch">
   <div class="grp">
     <button class="tbtn" type="button" data-key="left" aria-label="Lăn trái">◀</button>
@@ -165,10 +205,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=243fcfd8&t=' + Date.now();
+  s.src = 'js/game.js?v=4081c9e2&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=243fcfd8&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=4081c9e2&t=' + Date.now();
 })();
 </script>
 </body>

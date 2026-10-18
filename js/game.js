@@ -669,6 +669,8 @@ const typing = e => e.target && (e.target.tagName === 'INPUT' || e.target.tagNam
 addEventListener('keydown', e => {
   if (e.code === 'Escape' && paused) { closeChars(); return; }
   if (typing(e)) return;
+  if (BET) { if (e.code === 'Escape' && (!BET.fight || !$('betRes').hidden)) betClose(); return; }   // đang ở đấu trường cá cược
+  if (e.code === 'KeyQ') { betOpen(); return; }
   if (e.code === 'KeyP') { if (paused) closeChars(); else openChars(); return; }
   if (paused) return;
   if (e.code === 'KeyR') { reset(); return; }
@@ -8064,10 +8066,10 @@ function mhPose(pose, u, jw) {
     : { hy: -54, lean: .08, bl: [-.22, -.12], fl: [.28, .1], ba: [.5 + br, 2.5], fa: [.8 + br, 2.7] };
 }
 // tay chân chuyển dần sang tư thế mới (không giật cục): ra đòn nhanh, thu về và đứng thủ chậm hơn
-function mhBlend(u, dt) {
-  const T = mhPose(u.pose, u, MAP >= 6), run = !u.pose && u.ground && Math.abs(u.vx) > 60;
+function mhBlend(u, dt, jw = MAP >= 6, zr = MAP === 7) {
+  const T = mhPose(u.pose, u, jw), run = !u.pose && u.ground && Math.abs(u.vx) > 60;
   if (!u.cur) { u.cur = JSON.parse(JSON.stringify(T)); return; }
-  const strike = u.pose && u.pose !== 'crouch' && u.pose !== 'ready', k = 1 - Math.exp(-(run ? 40 : strike ? (MAP === 7 ? 20 : 30) : (MAP === 7 ? 8 : 12)) * dt), C = u.cur;
+  const strike = u.pose && u.pose !== 'crouch' && u.pose !== 'ready', k = 1 - Math.exp(-(run ? 40 : strike ? (zr ? 20 : 30) : (zr ? 8 : 12)) * dt), C = u.cur;
   C.hy += (T.hy - C.hy) * k; C.lean += (T.lean - C.lean) * k;
   for (const L of ['bl', 'fl', 'ba', 'fa']) for (let i = 0; i < 2; i++) C[L][i] += (T[L][i] - C[L][i]) * k;
 }
@@ -11501,6 +11503,578 @@ function render() {
   drawFlash();
 }
 
+/* ---------- Đấu trường cá cược: chọn 2 boss, đặt xu vào một bên rồi xem chúng tự đánh nhau ----------
+   Mỗi boss có máu, công, thủ, tốc độ, né và bộ chiêu lấy từ trận đấu của nó trong game. Tốc độ chênh lệch làm
+   bên chậm khó né hơn (YuuTan nhanh ×50 gần như không bị đánh trúng). Tỉ lệ cược tính bằng cách mô phỏng
+   trước 400 trận với đúng luật này. Xu lưu trên máy (bongdo.coins), bắt đầu 1000, hết xu được cấp lại 200. */
+// k: melee (áp sát chém), shot (đạn bay), beam (tia), aoe (đánh vùng — khó né), flurry (tràng chém liên hoàn), summon (gọi quân)
+const BET_BOSS = {
+  lilith: { name: 'Lilith × Naamah', tag: 'Ác quỷ băng lửa', hp: 6400, atk: 360, def: 28, spd: 1.1, dodge: .2, cd: 1.4, fly: 120, range: 260,
+    form: { at: .5, name: 'Naamah trỗi dậy!', atk: 1.3 },
+    moves: [{ n: 'Gai Băng', k: 'aoe', p: 1.1, c: '#7ff0ff' }, { n: 'Mũi Băng', k: 'shot', p: 1, c: '#bff6ff' }, { n: 'Laze Phong Ấn', k: 'beam', p: 1.4, c: '#7ff0ff', w: 2 },
+      { n: 'Cầu Lửa', k: 'shot', p: 1.2, c: '#ff7b39', form: 1, w: 2 }, { n: 'Lao Lửa', k: 'melee', p: 1.3, c: '#ff2f5c', form: 1 }] },
+  zagred: { name: 'Zagred', tag: 'Ác quỷ Ngôn Hồn', hp: 6600, atk: 365, def: 30, spd: 1.1, dodge: .2, cd: 1.4, fly: 110, range: 280,
+    form: { at: .5, name: 'Hình dạng thật!', atk: 1.3, def: 10 },
+    moves: [{ n: '“Xuyên!”', k: 'aoe', p: 1.2, c: '#b04cff' }, { n: '“Bắn!”', k: 'shot', p: .9, c: '#e6c8ff', w: 2 }, { n: '“Nghiền!”', k: 'aoe', p: 1.4, c: '#7a2aff' },
+      { n: '“Diệt!”', k: 'beam', p: 1.6, c: '#c070ff', form: 1 }] },
+  vegeta: { name: 'Vegeta', tag: 'Hoàng tử Xayda', hp: 5800, atk: 345, def: 32, spd: 1.2, dodge: .18, cd: 1.2, range: 90,
+    form: { at: .4, name: 'Biến Khỉ cấp 7!', atk: 1.4, def: 20, heal: .3 },
+    moves: [{ n: 'Đấm Galick', k: 'melee', p: 1.1, c: '#c878ff', w: 2 }, { n: 'Antomic', k: 'shot', p: 1.3, c: '#ffe27a' }, { n: 'Galick Gun', k: 'beam', p: 1.5, c: '#c878ff' }] },
+  goku: { name: 'Songoku', tag: 'Bản Năng Vô Cực', hp: 5400, atk: 335, def: 35, spd: 1.4, dodge: .3, cd: 1.1, range: 90,
+    form: { at: .5, name: 'Bản Năng Vô Cực Hoàn Thiện!', atk: 1.2, dodge: .15 },
+    moves: [{ n: 'Liên Hoàn Quyền', k: 'melee', p: 1, c: '#dfe8ff', w: 2 }, { n: 'Thuấn Di Đấm', k: 'melee', p: 1.3, c: '#ffffff', tele: true }, { n: 'Kamehameha', k: 'beam', p: 1.6, c: '#5fb8ff' }] },
+  yuutan: { name: 'YuuTan', tag: 'Nhanh gấp 50 lần', hp: 12000, atk: 520, def: 30, spd: 50, dodge: .45, cd: .45, range: 70, restEvery: 6, rest: 1.4,
+    moves: [{ n: 'Bão Liên Hoàn ×50', k: 'flurry', p: 1.1, c: '#ff8aa8', w: 2 }, { n: 'Thiên Trảm ×50', k: 'flurry', p: 1.3, c: '#ffffff' }, { n: 'Quét Sàn ×50', k: 'flurry', p: 1, c: '#ff4d6d' }] },
+  jinwoo: { name: 'Sung Jin-Woo', tag: 'Quân Vương Bóng Tối', hp: 6000, atk: 345, def: 30, spd: 1.5, dodge: .24, cd: 1, range: 90,
+    form: { at: .5, name: 'Quân Vương Bóng Tối thức tỉnh!', atk: 1.3 },
+    moves: [{ n: 'Đâm Liên Hoàn', k: 'melee', p: 1.2, c: '#8fe4ff', w: 2 }, { n: 'Ném Dao', k: 'shot', p: 1, c: '#bff0ff' }, { n: 'Quyền Năng Kẻ Thống Trị', k: 'aoe', p: 1.3, c: '#b48aff' },
+      { n: 'ARISE!', k: 'summon', p: 0, c: '#b48aff', w: .8 }] },
+  zoro: { name: 'Roronoa Zoro', tag: 'Tam Kiếm Phái', hp: 6400, atk: 370, def: 38, spd: 1.4, dodge: .2, cd: 1.3, range: 90, red: .85,
+    form: { at: .3, name: 'Cửu Kiếm Ashura!', atk: 1.5 },
+    moves: [{ n: 'Oni Giri', k: 'melee', p: 1.3, c: '#5af0a0', w: 2 }, { n: '36 Pound Hō', k: 'shot', p: 1.1, c: '#5af0a0' }, { n: 'Tatsumaki', k: 'aoe', p: 1.2, c: '#9fffd0' },
+      { n: 'Ashura: Ichibugin', k: 'melee', p: 2.2, c: '#ffffff', form: 1, w: 2 }] },
+};
+const BET_IDS = Object.keys(BET_BOSS);
+function betNew(id, side) {
+  const D = BET_BOSS[id];
+  return { id, D, side, hp: D.hp, maxHp: D.hp, atk: D.atk, def: D.def, dodge: D.dodge, atkT: .9 + Math.random() * .6, form: 0, n: 0, rest: 0, mins: [] };
+}
+function betPick(f) {
+  const ms = f.D.moves.filter(m => !m.form || f.form >= m.form);
+  let r = Math.random() * ms.reduce((s, m) => s + (m.w || 1), 0);
+  for (const m of ms) if ((r -= m.w || 1) <= 0) return m;
+  return ms[0];
+}
+// một đòn: né theo tốc độ tương đối, sát thương theo công / thủ, chí mạng 12%
+function betRoll(a, d, mv, p = mv.p, atk = a.atk) {
+  const sp = clamp(d.D.spd / a.D.spd, .2, 1.5), kk = mv.k === 'aoe' ? .5 : mv.k === 'beam' ? .75 : 1;
+  const dg = d.rest > 0 ? 0 : Math.min(.7, d.dodge * sp * kk);
+  if (Math.random() < dg) return { hit: false };
+  const crit = Math.random() < .18;
+  const dmg = atk * p * (.6 + Math.random() * .8) * 100 / (100 + d.def) * (crit ? 1.8 : 1) * (d.D.red || 1) * (d.rest > 0 ? 2 : 1);
+  return { hit: true, dmg: Math.max(1, Math.round(dmg)), crit };
+}
+// nội tại theo máu (biến hình, thức tỉnh): trả về tên khi vừa kích hoạt
+function betForm(f) {
+  const P = f.D.form;
+  if (!P || f.form || f.hp <= 0 || f.hp > f.maxHp * P.at) return null;
+  f.form = 1; f.atk *= P.atk || 1; f.def += P.def || 0; f.dodge += P.dodge || 0;
+  if (P.heal) f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * P.heal));
+  return P.name;
+}
+// mô phỏng nhanh không hình ảnh, dùng để tính tỉ lệ cược
+function betSimOnce(ia, ib) {
+  const F = [betNew(ia, 0), betNew(ib, 1)], dt = .05;
+  for (let t = 0; t < 150; t += dt) {
+    for (let i = 0; i < 2; i++) {
+      const a = F[i], d = F[1 - i];
+      for (const m of a.mins) {
+        m.t -= dt;
+        if ((m.atkT -= dt) <= 0) { m.atkT = 1.1; const r = betRoll(a, d, { k: 'melee' }, 1, m.atk); if (r.hit) { d.hp -= r.dmg; betForm(d); } }
+      }
+      a.mins = a.mins.filter(m => m.t > 0);
+      if (a.rest > 0) { a.rest -= dt; continue; }
+      if ((a.atkT -= dt) > 0) continue;
+      const mv = betPick(a);
+      a.atkT = a.D.cd * (.85 + Math.random() * .3);
+      if (mv.k === 'summon') a.mins.push({ t: 7, atkT: .8, atk: a.atk * .45 });
+      else { const r = betRoll(a, d, mv); if (r.hit) { d.hp -= r.dmg; betForm(d); } }
+      if (a.D.restEvery && ++a.n % a.D.restEvery === 0) a.rest = a.D.rest;
+    }
+    if (F[0].hp <= 0 || F[1].hp <= 0) return { w: F[0].hp > 0 ? 0 : 1, t };
+  }
+  return { w: F[0].hp / F[0].maxHp >= F[1].hp / F[1].maxHp ? 0 : 1, t: 150 };
+}
+function betOdds(ia, ib, n = 400) {
+  let w0 = 0;
+  for (let i = 0; i < n; i++) if (betSimOnce(ia, ib).w === 0) w0++;
+  const p = clamp(w0 / n, .005, .995);
+  const o = q => Math.round(clamp(.92 / q, 1.01, 100) * 100) / 100;
+  return { p, o: [o(p), o(1 - p)] };
+}
+const BET_KEY = 'bongdo.coins', BFL = 470;   // sàn đấu trường cá cược (toạ độ thế giới, khung nhìn cố định)
+let BET = null;   // { pick: [id, id], side, odds, speed, fight }
+const betCoins = () => Math.max(0, Math.floor(Number(lsGet(BET_KEY, '1000')) || 0));
+const betSetCoins = n => { lsSet(BET_KEY, String(Math.max(0, Math.floor(n)))); $('betCoins').textContent = betCoins().toLocaleString('vi-VN'); };
+const BET_WIND = { melee: .34, flurry: .2, shot: .32, beam: .55, aoe: .45, summon: .6 };
+const BET_SIDE = ['#ff5a5a', '#5ab4ff'];
+
+/* ----- trận đấu có hình: dùng đúng luật của mô phỏng (betRoll, betForm), thêm di chuyển và hiệu ứng ----- */
+function betView(f, x, dir) {
+  return Object.assign(f, { x, y: BFL - (f.D.fly || 0), vx: 0, vy: 0, dir, act: null, hurt: 0, mt: Math.random() * 3, pose: null, poseK: 1, cur: null, alpha: 1,
+    ground: true, sheath: false, dodgeT: 0, blinkT: 0, dead: 0, squash: 0, flash: 0 });
+}
+function betStart() {
+  const [a, b] = BET.pick;
+  BET.fight = { F: [betView(betNew(a, 0), viewW * .27, 1), betView(betNew(b, 1), viewW * .73, -1)], t: 0, intro: 2, fx: [], parts: [], pops: [], shots: [], beams: [], koT: 0, winner: -1, flash: 0 };
+  $('bet').hidden = true; $('betHud').hidden = false; document.body.classList.add('betting');
+  $('betSpeed').textContent = `Tốc độ ×${BET.speed}`;
+  sfx('roar');
+}
+function betPop(x, y, text, c, big) { BET.fight.pops.push({ x, y, text, c, big, t: big ? 1.4 : .9, max: big ? 1.4 : .9 }); }
+function betSpark(x, y, c, n, sp = 260) {
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * sp; BET.fight.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, life: .5 + Math.random() * .4, c, r: 3 + Math.random() * 5 }); }
+}
+const betH = f => f.id === 'vegeta' && f.form ? 220 : 120;   // chiều cao thân để đặt chữ, thanh máu, điểm trúng đòn
+const betMid = f => ({ x: f.x, y: f.y - betH(f) * .55 });
+// áp kết quả một đòn lên mục tiêu: trừ máu, chữ số, biến hình, hoặc hiệu ứng né
+function betLand(a, d, r, c) {
+  const Fi = BET.fight, m = betMid(d);
+  if (Fi.winner >= 0 || d.hp <= 0) return;
+  if (!r.hit) {
+    d.dodgeT = .3; d.x = clamp(d.x + (Math.sign(d.x - a.x) || 1) * 46, 60, viewW - 60);
+    betPop(m.x, m.y - 70, 'Né!', '#dfe8ff');
+    return;
+  }
+  d.hp -= r.dmg; d.hurt = .25; d.x = clamp(d.x + (Math.sign(d.x - a.x) || 1) * (r.crit ? 22 : 10), 60, viewW - 60);
+  betPop(m.x + (Math.random() - .5) * 30, m.y - 60, `${r.crit ? 'CHÍ MẠNG ' : ''}-${r.dmg.toLocaleString('vi-VN')}`, r.crit ? '#ff5a3a' : '#ffffff', r.crit);
+  betSpark(m.x, m.y, c, r.crit ? 18 : 10);
+  sfx('hit');
+  const nm = betForm(d);
+  if (nm) { betPop(d.x, d.y - betH(d) - 70, nm, '#ffe27a', true); Fi.flash = .6; betSpark(m.x, m.y, '#ffe27a', 30, 380); sfx('roar'); }
+  if (d.hp <= 0) {
+    d.hp = 0; Fi.winner = a.side; Fi.koT = 0; Fi.flash = 1; sfx('boom');
+    betSpark(m.x, m.y, '#ffffff', 40, 480);
+  }
+}
+function betUpdate(dt) {
+  const Fi = BET.fight;
+  dt *= BET.speed; S.t += dt; Fi.t += dt;
+  Fi.flash = Math.max(0, Fi.flash - dt * 1.5);
+  for (const p of Fi.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * dt; p.life -= dt; }
+  Fi.parts = Fi.parts.filter(p => p.life > 0);
+  for (const p of Fi.pops) { p.t -= dt; p.y -= 40 * dt; }
+  Fi.pops = Fi.pops.filter(p => p.t > 0);
+  for (const f of Fi.fx) f.t += dt;
+  Fi.fx = Fi.fx.filter(f => f.t < f.max);
+  for (const B of Fi.beams) B.t += dt;
+  Fi.beams = Fi.beams.filter(B => B.t < B.dur + .25);
+  for (const q of Fi.shots) {
+    const d = Fi.F[1 - q.side], m = betMid(d), dx = m.x - q.x, dy = m.y - q.y, L = Math.hypot(dx, dy), st = q.sp * dt;
+    if (L <= st + 8) { q.dead = true; if (!q.r.ghost) betLand(Fi.F[q.side], d, q.r, q.c); continue; }   // dao phụ chỉ để nhìn
+    q.x += dx / L * st; q.y += dy / L * st;
+  }
+  Fi.shots = Fi.shots.filter(q => !q.dead);
+  for (const f of Fi.F) {
+    f.mt += dt; f.hurt = Math.max(0, f.hurt - dt); f.dodgeT = Math.max(0, f.dodgeT - dt);
+    if (f.D.fly) f.y = BFL - f.D.fly + Math.sin(S.t * 2.4 + f.side * 2) * 8;
+    if (f.cur || /yuutan|jinwoo|zoro/.test(f.id)) mhBlend(f, dt, f.id !== 'yuutan', f.id === 'zoro');
+  }
+  if (Fi.winner >= 0) {
+    // K.O.: kẻ thua gục xuống mờ dần, người thắng đứng thủ
+    Fi.koT += dt;
+    const L = Fi.F[1 - Fi.winner];
+    L.alpha = Math.max(.25, 1 - Fi.koT); L.pose = 'land'; L.vx = 0; L.act = null;
+    if (L.D.fly) L.y = Math.min(BFL, L.y + 260 * dt * Fi.koT);
+    Fi.F[Fi.winner].act = null; Fi.F[Fi.winner].pose = null; Fi.F[Fi.winner].vx = 0;
+    if (Fi.koT > 2.4 && !Fi.done) { Fi.done = true; betFinish(); }
+    return;
+  }
+  if (Fi.intro > 0) { Fi.intro -= dt; return; }
+  for (let i = 0; i < 2; i++) betStep(Fi.F[i], Fi.F[1 - i], dt);
+  if (Fi.t > 150 + 2) {   // hết giờ: bên còn nhiều máu hơn thắng
+    const [a, b] = Fi.F, w = a.hp / a.maxHp >= b.hp / b.maxHp ? 0 : 1;
+    Fi.winner = w; Fi.koT = 0; betPop(viewW / 2, 200, 'HẾT GIỜ!', '#ffe27a', true);
+  }
+}
+function betStep(a, d, dt) {
+  const Fi = BET.fight, dx = d.x - a.x, dist = Math.abs(dx);
+  // quân bóng tối của Jin-Woo: đi tới đánh rồi tan sau 7 giây
+  for (const m of a.mins) {
+    m.t -= dt; m.rise = Math.max(0, m.rise - dt); m.swing = Math.max(0, m.swing - dt);
+    if (m.rise > 0) continue;
+    const mdx = d.x - m.x; m.dir = Math.sign(mdx) || m.dir;
+    if (Math.abs(mdx) > 70) { m.x += m.dir * 260 * dt; m.walk += dt; }
+    if ((m.atkT -= dt) <= 0) {
+      m.atkT = 1.1; m.swing = .22;
+      Fi.fx.push({ k: 'arc', x: m.x + m.dir * 30, y: BFL - 60, dir: m.dir, r: 60, c: m.kind === 'bellion' ? '#c8a0ff' : '#ff7a8a', t: 0, max: .22 });
+      if (Math.abs(mdx) < 110) betLand(a, d, betRoll(a, d, { k: 'melee' }, 1, m.atk), '#b48aff');
+    }
+  }
+  a.mins = a.mins.filter(m => m.t > 0);
+  if (a.rest > 0) {
+    // YuuTan quá tải: đứng thở dốc, bốc hơi, không né được và nhận ×2
+    a.rest -= dt; a.pose = 'land'; a.vx = 0;
+    if (Math.random() < dt * 25) Fi.parts.push({ x: a.x + (Math.random() - .5) * 40, y: a.y - 60 - Math.random() * 50, vx: (Math.random() - .5) * 40, vy: -90, life: .7, c: '#f0f0f8', r: 5 });
+    return;
+  }
+  const A = a.act;
+  if (A) { betAct(a, d, A, dt); return; }
+  a.dir = Math.sign(dx) || a.dir;
+  a.pose = null;
+  // giữ khoảng cách sở trường: cận chiến áp sát, đánh xa lùi ra
+  const want = a.D.range, sp = 170 * Math.min(a.D.spd, 2.4);
+  if (a.id === 'yuutan') {
+    // lượn chớp nhoáng quanh đối thủ
+    if ((a.blinkT -= dt) <= 0) {
+      a.blinkT = .22 + Math.random() * .2;
+      Fi.fx.push({ k: 'ghost', f: a, x: a.x, y: a.y, dir: a.dir, t: 0, max: .25 });
+      a.x = clamp(d.x + (Math.random() < .5 ? -1 : 1) * (90 + Math.random() * 120), 60, viewW - 60); a.dir = Math.sign(d.x - a.x) || a.dir;
+    }
+    a.vx = 0;
+  } else {
+    a.vx = dist > want + 30 ? Math.sign(dx) * sp : dist < want - 40 && want > 150 ? -Math.sign(dx) * sp : 0;
+    a.x = clamp(a.x + a.vx * dt, 60, viewW - 60);
+  }
+  if ((a.atkT -= dt) > 0) return;
+  const mv = betPick(a);
+  a.atkT = a.D.cd * (.85 + Math.random() * .3);
+  a.act = { mv, t: 0, W: BET_WIND[mv.k] * (a.id === 'yuutan' ? .6 : 1), done: false, tx: d.x, ty: betMid(d).y };
+  betPop(a.x, a.y - betH(a) - 34, mv.n, mv.c);
+  if (mv.tele) { Fi.fx.push({ k: 'tele', x: a.x, y: a.y, t: 0, max: .35 }); a.x = clamp(d.x - (Math.sign(d.x - a.x) || 1) * -70, 60, viewW - 60); a.dir = Math.sign(d.x - a.x) || a.dir; sfx('tele'); }
+}
+function betAct(a, d, A, dt) {
+  const Fi = BET.fight, mv = A.mv, k = mv.k, W = A.W;
+  A.t += dt; a.dir = Math.sign(d.x - a.x) || a.dir;
+  const mh = /yuutan|jinwoo|zoro/.test(a.id);
+  if (k === 'melee' || k === 'flurry') {
+    // lao tới sát đối thủ rồi chém
+    const tx = d.x - a.dir * (a.id === 'vegeta' && a.form ? 110 : 64);
+    if (!a.D.fly) a.x += (tx - a.x) * Math.min(1, dt * (k === 'flurry' ? 30 : 9));
+    else a.x += (tx - a.x) * Math.min(1, dt * 6);
+    if (mh) { a.pose = A.t < W ? 'ready' : k === 'flurry' ? ['jab', 'cross', 'kick'][Math.floor(A.t * 60) % 3] : Math.floor(A.t * 14) % 2 ? 'slashB' : 'slashA'; a.poseK = 1; }
+    if (A.t >= W && k === 'flurry') {
+      // 50 nhát chém trong chớp mắt
+      const want = Math.min(50, Math.floor((A.t - W) / .25 * 50) + 1), m = betMid(d);
+      for (A.cuts = A.cuts || 0; A.cuts < want; A.cuts++) if (A.cuts % 2 === 0) Fi.fx.push({ k: 'arc', x: m.x + (Math.random() - .5) * 90, y: m.y + (Math.random() - .5) * 90, dir: Math.random() < .5 ? 1 : -1, r: 26 + Math.random() * 30, c: A.cuts % 4 ? '#ffffff' : mv.c, a0: Math.random() * 6, t: 0, max: .16 });
+    }
+    if (A.t >= W && !A.done) {
+      A.done = true; sfx(k === 'flurry' ? 'dash' : 'hit');
+      Fi.fx.push({ k: 'arc', x: a.x + a.dir * 40, y: a.y - 70, dir: a.dir, r: 70, c: mv.c, t: 0, max: .25 });
+      const r = betRoll(a, d, mv);
+      betLand(a, d, r, mv.c);
+      if (r.hit && k === 'flurry') betPop(betMid(d).x, betMid(d).y - 100, '×50', '#ff8aa8', true);
+    }
+    if (A.t > W + (k === 'flurry' ? .3 : .25)) betEnd(a);
+  } else if (k === 'shot') {
+    if (mh) a.pose = A.t < W ? 'throwWind' : 'throw';
+    if (A.t >= W && !A.done) {
+      A.done = true; sfx('bolt');
+      const n = a.id === 'jinwoo' ? 3 : 1;
+      for (let i = 0; i < n; i++) Fi.shots.push({ side: a.side, x: a.x + a.dir * 30, y: a.y - (a.D.fly ? 50 : 80) + (i - (n - 1) / 2) * 14, sp: 760, c: mv.c, kind: a.id, r: i === 0 ? betRoll(a, d, mv) : { hit: false, ghost: true } });
+    }
+    if (A.t > W + .2) betEnd(a);
+  } else if (k === 'beam') {
+    if (mh) a.pose = 'raise';
+    if (A.t >= W && !A.done) {
+      A.done = true; sfx('boom');
+      const y = a.D.fly ? a.y - 40 : a.y - 70, x = a.x + a.dir * 30;
+      Fi.beams.push({ x, y, d: a.dir, len: Math.abs(d.x - x) + 160, w: 26, t: 0, dur: .45, pal: [mv.c + '55', mv.c, '#ffffff'] });
+      betLand(a, d, betRoll(a, d, mv), mv.c);
+    }
+    if (A.t > W + .5) betEnd(a);
+  } else if (k === 'aoe') {
+    // đánh dấu dưới chân đối thủ rồi phun trào (gai, cột, vòng nghiền, lốc xoáy)
+    if (mh) a.pose = 'raise';
+    if (!A.mark) A.mark = { x: d.x };
+    if (A.t >= W && !A.done) {
+      A.done = true; sfx('boom');
+      Fi.fx.push({ k: 'erupt', x: A.mark.x, y: BFL, c: mv.c, id: a.id, t: 0, max: .5 });
+      betLand(a, d, betRoll(a, d, mv), mv.c);
+    }
+    if (A.t > W + .35) betEnd(a);
+  } else if (k === 'summon') {
+    if (mh) a.pose = 'arise';
+    if (A.t >= W && !A.done) {
+      A.done = true; sfx('roar');
+      const kind = a.form ? 'bellion' : 'igris';
+      a.mins.push({ t: 7, atkT: .8, atk: a.atk * .45, kind, x: clamp(a.x + a.dir * 50, 60, viewW - 60), dir: a.dir, walk: 0, rise: .8, swing: 0 });
+      Fi.fx.push({ k: 'banner', x: a.x, y: a.y - 200, t: 0, max: 1.2 });
+    }
+    if (A.t > W + .4) betEnd(a);
+  }
+}
+function betEnd(a) {
+  a.act = null; a.pose = null;
+  if (a.D.restEvery && ++a.n % a.D.restEvery === 0) { a.rest = a.D.rest; betPop(a.x, a.y - betH(a) - 40, 'QUÁ TẢI!', '#ffe27a'); }
+}
+function betFinish() {
+  const Fi = BET.fight, w = Fi.winner, F = Fi.F[w], win = BET.side === w;
+  const pay = win ? Math.floor(BET.amt * BET.odds.o[w]) : 0;
+  betSetCoins(betCoins() + pay);
+  $('betResT').textContent = `${F.D.name} thắng!`;
+  $('betResP').textContent = win ? `Bạn thắng cược: nhận ${pay.toLocaleString('vi-VN')} xu (×${BET.odds.o[w]}, lãi ${(pay - BET.amt).toLocaleString('vi-VN')})` : `Bạn thua cược: mất ${BET.amt.toLocaleString('vi-VN')} xu`;
+  $('betResC').textContent = `Xu hiện có: ${betCoins().toLocaleString('vi-VN')}`;
+  $('betRes').hidden = false; $('betHud').hidden = true;
+  sfx(win ? 'star' : 'hurt');
+  $('betAgain').focus();
+}
+
+/* ----- vẽ ----- */
+const betFB = f => ({ act: f.act ? {} : null, ts: 0, cut: null, exhaust: 0, stun: 0, phase: f.form ? 2 : 1, kame: null, nova: null, trans: null });
+function drawBetFig(f) {
+  const x = f.x + (f.dodgeT > 0 ? Math.sin(S.t * 70) * 6 : 0), y = f.y, d = f.dir;
+  const run = Math.abs(f.vx) > 30, u = Object.assign(Object.create(f), { moving: run || !!f.act, aim: !!f.act, kind: f.id === 'lilith' ? (f.form ? 'fire' : 'ice') : f.id === 'zagred' ? 'zag' : f.id });
+  ctx.save(); ctx.globalAlpha = f.alpha;
+  if (f.hurt > 0 && Math.floor(S.t * 30) % 2) ctx.globalAlpha *= .6;
+  switch (f.id) {
+    case 'lilith': drawDevil(u, betFB(f), x, y); break;
+    case 'zagred': drawZagred(u, betFB(f), x, y); break;
+    case 'vegeta':
+      if (f.form) drawOozaru(u, betFB(f), x, y);
+      else drawVegetaFig(x, y, d, 1.75, f.act ? (f.act.mv.k === 'melee' ? (f.act.t < f.act.W ? 'wind' : 'punch') : 'cast') : run ? 'move' : 'idle', { air: false, run, ph: S.t * 12, hurt: f.hurt > 0 });
+      break;
+    case 'goku': drawGokuBoss(u, betFB(f), x, y); break;
+    case 'yuutan': drawMhFig(f, x, y, d, f.pose, 1, false, false, f.cur); break;
+    case 'jinwoo': if (f.form) drawMonarchAura(x, y); drawMhFig(f, x, y, d, f.pose, 1, true, f.form > 0, f.cur); break;
+    case 'zoro': drawZoroFig(f, x, y, d, f.pose, 1, true, false, f.cur); break;
+  }
+  ctx.restore();
+}
+function drawBetMinion(m) {
+  const D = SHADOWS[m.kind], k = m.rise > 0 ? 1 - m.rise / .8 : 1, fade = Math.min(1, m.t / 1.2);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const pg = ctx.createRadialGradient(m.x, BFL, 2, m.x, BFL, 50); pg.addColorStop(0, 'rgb(140 90 255 / .5)'); pg.addColorStop(1, 'rgb(60 20 160 / 0)');
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(m.x, BFL, 50, 10, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.rect(m.x - 140, BFL - D.h * k - 80, 280, D.h * k + 80); ctx.clip();
+  ctx.translate(m.x, BFL + (1 - k) * D.h); ctx.scale(m.dir, 1); ctx.globalAlpha = fade;
+  SH_DRAW[m.kind]({ x: m.x, walk: m.walk, act: null, wind: 0, swing: m.swing, jy: 0, stun: 0 }, D.h, Math.sin(m.walk * 10), m.swing > 0 ? -2.5 + (1 - m.swing / .22) * 3.4 : -.5);
+  ctx.restore();
+}
+// đấu trường La Mã về đêm: khán đài đông nghịt, cờ hai phe, đuốc, sàn đá
+function drawBetArena() {
+  const W = viewW, H = VIEW_H;
+  const sky = ctx.createLinearGradient(0, 0, 0, BFL); sky.addColorStop(0, '#120a24'); sky.addColorStop(1, '#3a1f3e');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgb(255 255 255 / .7)';
+  for (let i = 0; i < 40; i++) { const sx = mhHash(i * 3.3) * W, sy = mhHash(i * 7.1) * 140; ctx.fillRect(sx, sy, 2, 2); }
+  // khán đài nhiều tầng
+  const stands = bgLayer('betStands', 1200, 300, (g, w, h) => {
+    for (let r = 0; r < 5; r++) {
+      const y = 40 + r * 52;
+      g.fillStyle = r % 2 ? '#3b2a35' : '#45313e'; g.fillRect(0, y, w, 52);
+      g.fillStyle = '#2a1c26'; g.fillRect(0, y, w, 6);
+      for (let x = 8; x < w; x += 15) {
+        const hh = mhHash(x * .37 + r * 9.1), cols = ['#e8b48a', '#c48a5e', '#f2d0b0', '#8a5a3a'], shirts = ['#d84a4a', '#4a8ad8', '#e8d24a', '#6ad86a', '#e8e8e8', '#a04ad8'];
+        g.fillStyle = shirts[Math.floor(hh * 6)]; g.fillRect(x - 5, y + 22, 10, 18);
+        g.fillStyle = cols[Math.floor(mhHash(x + r) * 4)]; g.beginPath(); g.arc(x, y + 17, 5, 0, Math.PI * 2); g.fill();
+      }
+    }
+    // vòm và cột
+    for (let x = 0; x < w; x += 150) { g.fillStyle = '#5a4450'; g.fillRect(x, 0, 18, h); g.fillStyle = '#6a5260'; g.fillRect(x - 4, 0, 26, 12); }
+  });
+  for (let x = -((S.t * 4) % 1); x < W; x += stands.width) ctx.drawImage(stands, x, BFL - 330);
+  // khán giả nhảy cổ vũ
+  for (let i = 0; i < 26; i++) {
+    const x = (i * 97.3) % W, y = BFL - 330 + 40 + (i % 5) * 52 + 17, j = Math.max(0, Math.sin(S.t * 8 + i * 1.7)) * 6;
+    ctx.fillStyle = ['#ff5a5a', '#5ab4ff'][i % 2]; ctx.fillRect(x - 2, y - 14 - j, 4, 10);
+  }
+  // tường đấu trường, cờ hai phe
+  ctx.fillStyle = '#6b4a3a'; ctx.fillRect(0, BFL - 70, W, 70);
+  ctx.fillStyle = '#835a46'; ctx.fillRect(0, BFL - 70, W, 8);
+  for (let x = 40; x < W; x += 120) { ctx.fillStyle = '#4a3228'; ctx.fillRect(x, BFL - 62, 4, 62); }
+  for (const [s, fx] of [[0, W * .1], [1, W * .9]]) {
+    ctx.fillStyle = '#2a2020'; ctx.fillRect(fx - 2, BFL - 210, 4, 140);
+    ctx.fillStyle = BET_SIDE[s]; ctx.beginPath(); ctx.moveTo(fx + 2, BFL - 208);
+    for (let i = 0; i <= 6; i++) ctx.lineTo(fx + 2 + (s ? -1 : 1) * i * 10, BFL - 208 + Math.sin(S.t * 5 + i) * 3 + (i === 6 ? 20 : 0));
+    ctx.lineTo(fx + 2, BFL - 168); ctx.fill();
+  }
+  // đuốc
+  for (const tx of [W * .22, W * .5, W * .78]) {
+    ctx.fillStyle = '#3a2a20'; ctx.fillRect(tx - 3, BFL - 110, 6, 40);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const fl = 1 + Math.sin(S.t * 13 + tx) * .15, g = ctx.createRadialGradient(tx, BFL - 118, 2, tx, BFL - 118, 60 * fl);
+    g.addColorStop(0, 'rgb(255 200 90 / .8)'); g.addColorStop(1, 'rgb(255 90 20 / 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(tx, BFL - 118, 60 * fl, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  // sàn đá cát
+  const fl = ctx.createLinearGradient(0, BFL, 0, H); fl.addColorStop(0, '#c9a46e'); fl.addColorStop(1, '#8a6a42');
+  ctx.fillStyle = fl; ctx.fillRect(0, BFL, W, H - BFL);
+  ctx.fillStyle = 'rgb(0 0 0 / .12)';
+  for (let i = 0; i < 30; i++) ctx.fillRect(mhHash(i * 5.7) * W, BFL + 10 + mhHash(i * 2.3) * (H - BFL - 20), 30 + mhHash(i) * 40, 3);
+  ctx.strokeStyle = 'rgb(255 255 255 / .25)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(W / 2, BFL + 50, W * .3, 30, 0, 0, Math.PI * 2); ctx.stroke();
+}
+function drawBetFx(under) {
+  const Fi = BET.fight;
+  for (const f of Fi.fx) {
+    const k = f.t / f.max;
+    if (under) {
+      if (f.k === 'ghost') { ctx.save(); ctx.globalAlpha = .35 * (1 - k); drawMhFig(f.f, f.x, f.y, f.dir, 'lunge', 1, false, false); ctx.restore(); }
+      continue;
+    }
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    if (f.k === 'arc') {
+      ctx.translate(f.x, f.y); ctx.scale(f.dir, 1); const a0 = f.a0 ?? -1.1;
+      for (const [w, al] of [[14, .25], [7, .6], [2.5, 1]]) { ctx.strokeStyle = f.c; ctx.globalAlpha = al * (1 - k); ctx.lineWidth = w; ctx.beginPath(); ctx.arc(0, 0, f.r * (.8 + k * .3), a0, a0 + 2.2); ctx.stroke(); }
+    } else if (f.k === 'erupt') {
+      // gai / cột / lốc phun lên từ đất
+      ctx.globalAlpha = 1 - k; ctx.fillStyle = f.c;
+      for (let i = -3; i <= 3; i++) { const h = (110 - Math.abs(i) * 22) * Math.sin(Math.min(1, k * 3) * Math.PI / 2); ctx.beginPath(); ctx.moveTo(f.x + i * 16 - 9, f.y); ctx.lineTo(f.x + i * 16, f.y - h); ctx.lineTo(f.x + i * 16 + 9, f.y); ctx.fill(); }
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(f.x, f.y, 40 + k * 80, 10 + k * 8, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (f.k === 'tele') {
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+      for (let i = 0; i < 7; i++) { const lx = f.x + (i - 3) * 9; ctx.beginPath(); ctx.moveTo(lx, f.y - k * 60); ctx.lineTo(lx, f.y - 70 - (i % 3) * 25 - k * 60); ctx.stroke(); }
+    } else if (f.k === 'banner') {
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, (1 - k) * 2); ctx.font = '900 56px "Baloo 2", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgb(150 90 255 / .6)'; for (const [ox, oy] of [[-3, 0], [3, 0], [0, -3], [0, 3]]) ctx.fillText('ARISE', f.x + ox, f.y + oy);
+      ctx.fillStyle = '#e8dcff'; ctx.fillText('ARISE', f.x, f.y);
+    }
+    ctx.restore();
+  }
+}
+function drawBetShot(q) {
+  ctx.save(); ctx.translate(q.x, q.y); ctx.globalCompositeOperation = 'lighter';
+  if (q.kind === 'zoro') {
+    for (const [w, c] of [[14, 'rgb(60 220 140 / .4)'], [6, 'rgb(150 255 200 / .85)'], [2, '#ffffff']]) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(0, 0, 18, 46, 0, -1.3, 1.3); ctx.stroke(); }
+  } else if (q.kind === 'jinwoo') {
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-6, -4); ctx.lineTo(-10, 0); ctx.lineTo(-6, 4); ctx.fill();
+    ctx.fillStyle = 'rgb(140 220 255 / .6)'; ctx.fillRect(-46, -3, 40, 6);
+  } else {
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 24); g.addColorStop(0, '#ffffff'); g.addColorStop(.35, q.c); g.addColorStop(1, 'rgb(0 0 0 / 0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawBetHud() {
+  const Fi = BET.fight, W = viewW;
+  for (const f of Fi.F) {
+    const s = f.side, bw = Math.min(380, W * .38), x0 = s ? W - 20 - bw : 20, y0 = 20;
+    ctx.fillStyle = 'rgb(10 6 16 / .7)'; ctx.fillRect(x0 - 6, y0 - 6, bw + 12, 54);
+    ctx.fillStyle = '#2a2030'; ctx.fillRect(x0, y0 + 22, bw, 14);
+    const k = f.hp / f.maxHp, g = ctx.createLinearGradient(x0, 0, x0 + bw, 0); g.addColorStop(0, BET_SIDE[s]); g.addColorStop(1, '#ffffff');
+    ctx.fillStyle = g; s ? ctx.fillRect(x0 + bw * (1 - k), y0 + 22, bw * k, 14) : ctx.fillRect(x0, y0 + 22, bw * k, 14);
+    ctx.font = '800 17px "Baloo 2", sans-serif'; ctx.textAlign = s ? 'right' : 'left'; ctx.fillStyle = BET_SIDE[s];
+    ctx.fillText(`${f.D.name}${f.form ? ' ★' : ''}${BET.side === s ? '  · cược của bạn' : ''}`, s ? x0 + bw : x0, y0 + 14);
+    ctx.font = '700 12px sans-serif'; ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${Math.ceil(f.hp).toLocaleString('vi-VN')} / ${f.maxHp.toLocaleString('vi-VN')}   ×${BET.odds.o[s]}`, s ? x0 + bw : x0, y0 + 48);
+  }
+  ctx.textAlign = 'center'; ctx.font = '900 30px "Baloo 2", sans-serif'; ctx.fillStyle = '#ffe27a'; ctx.fillText('VS', W / 2, 52);
+  ctx.font = '700 14px sans-serif'; ctx.fillStyle = '#ffffff'; ctx.fillText(`${Math.floor(Fi.t)} giây · cược ${BET.amt.toLocaleString('vi-VN')} xu`, W / 2, 72);
+  if (Fi.intro > 0) {
+    const n = Math.ceil(Fi.intro / .5) - 1, txt = n > 0 ? String(Math.min(3, n)) : 'ĐẤU!';
+    ctx.font = '900 96px "Baloo 2", sans-serif'; ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#14101e'; ctx.lineWidth = 8;
+    ctx.strokeText(txt, W / 2, 280); ctx.fillText(txt, W / 2, 280);
+  }
+  if (Fi.winner >= 0) {
+    ctx.font = '900 110px "Baloo 2", sans-serif'; ctx.fillStyle = '#ff4d55'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 8;
+    ctx.globalAlpha = Math.min(1, Fi.koT * 3); ctx.strokeText('K.O.', W / 2, 270); ctx.fillText('K.O.', W / 2, 270); ctx.globalAlpha = 1;
+  }
+}
+function betRender() {
+  const Fi = BET.fight, F0 = ARENA.floor;
+  ARENA.floor = BFL;
+  ctx.setTransform(PX, 0, 0, PX, 0, 0); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 1;
+  try {
+    drawBetArena();
+    drawBetFx(true);
+    for (const f of Fi.F) for (const m of f.mins) drawBetMinion(m);
+    for (const f of [...Fi.F].sort((a, b) => (a.act ? 1 : 0) - (b.act ? 1 : 0))) {
+      ctx.fillStyle = 'rgb(0 0 0 / .3)'; ctx.beginPath(); ctx.ellipse(f.x, BFL + 2, 40, 8, 0, 0, Math.PI * 2); ctx.fill();
+      drawBetFig(f);
+      if (f.rest > 0) drawDizzy(f.x, f.y - betH(f) - 16);
+    }
+    for (const B of Fi.beams) drawKameBeam(B);
+    for (const q of Fi.shots) drawBetShot(q);
+    drawBetFx(false);
+    for (const p of Fi.parts) { ctx.globalAlpha = Math.max(0, p.life / .9); ctx.fillStyle = p.c; ctx.fillRect(p.x - p.r / 2, p.y - p.r / 2, p.r, p.r); }
+    ctx.globalAlpha = 1;
+    for (const p of Fi.pops) {
+      ctx.globalAlpha = Math.min(1, p.t / .3); ctx.font = `900 ${p.big ? 30 : 18}px "Baloo 2", sans-serif`; ctx.textAlign = 'center';
+      ctx.lineWidth = 5; ctx.strokeStyle = '#14101e'; ctx.strokeText(p.text, p.x, p.y); ctx.fillStyle = p.c; ctx.fillText(p.text, p.x, p.y);
+    }
+    ctx.globalAlpha = 1;
+    if (Fi.flash > 0) { ctx.fillStyle = `rgb(255 255 255 / ${(Fi.flash * .5).toFixed(2)})`; ctx.fillRect(0, 0, viewW, VIEW_H); }
+    drawBetHud();
+  } finally { ARENA.floor = F0; }
+}
+// ảnh xem trước các boss trong bảng chọn (vẽ lên canvas chính rồi chép sang ô nhỏ)
+function drawBetPreviews() {
+  const list = document.querySelectorAll('#betList canvas.charprev');
+  if (!list.length) return;
+  const W = 160, H = 120, F0 = ARENA.floor;
+  ARENA.floor = 0;
+  for (const c of list) {
+    const f = c.fig;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
+    const k = f.id === 'vegeta' ? 1 : f.D.fly ? .62 : .72;   // Vegeta người thường nhỏ hơn các boss khác
+    ctx.setTransform(k, 0, 0, k, W / 2, H - 6);
+    f.mt += .016; f.y = -(f.D.fly ? 40 : 0);
+    if (/yuutan|jinwoo|zoro/.test(f.id)) mhBlend(f, .016, f.id !== 'yuutan', f.id === 'zoro');
+    try { drawBetFig(f); } catch (e) {}
+    const g = c.getContext('2d'); g.clearRect(0, 0, W, H); g.drawImage(cv, 0, 0, W, H, 0, 0, W, H);
+  }
+  ARENA.floor = F0;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+/* ----- bảng chọn boss và đặt cược ----- */
+function betOpen() {
+  if (BET) return;
+  if (!$('chars').hidden) closeChars();
+  paused = true;
+  for (const k in keys) keys[k] = false;
+  S.charging = false;
+  if (betCoins() <= 0) { betSetCoins(200); showTip('Hết xu: được cấp lại 200 xu để cược tiếp.'); }
+  BET = { pick: [], side: -1, odds: null, speed: BET?.speed || 1, amt: 100, fight: null };
+  betBuildList(); betRefresh();
+  $('bet').hidden = false; $('betCoins').textContent = betCoins().toLocaleString('vi-VN');
+  $('betList').querySelector('button').focus();
+}
+function betClose() {
+  BET = null; paused = false;
+  for (const id of ['bet', 'betHud', 'betRes']) $(id).hidden = true;
+  document.body.classList.remove('betting');
+  $('betBtn').blur();
+}
+function betBuildList() {
+  const list = $('betList'); list.textContent = '';
+  for (const id of BET_IDS) {
+    const D = BET_BOSS[id], btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'charopt'; btn.dataset.boss = id;
+    const pv = document.createElement('canvas'); pv.className = 'charprev'; pv.width = 160; pv.height = 120; pv.fig = betView(betNew(id, 0), 0, 1);
+    const nm = document.createElement('span'); nm.textContent = D.name;
+    const sm = document.createElement('small'); sm.textContent = `${D.tag} · Máu ${D.hp.toLocaleString('vi-VN')} · Công ${D.atk} · Tốc ×${D.spd}`;
+    btn.append(pv, nm, sm);
+    btn.addEventListener('click', () => {
+      const P = BET.pick, i = P.indexOf(id);
+      if (i >= 0) P.splice(i, 1); else { if (P.length >= 2) P.shift(); P.push(id); }
+      BET.side = -1; BET.odds = P.length === 2 ? betOdds(P[0], P[1]) : null;
+      betRefresh();
+    });
+    list.appendChild(btn);
+  }
+}
+function betRefresh() {
+  const P = BET.pick, O = BET.odds;
+  for (const b of $('betList').querySelectorAll('button')) {
+    const i = P.indexOf(b.dataset.boss);
+    b.setAttribute('aria-pressed', String(i >= 0));
+    b.style.borderColor = i >= 0 ? BET_SIDE[i] : ''; b.style.background = i >= 0 ? (i ? '#e2f0ff' : '#ffe4e4') : '';
+  }
+  $('betVs').textContent = P.length === 2 ? `${BET_BOSS[P[0]].name}  ⚔  ${BET_BOSS[P[1]].name}` : P.length === 1 ? `Đỏ: ${BET_BOSS[P[0]].name} · chọn thêm 1 boss làm bên Xanh` : 'Chọn 2 boss: boss đầu tiên là bên Đỏ, boss thứ hai là bên Xanh.';
+  for (const s of [0, 1]) {
+    const b = $(s ? 'betB' : 'betA');
+    b.hidden = P.length < 2;
+    if (P.length === 2) b.textContent = `Cược ${BET_BOSS[P[s]].name} · ×${O.o[s]} (thắng ${Math.round((s ? 1 - O.p : O.p) * 100)}%)`;
+    b.setAttribute('aria-pressed', String(BET.side === s));
+  }
+  const amt = Math.floor(Number($('betAmt').value) || 0);
+  BET.amt = clamp(amt, 1, Math.max(1, betCoins()));
+  $('betGo').disabled = !(P.length === 2 && BET.side >= 0 && amt >= 1 && amt <= betCoins());
+  $('betWin').textContent = P.length === 2 && BET.side >= 0 ? `Thắng nhận ${Math.floor(BET.amt * O.o[BET.side]).toLocaleString('vi-VN')} xu` : '';
+}
+
+$('betBtn').addEventListener('click', betOpen);
+$('betClose').addEventListener('click', betClose);
+for (const s of [0, 1]) $(s ? 'betB' : 'betA').addEventListener('click', () => { BET.side = s; betRefresh(); });
+$('betAmt').addEventListener('input', betRefresh);
+document.querySelectorAll('.betchip').forEach(b => b.addEventListener('click', () => {
+  const c = betCoins(), v = b.dataset.amt;
+  $('betAmt').value = v === 'all' ? c : v === 'half' ? Math.max(1, Math.floor(c / 2)) : Math.min(c, +v);
+  betRefresh();
+}));
+$('betGo').addEventListener('click', () => { betRefresh(); if ($('betGo').disabled) return; betSetCoins(betCoins() - BET.amt); betStart(); });
+$('betSpeed').addEventListener('click', e => { BET.speed = BET.speed === 1 ? 2 : BET.speed === 2 ? 4 : 1; e.currentTarget.textContent = `Tốc độ ×${BET.speed}`; e.currentTarget.blur(); });
+// trận mới / rời trận giữa chừng (mất xu đã cược): quay về bảng chọn, giữ 2 boss vừa chọn
+function betReopen() {
+  const { speed, pick } = BET;
+  BET = null; for (const id of ['betHud', 'betRes']) $(id).hidden = true; document.body.classList.remove('betting');
+  betOpen(); BET.speed = speed; BET.pick = pick.slice(); BET.odds = pick.length === 2 ? betOdds(pick[0], pick[1]) : null; betRefresh();
+}
+$('betQuit').addEventListener('click', betReopen);
+$('betAgain').addEventListener('click', betReopen);
+$('betBack').addEventListener('click', betClose);
+
 /* ---------- Khung hình ---------- */
 function fit() {
   const w = innerWidth, h = innerHeight;
@@ -11516,9 +12090,11 @@ addEventListener('resize', fit);
 let last = performance.now();
 function loop(now) {
   const dt = Math.min(.033, (now - last) / 1000); last = now;
+  if (BET && BET.fight) { try { betUpdate(dt); betRender(); } catch (e) { console.error(e); ctx.restore(); } requestAnimationFrame(loop); return; }   // đấu trường cá cược
   if (!paused) update(dt);
   else S.t += dt;   // bảng chọn nhân vật: model xem trước vẫn cử động
   try { drawCharPreviews(); } catch (e) {}
+  try { if (BET && !$('bet').hidden) drawBetPreviews(); } catch (e) {}
   try { render(); } catch (e) { console.error(e); ctx.restore(); }
   const sec = Math.floor(S.time);
   if (sec !== lastSec) {
