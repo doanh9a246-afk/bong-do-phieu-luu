@@ -11685,12 +11685,17 @@ const BET_BOSS = {
   zoro: { map: 7, name: 'Roronoa Zoro', info: 'Không thể hạ (mỗi đòn chỉ mất 1 máu) · 10 giây sau chém bay đối thủ' },
 };
 // đấu thủ: 'b:<boss>' hoặc 'c:<nhân vật>'
-const BET_IDS = [...Object.keys(BET_BOSS).map(k => 'b:' + k), ...Object.keys(CHAR_UI).map(k => 'c:' + k)];
+// Kurumi có 5 dạng: mỗi dạng là một đấu thủ riêng, giữ nguyên dạng suốt trận (máy không bấm F đổi dạng)
+const BET_KU = { base: 'Kurumi', rasiel: 'Kurumi · Rasiel', inv: 'Kurumi · Nghịch chuyển', wq: 'Kurumi · Lucifugus', crim: 'Kurumi · Hồng Liên Bất Diệt' };
+const BET_IDS = [...Object.keys(BET_BOSS).map(k => 'b:' + k),
+  ...Object.keys(CHAR_UI).flatMap(k => k === 'kurumi' ? Object.keys(BET_KU).map(f => f === 'base' ? 'c:kurumi' : 'c:kurumi.' + f) : ['c:' + k])];
 const betIsBoss = id => id[0] === 'b';
-const betKey = id => id.slice(2);
-const betName = id => betIsBoss(id) ? BET_BOSS[betKey(id)].name : CHAR_UI[betKey(id)].name;
+const betKey = id => id.slice(2).split('.')[0];
+const betForm = id => id.split('.')[1] || null;
+const betName = id => betIsBoss(id) ? BET_BOSS[betKey(id)].name : betKey(id) === 'kurumi' ? BET_KU[betForm(id) || 'base'] : CHAR_UI[betKey(id)].name;
+function betKuForm(K, f) { f = f || 'base'; Object.assign(K, { form: f, rasiel: f === 'rasiel', inv: f === 'inv', wq: f === 'wq', crim: f === 'crim' }); }
 // xác suất đấu thủ trước thắng đấu thủ sau ('a>b'), đo bằng cách cho đánh thật bằng mã này
-const BET_P = {"b:lilith>b:zagred":0.5,"b:lilith>c:pika":0.278,"b:lilith>c:zenitsu":0.056,"b:lilith>c:yuno":0.056,"b:zagred>b:jinwoo":0.056,"b:zagred>c:saiyan":0.056,"b:zagred>c:kiem":0.056,"b:vegeta>b:yuutan":0.389,"b:vegeta>c:stelle":0.944,"b:vegeta>c:namek":0.056,"b:goku>b:yuutan":0.056,"b:goku>c:stelle":0.944,"b:goku>c:namek":0.167,"b:yuutan>b:jinwoo":0.944,"b:yuutan>c:saiyan":0.944,"b:yuutan>c:kiem":0.944,"b:jinwoo>c:pika":0.944,"b:jinwoo>c:zenitsu":0.389,"b:jinwoo>c:yuno":0.944,"b:zoro>c:stelle":0.944,"b:zoro>c:namek":0.944,"c:pika>c:chii":0.944,"c:pika>c:mereo":0.056,"c:pika>c:pain":0.056,"c:chii>c:zenitsu":0.056,"c:chii>c:yuno":0.056,"c:rimuru>c:zenitsu":0.056,"c:rimuru>c:yuno":0.056,"c:stelle>c:mereo":0.056,"c:stelle>c:pain":0.056,"c:saiyan>c:namek":0.056,"c:kurumi>c:zenitsu":0.944,"c:kurumi>c:yuno":0.944,"c:zenitsu>c:kiem":0.944,"c:mereo>c:namek":0.056,"c:luffy>c:namek":0.056,"c:namek>c:kiem":0.944,"c:kiem>c:yuno":0.944,"c:yuno>c:pain":0.056,"b:lilith>b:vegeta":0.056,"b:lilith>c:chii":0.944,"b:lilith>c:mereo":0.056,"b:lilith>c:pain":0.056,"b:zagred>b:zoro":0.056,"b:zagred>c:kurumi":0.056,"b:zagred>c:asta":0.056,"b:vegeta>b:jinwoo":0.056,"b:vegeta>c:saiyan":0.944,"b:vegeta>c:kiem":0.944,"b:goku>b:jinwoo":0.5,"b:goku>c:saiyan":0.944,"b:goku>c:kiem":0.944,"b:yuutan>b:zoro":0.056,"b:yuutan>c:kurumi":0.722,"b:yuutan>c:asta":0.944,"b:jinwoo>c:chii":0.944,"b:jinwoo>c:mereo":0.056,"b:jinwoo>c:pain":0.833,"b:zoro>c:saiyan":0.944,"b:zoro>c:kiem":0.944,"c:pika>c:rimuru":0.944,"c:pika>c:luffy":0.056,"c:pika>c:goku":0.056,"c:chii>c:mereo":0.056,"c:chii>c:pain":0.056,"c:rimuru>c:mereo":0.056,"c:rimuru>c:pain":0.056,"c:stelle>c:luffy":0.056,"c:stelle>c:goku":0.056,"c:saiyan>c:kiem":0.833,"c:kurumi>c:mereo":0.389,"c:kurumi>c:pain":0.944,"c:zenitsu>c:asta":0.944,"c:mereo>c:kiem":0.944,"c:luffy>c:kiem":0.944,"c:namek>c:asta":0.944,"c:kiem>c:pain":0.056,"c:yuno>c:goku":0.056,"b:lilith>b:goku":0.056,"b:lilith>c:rimuru":0.944,"b:lilith>c:luffy":0.056,"b:lilith>c:goku":0.056,"b:zagred>c:pika":0.611,"b:zagred>c:zenitsu":0.056,"b:zagred>c:yuno":0.278,"b:vegeta>b:zoro":0.056,"b:vegeta>c:kurumi":0.056,"b:vegeta>c:asta":0.944,"b:goku>b:zoro":0.056,"b:goku>c:kurumi":0.056,"b:goku>c:asta":0.944,"b:yuutan>c:pika":0.944,"b:yuutan>c:zenitsu":0.833,"b:yuutan>c:yuno":0.944,"b:jinwoo>c:rimuru":0.944,"b:jinwoo>c:luffy":0.833,"b:jinwoo>c:goku":0.056,"b:zoro>c:kurumi":0.944,"b:zoro>c:asta":0.944,"c:pika>c:stelle":0.056,"c:pika>c:namek":0.056,"c:chii>c:rimuru":0.389,"c:chii>c:luffy":0.056,"c:chii>c:goku":0.056,"c:rimuru>c:luffy":0.056,"c:rimuru>c:goku":0.056,"c:stelle>c:namek":0.056,"c:saiyan>c:kurumi":0.056,"c:saiyan>c:asta":0.389,"c:kurumi>c:luffy":0.833,"c:kurumi>c:goku":0.278,"c:zenitsu>c:yuno":0.944,"c:mereo>c:asta":0.944,"c:luffy>c:asta":0.944,"c:namek>c:yuno":0.944,"c:kiem>c:goku":0.056,"c:pain>c:goku":0.056,"b:lilith>b:yuutan":0.056,"b:lilith>c:stelle":0.056,"b:lilith>c:namek":0.056,"b:zagred>b:vegeta":0.056,"b:zagred>c:chii":0.944,"b:zagred>c:mereo":0.056,"b:zagred>c:pain":0.056,"b:vegeta>c:pika":0.278,"b:vegeta>c:zenitsu":0.056,"b:vegeta>c:yuno":0.944,"b:goku>c:pika":0.722,"b:goku>c:zenitsu":0.056,"b:goku>c:yuno":0.944,"b:yuutan>c:chii":0.944,"b:yuutan>c:mereo":0.944,"b:yuutan>c:pain":0.944,"b:jinwoo>c:stelle":0.944,"b:jinwoo>c:namek":0.389,"b:zoro>c:pika":0.944,"b:zoro>c:zenitsu":0.944,"b:zoro>c:yuno":0.944,"c:pika>c:saiyan":0.056,"c:pika>c:kiem":0.056,"c:chii>c:stelle":0.056,"c:chii>c:namek":0.056,"c:rimuru>c:stelle":0.056,"c:rimuru>c:namek":0.056,"c:stelle>c:saiyan":0.056,"c:stelle>c:kiem":0.167,"c:saiyan>c:zenitsu":0.056,"c:saiyan>c:yuno":0.944,"c:kurumi>c:namek":0.056,"c:zenitsu>c:mereo":0.056,"c:zenitsu>c:pain":0.944,"c:mereo>c:yuno":0.944,"c:luffy>c:yuno":0.944,"c:namek>c:pain":0.944,"c:asta>c:yuno":0.944,"b:lilith>b:jinwoo":0.056,"b:lilith>c:saiyan":0.056,"b:lilith>c:kiem":0.056,"b:zagred>b:goku":0.056,"b:zagred>c:rimuru":0.944,"b:zagred>c:luffy":0.056,"b:zagred>c:goku":0.056,"b:vegeta>c:chii":0.944,"b:vegeta>c:mereo":0.056,"b:vegeta>c:pain":0.056,"b:goku>c:chii":0.944,"b:goku>c:mereo":0.056,"b:goku>c:pain":0.056,"b:yuutan>c:rimuru":0.944,"b:yuutan>c:luffy":0.944,"b:yuutan>c:goku":0.944,"b:jinwoo>c:saiyan":0.944,"b:jinwoo>c:kiem":0.944,"b:zoro>c:chii":0.944,"b:zoro>c:mereo":0.944,"b:zoro>c:pain":0.944,"c:pika>c:kurumi":0.056,"c:pika>c:asta":0.056,"c:chii>c:saiyan":0.056,"c:chii>c:kiem":0.056,"c:rimuru>c:saiyan":0.056,"c:rimuru>c:kiem":0.056,"c:stelle>c:kurumi":0.056,"c:stelle>c:asta":0.056,"c:saiyan>c:mereo":0.056,"c:saiyan>c:pain":0.167,"c:kurumi>c:kiem":0.944,"c:zenitsu>c:luffy":0.167,"c:zenitsu>c:goku":0.056,"c:mereo>c:pain":0.944,"c:luffy>c:pain":0.944,"c:namek>c:goku":0.944,"c:asta>c:pain":0.5,"b:lilith>b:zoro":0.056,"b:lilith>c:kurumi":0.056,"b:lilith>c:asta":0.056,"b:zagred>b:yuutan":0.056,"b:zagred>c:stelle":0.389,"b:zagred>c:namek":0.056,"b:vegeta>b:goku":0.278,"b:vegeta>c:rimuru":0.944,"b:vegeta>c:luffy":0.389,"b:vegeta>c:goku":0.167,"b:goku>c:rimuru":0.944,"b:goku>c:luffy":0.611,"b:goku>c:goku":0.056,"b:yuutan>c:stelle":0.944,"b:yuutan>c:namek":0.167,"b:jinwoo>b:zoro":0.056,"b:jinwoo>c:kurumi":0.5,"b:jinwoo>c:asta":0.944,"b:zoro>c:rimuru":0.944,"b:zoro>c:luffy":0.944,"b:zoro>c:goku":0.944,"c:pika>c:zenitsu":0.056,"c:pika>c:yuno":0.056,"c:chii>c:kurumi":0.056,"c:chii>c:asta":0.056,"c:rimuru>c:kurumi":0.056,"c:rimuru>c:asta":0.056,"c:stelle>c:zenitsu":0.056,"c:stelle>c:yuno":0.056,"c:saiyan>c:luffy":0.056,"c:saiyan>c:goku":0.056,"c:kurumi>c:asta":0.944,"c:zenitsu>c:namek":0.056,"c:mereo>c:luffy":0.944,"c:mereo>c:goku":0.944,"c:luffy>c:goku":0.056,"c:kiem>c:asta":0.056,"c:asta>c:goku":0.056};
+const BET_P = {"b:lilith>b:zagred":0.5,"b:lilith>c:pika":0.278,"b:lilith>c:zenitsu":0.056,"b:lilith>c:yuno":0.056,"b:zagred>b:jinwoo":0.056,"b:zagred>c:saiyan":0.056,"b:zagred>c:kiem":0.056,"b:vegeta>b:yuutan":0.389,"b:vegeta>c:stelle":0.944,"b:vegeta>c:namek":0.056,"b:goku>b:yuutan":0.056,"b:goku>c:stelle":0.944,"b:goku>c:namek":0.167,"b:yuutan>b:jinwoo":0.944,"b:yuutan>c:saiyan":0.944,"b:yuutan>c:kiem":0.944,"b:jinwoo>c:pika":0.944,"b:jinwoo>c:zenitsu":0.389,"b:jinwoo>c:yuno":0.944,"b:zoro>c:stelle":0.944,"b:zoro>c:namek":0.944,"c:pika>c:chii":0.944,"c:pika>c:mereo":0.056,"c:pika>c:pain":0.056,"c:chii>c:zenitsu":0.056,"c:chii>c:yuno":0.056,"c:rimuru>c:zenitsu":0.056,"c:rimuru>c:yuno":0.056,"c:stelle>c:mereo":0.056,"c:stelle>c:pain":0.056,"c:saiyan>c:namek":0.056,"c:zenitsu>c:kiem":0.944,"c:mereo>c:namek":0.056,"c:luffy>c:namek":0.056,"c:namek>c:kiem":0.944,"c:kiem>c:yuno":0.944,"c:yuno>c:pain":0.056,"b:lilith>b:vegeta":0.056,"b:lilith>c:chii":0.944,"b:lilith>c:mereo":0.056,"b:lilith>c:pain":0.056,"b:zagred>b:zoro":0.056,"b:zagred>c:asta":0.056,"b:vegeta>b:jinwoo":0.056,"b:vegeta>c:saiyan":0.944,"b:vegeta>c:kiem":0.944,"b:goku>b:jinwoo":0.5,"b:goku>c:saiyan":0.944,"b:goku>c:kiem":0.944,"b:yuutan>b:zoro":0.056,"b:yuutan>c:asta":0.944,"b:jinwoo>c:chii":0.944,"b:jinwoo>c:mereo":0.056,"b:jinwoo>c:pain":0.833,"b:zoro>c:saiyan":0.944,"b:zoro>c:kiem":0.944,"c:pika>c:rimuru":0.944,"c:pika>c:luffy":0.056,"c:pika>c:goku":0.056,"c:chii>c:mereo":0.056,"c:chii>c:pain":0.056,"c:rimuru>c:mereo":0.056,"c:rimuru>c:pain":0.056,"c:stelle>c:luffy":0.056,"c:stelle>c:goku":0.056,"c:saiyan>c:kiem":0.833,"c:zenitsu>c:asta":0.944,"c:mereo>c:kiem":0.944,"c:luffy>c:kiem":0.944,"c:namek>c:asta":0.944,"c:kiem>c:pain":0.056,"c:yuno>c:goku":0.056,"b:lilith>b:goku":0.056,"b:lilith>c:rimuru":0.944,"b:lilith>c:luffy":0.056,"b:lilith>c:goku":0.056,"b:zagred>c:pika":0.611,"b:zagred>c:zenitsu":0.056,"b:zagred>c:yuno":0.278,"b:vegeta>b:zoro":0.056,"b:vegeta>c:asta":0.944,"b:goku>b:zoro":0.056,"b:goku>c:asta":0.944,"b:yuutan>c:pika":0.944,"b:yuutan>c:zenitsu":0.833,"b:yuutan>c:yuno":0.944,"b:jinwoo>c:rimuru":0.944,"b:jinwoo>c:luffy":0.833,"b:jinwoo>c:goku":0.056,"b:zoro>c:asta":0.944,"c:pika>c:stelle":0.056,"c:pika>c:namek":0.056,"c:chii>c:rimuru":0.389,"c:chii>c:luffy":0.056,"c:chii>c:goku":0.056,"c:rimuru>c:luffy":0.056,"c:rimuru>c:goku":0.056,"c:stelle>c:namek":0.056,"c:saiyan>c:asta":0.389,"c:zenitsu>c:yuno":0.944,"c:mereo>c:asta":0.944,"c:luffy>c:asta":0.944,"c:namek>c:yuno":0.944,"c:kiem>c:goku":0.056,"c:pain>c:goku":0.056,"b:lilith>b:yuutan":0.056,"b:lilith>c:stelle":0.056,"b:lilith>c:namek":0.056,"b:zagred>b:vegeta":0.056,"b:zagred>c:chii":0.944,"b:zagred>c:mereo":0.056,"b:zagred>c:pain":0.056,"b:vegeta>c:pika":0.278,"b:vegeta>c:zenitsu":0.056,"b:vegeta>c:yuno":0.944,"b:goku>c:pika":0.722,"b:goku>c:zenitsu":0.056,"b:goku>c:yuno":0.944,"b:yuutan>c:chii":0.944,"b:yuutan>c:mereo":0.944,"b:yuutan>c:pain":0.944,"b:jinwoo>c:stelle":0.944,"b:jinwoo>c:namek":0.389,"b:zoro>c:pika":0.944,"b:zoro>c:zenitsu":0.944,"b:zoro>c:yuno":0.944,"c:pika>c:saiyan":0.056,"c:pika>c:kiem":0.056,"c:chii>c:stelle":0.056,"c:chii>c:namek":0.056,"c:rimuru>c:stelle":0.056,"c:rimuru>c:namek":0.056,"c:stelle>c:saiyan":0.056,"c:stelle>c:kiem":0.167,"c:saiyan>c:zenitsu":0.056,"c:saiyan>c:yuno":0.944,"c:zenitsu>c:mereo":0.056,"c:zenitsu>c:pain":0.944,"c:mereo>c:yuno":0.944,"c:luffy>c:yuno":0.944,"c:namek>c:pain":0.944,"c:asta>c:yuno":0.944,"b:lilith>b:jinwoo":0.056,"b:lilith>c:saiyan":0.056,"b:lilith>c:kiem":0.056,"b:zagred>b:goku":0.056,"b:zagred>c:rimuru":0.944,"b:zagred>c:luffy":0.056,"b:zagred>c:goku":0.056,"b:vegeta>c:chii":0.944,"b:vegeta>c:mereo":0.056,"b:vegeta>c:pain":0.056,"b:goku>c:chii":0.944,"b:goku>c:mereo":0.056,"b:goku>c:pain":0.056,"b:yuutan>c:rimuru":0.944,"b:yuutan>c:luffy":0.944,"b:yuutan>c:goku":0.944,"b:jinwoo>c:saiyan":0.944,"b:jinwoo>c:kiem":0.944,"b:zoro>c:chii":0.944,"b:zoro>c:mereo":0.944,"b:zoro>c:pain":0.944,"c:pika>c:asta":0.056,"c:chii>c:saiyan":0.056,"c:chii>c:kiem":0.056,"c:rimuru>c:saiyan":0.056,"c:rimuru>c:kiem":0.056,"c:stelle>c:asta":0.056,"c:saiyan>c:mereo":0.056,"c:saiyan>c:pain":0.167,"c:zenitsu>c:luffy":0.167,"c:zenitsu>c:goku":0.056,"c:mereo>c:pain":0.944,"c:luffy>c:pain":0.944,"c:namek>c:goku":0.944,"c:asta>c:pain":0.5,"b:lilith>b:zoro":0.056,"b:lilith>c:asta":0.056,"b:zagred>b:yuutan":0.056,"b:zagred>c:stelle":0.389,"b:zagred>c:namek":0.056,"b:vegeta>b:goku":0.278,"b:vegeta>c:rimuru":0.944,"b:vegeta>c:luffy":0.389,"b:vegeta>c:goku":0.167,"b:goku>c:rimuru":0.944,"b:goku>c:luffy":0.611,"b:goku>c:goku":0.056,"b:yuutan>c:stelle":0.944,"b:yuutan>c:namek":0.167,"b:jinwoo>b:zoro":0.056,"b:jinwoo>c:asta":0.944,"b:zoro>c:rimuru":0.944,"b:zoro>c:luffy":0.944,"b:zoro>c:goku":0.944,"c:pika>c:zenitsu":0.056,"c:pika>c:yuno":0.056,"c:chii>c:asta":0.056,"c:rimuru>c:asta":0.056,"c:stelle>c:zenitsu":0.056,"c:stelle>c:yuno":0.056,"c:saiyan>c:luffy":0.056,"c:saiyan>c:goku":0.056,"c:zenitsu>c:namek":0.056,"c:mereo>c:luffy":0.944,"c:mereo>c:goku":0.944,"c:luffy>c:goku":0.056,"c:kiem>c:asta":0.056,"c:asta>c:goku":0.056,"b:lilith>c:kurumi.rasiel":0.056,"b:zagred>c:kurumi.rasiel":0.056,"b:vegeta>c:kurumi.inv":0.167,"b:goku>c:kurumi.crim":0.056,"b:yuutan>c:kurumi.rasiel":0.056,"b:zoro>c:kurumi.crim":0.944,"c:pika>c:kurumi.crim":0.056,"c:rimuru>c:kurumi.rasiel":0.056,"c:stelle>c:kurumi.crim":0.056,"c:saiyan>c:kurumi.inv":0.056,"c:kurumi>c:kurumi.rasiel":0.056,"c:kurumi>c:luffy":0.278,"c:kurumi>c:goku":0.389,"c:kurumi.rasiel>c:luffy":0.944,"c:kurumi.rasiel>c:goku":0.944,"c:kurumi.inv>c:namek":0.056,"c:kurumi.wq>c:kurumi.crim":0.056,"c:kurumi.wq>c:asta":0.944,"c:kurumi.crim>c:luffy":0.944,"c:kurumi.crim>c:goku":0.944,"b:lilith>c:kurumi.inv":0.056,"b:zagred>c:kurumi.inv":0.056,"b:vegeta>c:kurumi.wq":0.056,"b:yuutan>c:kurumi.inv":0.944,"b:jinwoo>c:kurumi":0.944,"c:chii>c:kurumi":0.056,"c:rimuru>c:kurumi.inv":0.056,"c:saiyan>c:kurumi.wq":0.056,"c:kurumi>c:kurumi.inv":0.5,"c:kurumi>c:namek":0.056,"c:kurumi.rasiel>c:kurumi.inv":0.944,"c:kurumi.rasiel>c:namek":0.056,"c:kurumi.inv>c:kurumi.wq":0.056,"c:kurumi.inv>c:kiem":0.944,"c:kurumi.wq>c:zenitsu":0.944,"c:kurumi.wq>c:yuno":0.944,"c:kurumi.crim>c:namek":0.944,"b:lilith>c:kurumi.wq":0.056,"b:zagred>c:kurumi.wq":0.056,"b:vegeta>c:kurumi.crim":0.056,"b:goku>c:kurumi":0.278,"b:yuutan>c:kurumi.wq":0.944,"b:jinwoo>c:kurumi.rasiel":0.056,"b:zoro>c:kurumi":0.944,"c:pika>c:kurumi":0.056,"c:chii>c:kurumi.rasiel":0.056,"c:rimuru>c:kurumi.wq":0.056,"c:stelle>c:kurumi":0.056,"c:saiyan>c:kurumi.crim":0.056,"c:kurumi>c:kurumi.wq":0.167,"c:kurumi>c:kiem":0.944,"c:kurumi.rasiel>c:kurumi.wq":0.833,"c:kurumi.rasiel>c:kiem":0.944,"c:kurumi.inv>c:kurumi.crim":0.056,"c:kurumi.inv>c:asta":0.944,"c:kurumi.wq>c:mereo":0.278,"c:kurumi.wq>c:pain":0.944,"c:kurumi.crim>c:kiem":0.944,"b:lilith>c:kurumi.crim":0.056,"b:zagred>c:kurumi.crim":0.056,"b:goku>c:kurumi.rasiel":0.056,"b:yuutan>c:kurumi.crim":0.056,"b:jinwoo>c:kurumi.inv":0.833,"b:zoro>c:kurumi.rasiel":0.944,"c:pika>c:kurumi.rasiel":0.056,"c:chii>c:kurumi.inv":0.056,"c:rimuru>c:kurumi.crim":0.056,"c:stelle>c:kurumi.rasiel":0.056,"c:kurumi>c:kurumi.crim":0.056,"c:kurumi>c:asta":0.944,"c:kurumi.rasiel>c:kurumi.crim":0.5,"c:kurumi.rasiel>c:asta":0.944,"c:kurumi.inv>c:zenitsu":0.833,"c:kurumi.inv>c:yuno":0.944,"c:kurumi.wq>c:luffy":0.722,"c:kurumi.wq>c:goku":0.611,"c:kurumi.crim>c:asta":0.944,"b:vegeta>c:kurumi":0.056,"b:goku>c:kurumi.inv":0.722,"b:jinwoo>c:kurumi.wq":0.278,"b:zoro>c:kurumi.inv":0.944,"c:pika>c:kurumi.inv":0.056,"c:chii>c:kurumi.wq":0.056,"c:stelle>c:kurumi.inv":0.056,"c:saiyan>c:kurumi":0.056,"c:kurumi>c:zenitsu":0.722,"c:kurumi>c:yuno":0.944,"c:kurumi.rasiel>c:zenitsu":0.944,"c:kurumi.rasiel>c:yuno":0.944,"c:kurumi.inv>c:mereo":0.056,"c:kurumi.inv>c:pain":0.944,"c:kurumi.wq>c:namek":0.056,"c:kurumi.crim>c:zenitsu":0.944,"c:kurumi.crim>c:yuno":0.944,"b:lilith>c:kurumi":0.056,"b:zagred>c:kurumi":0.056,"b:vegeta>c:kurumi.rasiel":0.056,"b:goku>c:kurumi.wq":0.056,"b:yuutan>c:kurumi":0.944,"b:jinwoo>c:kurumi.crim":0.056,"b:zoro>c:kurumi.wq":0.944,"c:pika>c:kurumi.wq":0.056,"c:chii>c:kurumi.crim":0.056,"c:rimuru>c:kurumi":0.056,"c:stelle>c:kurumi.wq":0.056,"c:saiyan>c:kurumi.rasiel":0.056,"c:kurumi>c:mereo":0.167,"c:kurumi>c:pain":0.944,"c:kurumi.rasiel>c:mereo":0.611,"c:kurumi.rasiel>c:pain":0.944,"c:kurumi.inv>c:luffy":0.389,"c:kurumi.inv>c:goku":0.056,"c:kurumi.wq>c:kiem":0.944,"c:kurumi.crim>c:mereo":0.944,"c:kurumi.crim>c:pain":0.944};
 const BET_KEY = 'bongdo.coins';
 let BET = null;
 let BET_CUR = null, BET_CTX = null, BET_RAW = null, BET_L2 = false, BET_NOBALL = false;   // thế giới đang nạp; thế giới boss (die → đánh boss kia); sát thương thô boss đánh boss; lớp vẽ thứ hai; không vẽ bóng
@@ -11717,18 +11722,19 @@ function betLoad(C) {
   BET_CUR = C; BET_CTX = C.kind === 'boss' ? C : null;
 }
 // dựng một thế giới mới (đấu trường cá cược đã nạp): kind 'boss' = boss chạy một mình, 'char' = nhân vật (có thể kèm boss thật)
-function betMake(kind, id, side, bossId) {
+function betMake(kind, id, side, bossId, form) {
   const keep = betSnap(), map = bossId ? BET_BOSS[bossId].map : 5;
   MAP = map; PHASES = BET_PH()[map]; ACT_LIST = map === 2 ? ACT_LIST_Z : ACT_LIST_LN;
   CHAR = kind === 'char' ? id : 'chii'; DMAX = false; for (const k in keys) keys[k] = false;
   reset();
+  if (CHAR === 'kurumi') betKuForm(S.ku, form);   // vào trận đúng dạng đã chọn
   const x = side ? ARENA.r - 200 : ARENA.l + 200;
   Object.assign(S.ball, { x, y: ARENA.floor - R - 2, face: side ? -1 : 1 });
   S.spawn = { x, y: ARENA.floor - 60 }; S.safeY = S.ball.y;
   S.fight = true; S.gateClosed = true; S.turret.alive = false;
   if (bossId) { const bx = side ? ARENA.l + 200 : ARENA.r - 200; for (const u of S.boss.units) { u.x = kind === 'boss' ? x : bx; u.dir = (kind === 'boss' ? side : !side) ? -1 : 1; } S.boss.atkT = 2.5; }
   else S.boss = betDummy();
-  const C = { kind, id, side, ...betSnap() };
+  const C = { kind, id, side, lock: kind === 'char' && id === 'kurumi', ...betSnap() };
   betPut(keep);
   return C;
 }
@@ -11796,7 +11802,7 @@ function betCharKeys(id) {
   return [...out];
 }
 function betAI(C, dt, tx, ty) {
-  const b = S.ball, A = C.ai || (C.ai = { t: .4, hold: {}, jumpT: .5, extra: betCharKeys(CHAR) });
+  const b = S.ball, A = C.ai || (C.ai = { t: .4, hold: {}, jumpT: .5, extra: betCharKeys(CHAR).filter(k => !(C.lock && k === 'terra')) });
   const set = (k, on) => { if (!!keys[k] !== on) setKey(k, on); };
   const press = (k, d) => { if (!keys[k]) setKey(k, true); A.hold[k] = Math.max(A.hold[k] || 0, d); };
   for (const k in A.hold) if ((A.hold[k] -= dt) <= 0) { delete A.hold[k]; if (keys[k]) setKey(k, false); }
@@ -11834,11 +11840,11 @@ function betStart() {
   // bên Đỏ = 0, bên Xanh = 1
   const ba = betIsBoss(a), bb = betIsBoss(b);
   if (ba && bb) { BET.mode = 'bb'; BET.ctx = [betMake('boss', null, 0, betKey(a)), betMake('boss', null, 1, betKey(b))]; }
-  else if (!ba && !bb) { BET.mode = 'cc'; BET.ctx = [betMake('char', betKey(a), 0), betMake('char', betKey(b), 1)]; }
+  else if (!ba && !bb) { BET.mode = 'cc'; BET.ctx = [betMake('char', betKey(a), 0, null, betForm(a)), betMake('char', betKey(b), 1, null, betForm(b))]; }
   else {
     BET.mode = 'cb'; BET.bossSide = ba ? 0 : 1;
     const ch = ba ? b : a, cs = ba ? 1 : 0;
-    BET.ctx = [betMake('char', betKey(ch), cs, betKey(ba ? a : b))];
+    BET.ctx = [betMake('char', betKey(ch), cs, betKey(ba ? a : b), betForm(ch))];
   }
   BET_CUR = BET.home;
   $('bet').hidden = true; $('betHud').hidden = false; document.body.classList.add('betting');
@@ -12006,7 +12012,7 @@ function drawBetHud() {
   }
 }
 // ảnh xem trước trong bảng chọn: boss vẽ bằng hàm vẽ boss của màn, nhân vật vẽ như bảng chọn nhân vật
-const BET_PV_KEYS = ['boss', 'ball', 'fight', 'ui', 'onGround', 'kame', 'cast', 'sky', 'bullets', 'enemies', 'flyers', 'cut', 'gateClosed'];
+const BET_PV_KEYS = ['ku', 'boss', 'ball', 'fight', 'ui', 'onGround', 'kame', 'cast', 'sky', 'bullets', 'enemies', 'flyers', 'cut', 'gateClosed'];
 function drawBetPreviews() {
   const list = document.querySelectorAll('#betList canvas.charprev');
   if (!list.length || !BET || !BET.pv) return;
@@ -12027,6 +12033,7 @@ function drawBetPreviews() {
         } else {
           const ch = betKey(id);
           CHAR = ch; S.onGround = true;
+          if (ch === 'kurumi') S.ku = BET.pvKu[betForm(id) || 'base'];
           const k = .95 + Math.sin(S.t * 2 + ch.length) * .015;
           ctx.setTransform(k, 0, 0, k, W / 2, H - 10);
           CHAR_DRAW[ch]({ x: 0, y: -R, vx: 0, vy: 0, face: 1, rot: 0, squash: 0, run: 0 }, false);
@@ -12045,7 +12052,8 @@ function betOpen() {
   for (const k in keys) if (keys[k]) setKey(k, false);
   S.charging = false;
   if (betCoins() <= 0) { betSetCoins(200); showTip('Hết xu: được cấp lại 200 xu để cược tiếp.'); }
-  BET = { pick: [], side: -1, odds: null, speed: 1, amt: 100, fight: null, pv: {} };
+  BET = { pick: [], side: -1, odds: null, speed: 1, amt: 100, fight: null, pv: {}, pvKu: {} };
+  for (const f in BET_KU) { const K = newKu(); betKuForm(K, f); BET.pvKu[f] = K; }
   const keep = [MAP, PHASES, ACT_LIST];
   try {
     for (const k of Object.keys(BET_BOSS)) {
@@ -12073,7 +12081,11 @@ function betBuildList() {
     const pv = document.createElement('canvas'); pv.className = 'charprev'; pv.width = 160; pv.height = 120; pv.betId = id;
     const nm = document.createElement('span'), sm = document.createElement('small');
     if (betIsBoss(id)) { const D = BET_BOSS[betKey(id)]; nm.textContent = `Boss · ${D.name} · Màn ${D.map}`; sm.textContent = D.info; }
-    else { const k = betKey(id), st = CHAR_STATS[k] || CHAR_STATS.chii; nm.textContent = CHAR_UI[k].name; sm.textContent = `${CHAR_UI[k].from} · Máu ${st.hp.toLocaleString('vi-VN')} · Công ${st.atk} · Thủ ${st.def}`; }
+    else {
+      const k = betKey(id), st = CHAR_STATS[k] || CHAR_STATS.chii, f = k === 'kurumi' ? betForm(id) || 'base' : null;
+      nm.textContent = betName(id);
+      sm.textContent = `${f ? 'Dạng: ' + KU_FORMS[f].short.slice(2).join(', ') : CHAR_UI[k].from} · Máu ${st.hp.toLocaleString('vi-VN')} · Công ${st.atk} · Thủ ${st.def}`;
+    }
     btn.append(pv, nm, sm);
     btn.addEventListener('click', () => {
       const P = BET.pick, i = P.indexOf(id);
