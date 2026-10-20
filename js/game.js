@@ -874,7 +874,7 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
   const dmg = force === 'nova' ? Math.max(0, Math.min(S.hp - 1, Math.ceil(S.maxHp * .6))) : force ? S.hp : fell ? Math.ceil(S.maxHp * .25) : incomingDmg();
   S.hitAtk = 0;
   if (!TEST_MODE || (BET && BET.fight)) S.hp = Math.max(0, S.hp - dmg);
-  if (S.hp <= 0 && !fell && tqRevive()) { hud(); return; }   // Thi Quỷ: vỡ Đan Điền, tách thành hai
+  if (S.hp <= 0 && !fell && (tqRevive() || gbUndying())) { hud(); return; }   // Thi Quỷ: vỡ Đan Điền, tách thành hai
   S.pops.push({ x: S.ball.x, y: S.ball.y - 56, t: 1, text: `-${dmg}`, c: '#ff4d55', big: true });
   if (S.hp > 0 && !fell) {
     const b = S.ball, side = -(b.face || 1);
@@ -1364,7 +1364,7 @@ const CHARS = {
   // Vegito Blue: cheat, bay tự do, sát thương ×3
   // Quả Bóng Đỏ: cheat, nảy 4 lần, lăn càng lâu càng nhanh
   // Gabimaru: cheat, nhẫn giả nhanh nhẹn, nhảy 3 lần
-  gabimaru: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 470, airJumps: 2, dmgK: 2, pierce: true },
+  gabimaru: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 520, airJumps: 2, dmgK: 2, pierce: true },
   bong: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .25, regen: 8, speed: 520, airJumps: 3, dmgK: 3, pierce: true },
   vegito: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .3, regen: 8, speed: 480, airJumps: 0, dmgK: 3, pierce: true, fly: true },
   ssb:    { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 1, regen: 6, speed: 430, airJumps: 2, dmgK: 2, pierce: true },
@@ -3231,18 +3231,18 @@ const CHAR_UI = {
     passive: 'giữ nhảy để lơ lửng · cheat: nhảy 3 lần, chạy nhanh, sát thương ×2, xuyên khiên boss, chakra nạp ×6. Bục bị phá tự hồi sau 6 giây.',
     tip: 'Pain: J Hắc Bổng · giữ J Vạn Tượng Thiên Dẫn · L Địa Bộc Thiên Tinh · Shift Ngạ Quỷ Đạo · U khi đầy: SHINRA TENSEI phá huỷ mọi thứ xung quanh. Giữ nhảy để lơ lửng.' },
   gabimaru: { name: 'Gabimaru', from: "Hell's Paradise", tag: 'Kẻ Rỗng — nhẫn giả mạnh nhất Iwagakure: Hỏa Pháp Sư, Đạo Hoa (cheat)', energy: 'Năng lượng',
-    btn: { bolt: ['Đao', 'Thủ Đao'], web: ['Lửa', 'Hỏa Pháp Sư'], skill: ['Gỗ', 'Thế Thân'], volt: ['Bạo', 'Hỏa Đạo Bạo Viêm'] },
-    short: ['Thủ Đao', 'Bão Đá', 'Hỏa Pháp Sư', 'Thế Thân', 'Hỏa Đạo Bạo Viêm'],
+    btn: { bolt: ['Đao', 'Thủ Đao'], web: ['Lửa', 'Hỏa Pháp Sư'], skill: ['Gỗ', 'Thế Thân'], volt: ['Sen', 'Thiên Hỏa Liên Hoa'] },
+    short: ['Thủ Đao', 'Bão Đá', 'Hỏa Pháp Sư', 'Thế Thân', 'Thiên Hỏa Liên Hoa'],
     more: ' · <kbd>F</kbd> Đạo Hoa · <kbd>E</kbd> khăn che mặt', moreTap: ' · Đạo · Khăn',
     kit: [['J', 'Thủ Đao: chém tay không 3 nhát, nhát thứ 3 bẻ cổ (sát thương gấp đôi)'],
       ['Giữ J', 'Nhẫn pháp: Bão Đá — hất sỏi lên rồi đá bay thành loạt đạn (giữ lâu: 11 viên)'],
-      ['L', 'Nhẫn pháp: Hỏa Pháp Sư — đốt dầu trên da, toàn thân bốc lửa 8 giây: mọi đòn ×1,5, chạm vào là bỏng (L lần nữa để tắt)'],
-      ['Shift', 'Thế Thân: biến mất để lại khúc gỗ, hiện ra sau lưng kẻ địch gần nhất (hoặc lùi ra sau), vô địch thoáng chốc'],
-      ['U', 'Hỏa Đạo Bạo Viêm: tường lửa Đạo cuộn về phía trước 700, sát thương lớn (cần đầy năng lượng)'],
-      ['F', 'Đạo Hoa: hoa nở trên người, vết đen lan quanh mắt trái — sát thương ×1,3, hồi 1,5% máu mỗi giây (bật/tắt)'],
+      ['L', 'Nhẫn pháp: Hỏa Pháp Sư — đốt dầu trên da, lửa cuồn cuộn quanh người 10 giây: mọi đòn ×1,5, chạm vào là bỏng, Bão Đá thành mưa thiên thạch lửa (L lần nữa để tắt)'],
+      ['Shift', 'Thế Thân: biến mất để lại khúc gỗ, hiện ra sau lưng kẻ địch gần nhất và đâm lén ngay'],
+      ['U', 'Nhẫn pháp: Thiên Hỏa Liên Hoa — màn hình tối lại, chớp qua từng kẻ địch chém lửa chữ thập, rồi sen lửa khổng lồ nở bung (cần đầy năng lượng)'],
+      ['F', 'Đạo Hoa: lửa hoá Lam Hỏa xanh trắng, hoa nở, vết đen quanh mắt trái — sát thương ×1,3, hồi 1,5% máu mỗi giây (bật/tắt)'],
       ['E', 'Khăn che mặt: kéo khăn cổ đen lên che nửa mặt khi vào trận']],
-    passive: 'cheat: mọi chiêu miễn phí, sát thương ×2, xuyên khiên boss, nhảy 3 lần.',
-    tip: 'Gabimaru: J Thủ Đao (nhát 3 bẻ cổ) · giữ J Bão Đá · L Hỏa Pháp Sư · Shift Thế Thân · U Hỏa Đạo Bạo Viêm · F Đạo Hoa · E khăn che mặt.' },
+    passive: 'Kẻ Rỗng: đòn chí tử không giết được (còn 20% máu, 40 giây một lần) · tốc độ nhẫn giả để lại bóng mờ · cheat: mọi chiêu miễn phí, sát thương ×2, xuyên khiên boss, nhảy 3 lần.',
+    tip: 'Gabimaru: J Thủ Đao (nhát 3 bẻ cổ) · giữ J Bão Đá · L Hỏa Pháp Sư · Shift Thế Thân · U Thiên Hỏa Liên Hoa · F Đạo Hoa · E khăn che mặt.' },
   bong: { name: 'Quả Bóng Đỏ', from: 'Bóng Đỏ Phiêu Lưu', tag: 'Nhân vật gốc: nảy, lăn, phồng to, tách thân (cheat)', energy: 'Năng lượng',
     btn: { bolt: ['Bóng', 'Bóng Con'], web: ['Nảy', 'Siêu Nảy'], skill: ['Lăn', 'Lăn Siêu Tốc'], volt: ['Tách', 'Phân Thân Đỏ'] },
     short: ['Bóng Con', 'Phồng To', 'Siêu Nảy', 'Lăn Siêu Tốc', 'Phân Thân Đỏ'],
@@ -11277,114 +11277,189 @@ function drawBongFx() {
    Ngoại hình theo nguyên tác: dáng thấp nhỏ, tóc trắng bù xù che phía bên mặt, mắt vàng (bản anime), mặt lạnh tanh;
    đạo phục nhẫn giả Iwagakure màu xanh đen tay dài sờn rách, đai trắng sờn buộc ngang hông, quần tattsuke cùng màu
    bó từ gối, bao tay nhẫn giả đen (vòng xỏ ngón giữa), xà cạp, dép rơm; khăn đen che nửa mặt khi vào trận (E).
-   Đạo Hoa (F): vết đen lan quanh mắt trái, hoa mọc trên người — mạnh hơn, hồi máu.
-   J Thủ Đao: chém tay không 3 nhát, nhát thứ 3 bẻ cổ (mạnh) · giữ J Nhẫn pháp: Bão Đá — đá sỏi tung lên rồi đá bay thành loạt đạn
-   · L Nhẫn pháp: Hỏa Pháp Sư — đốt dầu trên da, toàn thân bốc lửa 8 giây: mọi đòn ×1,5 và cháy, chạm là bỏng
-   · K Thế Thân: biến mất để lại khúc gỗ, hiện ra phía sau / phía trước · U khi đầy: Hỏa Đạo Bạo Viêm — cột lửa Đạo quét tới. */
-function newGb() { return { cd: {}, pose: null, poseT: 0, cur: null, mt: 0, combo: 0, fire: 0, tao: false, mask: false, stones: [], logs: [], fx: [], ult: null, regenAcc: 0 }; }
+   Tốc độ nhẫn giả: chạy nhanh để lại bóng mờ. Nội tại Kẻ Rỗng: đòn chí tử không giết được hắn (còn 20% máu, hồi 40 giây).
+   J Thủ Đao: chớp tới chém tay không 3 nhát, nhát thứ 3 bẻ cổ · giữ J Nhẫn pháp: Bão Đá (đang cháy: mưa thiên thạch lửa)
+   · L Nhẫn pháp: Hỏa Pháp Sư — đốt dầu trên da, lửa cuồn cuộn quanh người 10 giây: đòn ×1,5, chạm là bỏng
+   · K Thế Thân: để lại khúc gỗ, hiện ra sau lưng kẻ địch và đâm lén · F Đạo Hoa: lửa hoá Lam Hỏa xanh trắng, hoa nở, hồi máu
+   · U khi đầy: Thiên Hỏa Liên Hoa — màn hình tối lại, Gabimaru chớp qua từng kẻ địch chém lửa, rồi một đoá sen lửa khổng lồ nở bung. */
+function newGb() { return { cd: {}, pose: null, poseT: 0, cur: null, mt: 0, combo: 0, fire: 0, tao: false, mask: false, stones: [], logs: [], fx: [], ult: null, regenAcc: 0, ghosts: [], embers: [], gT: 0 }; }
 function gbCd(k, t) { const G2 = S.gb; if (G2.cd[k] > 0) return false; G2.cd[k] = t; return true; }
 function gbPose(p, t) { S.gb.pose = p; S.gb.poseT = t; }
-function gbPop(text, c = '#ffb04a') { S.pops.push({ x: S.ball.x, y: S.ball.y - 80, t: 1, text, c }); }
+function gbPop(text, c = '#ffb04a', big) { S.pops.push({ x: S.ball.x, y: S.ball.y - 80, t: big ? 1.4 : 1, text, c, big }); }
 const gbK = () => (S.gb.fire > 0 ? 1.5 : 1) * (S.gb.tao ? 1.3 : 1);
+// bảng màu lửa: lửa cam thường, Đạo Hoa thì Lam Hỏa xanh trắng
+const gbCols = () => S.gb && S.gb.tao ? ['#ffffff', '#bfeaff', '#5ab0ff', '#2a5aff'] : ['#fff6c0', '#ffd04a', '#ff7a1a', '#d8200a'];
+function gbGhost(b, t = .28) { S.gb.ghosts.push({ x: b.x, y: b.y, face: b.face || 1, vx: b.vx, pose: S.gb.pose, t, max: t }); }
 function gbHit(t, dmg) {
   if (!tAlive(t)) return;
-  const p = tPos(t), fire = S.gb.fire > 0;
-  boltSpark(p.x, p.y, fire ? '#ff8a2a' : '#e8e8f0', 8);
-  if (fire) for (let i = 0; i < 6; i++) S.parts.push({ x: p.x + (Math.random() - .5) * 30, y: p.y + (Math.random() - .5) * 30, vx: (Math.random() - .5) * 80, vy: -120 - Math.random() * 120, life: .5, c: i % 2 ? '#ffb02a' : '#ff4a1a', r: 4 + Math.random() * 4, g: -200 });
+  const p = tPos(t), fire = S.gb.fire > 0, C = gbCols();
+  boltSpark(p.x, p.y, fire ? C[2] : '#e8e8f0', 8);
+  if (fire) for (let i = 0; i < 10; i++) S.parts.push({ x: p.x + (Math.random() - .5) * 30, y: p.y + (Math.random() - .5) * 30, vx: (Math.random() - .5) * 140, vy: -140 - Math.random() * 160, life: .6, c: C[i % 4], r: 4 + Math.random() * 5, g: -220 });
   const d = dmg * gbK();
   if (t.kind === 'boss') { LAST_PROBE = { x: S.ball.x, y: S.ball.y, t: S.t }; damageBoss(t.ref, d, 'shock'); }
-  else if (t.kind === 'enemy') { const e = t.ref; e.inv = 0; e.bub = 0; if (e.role === 'khien') e.dir = -(Math.sign(S.ball.x - e.x) || 1); if (d >= 3 && !e.mid) e.hp = 1; killEnemy(e, fire ? '#ff6a2a' : '#c8ccd4'); }
+  else if (t.kind === 'enemy') { const e = t.ref; e.inv = 0; e.bub = 0; if (e.role === 'khien') e.dir = -(Math.sign(S.ball.x - e.x) || 1); if (d >= 3 && !e.mid) e.hp = 1; killEnemy(e, fire ? C[2] : '#c8ccd4'); }
   else if (t.kind === 'flyer') killFlyer(t.ref);
   else { const T = S.turret; T.hp -= d; T.flash = .15; if (T.hp <= 0) breakTurret(); }
 }
-// J: Thủ Đao — ba nhát chém tay không, nhát thứ ba bẻ cổ
+// J: Thủ Đao — chớp tới một bước rồi chém, nhát thứ ba bẻ cổ (vệt chém chữ thập, lửa bùng nếu đang cháy)
 function gbChop() {
-  if (!canAct() || !gbCd('j', .2)) return;
+  if (!canAct() || !gbCd('j', .18)) return;
   const G2 = S.gb, b = S.ball, d = b.face || 1, i = G2.combo++ % 3, neck = i === 2;
-  gbPose(neck ? 'twist' : i ? 'chop2' : 'chop', .2);
-  b.vx += d * 160;
-  const hx = b.x + d * (neck ? 48 : 42), hy = b.y - 16, hit = nkTouch(hx, hy, neck ? 46 : 40);
-  for (const t of hit) gbHit(t, neck ? 4 : 2);
-  G2.fx.push({ k: 'chop', x: hx, y: hy, d, t: 0, max: .18, neck });
+  gbGhost(b, .22);
+  const lo = S.fight ? ARENA.l + R : R, hi = S.fight ? ARENA.r - R : LEVEL_W - R;
+  const tg = kkTarget(220);
+  if (tg) { const p = tPos(tg); if (Math.abs(p.x - b.x) > 60) b.x = clamp(p.x - d * 46, lo, hi); }
+  else b.x = clamp(b.x + d * 34, lo, hi);
+  gbPose(neck ? 'twist' : i ? 'chop2' : 'chop', .22);
+  const hx = b.x + d * (neck ? 48 : 42), hy = b.y - 16, hit = nkTouch(hx, hy, neck ? 52 : 44);
+  for (const t of hit) gbHit(t, neck ? 5 : 2.5);
+  G2.fx.push({ k: 'chop', x: hx, y: hy, d, t: 0, max: neck ? .3 : .2, neck, fire: G2.fire > 0 });
+  if (neck) { G2.fx.push({ k: 'cross', x: hx + d * 6, y: hy, t: 0, max: .35, fire: G2.fire > 0 }); S.flash = Math.max(S.flash, .12); }
   sfx(hit.length ? 'hit' : 'dash');
   if (neck && hit.length) gbPop('Bẻ cổ!', '#e8e8f0');
 }
-// giữ J: Nhẫn pháp: Bão Đá — hất sỏi lên rồi đá bay thành loạt đạn
+// giữ J: Nhẫn pháp: Bão Đá — hất sỏi lên rồi đá bay thành loạt đạn; đang cháy thì thành mưa thiên thạch lửa nổ tung
 function gbStones(hold) {
-  if (!canAct() || !gbCd('stone', .5)) return;
-  const G2 = S.gb, b = S.ball, d = b.face || 1, n = hold > 1 ? 11 : 7;
+  if (!canAct() || !gbCd('stone', .45)) return;
+  const G2 = S.gb, b = S.ball, d = b.face || 1, n = hold > 1 ? 13 : 8, fire = G2.fire > 0;
   gbPose('kick', .35);
+  G2.fx.push({ k: 'dust', x: b.x + d * 16, y: b.y + R, t: 0, max: .4 });
   for (let i = 0; i < n; i++) {
-    const a = -.35 + (i / (n - 1)) * .5 + (Math.random() - .5) * .08, sp = 820 + Math.random() * 200;
-    G2.stones.push({ x: b.x + d * 22, y: b.y + 6 - i * 2, vx: d * Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, r: 4 + Math.random() * 3, fire: G2.fire > 0, rot: Math.random() * 6 });
+    const a = -.4 + (i / (n - 1)) * .55 + (Math.random() - .5) * .08, sp = 880 + Math.random() * 220;
+    G2.stones.push({ x: b.x + d * 22, y: b.y + 6 - i * 2, vx: d * Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, r: (fire ? 6 : 4) + Math.random() * 3, fire, rot: Math.random() * 6, hist: [] });
   }
-  sfx('stomp'); gbPop('Nhẫn pháp: Bão Đá!', '#d8d0c0');
+  sfx(fire ? 'boom' : 'stomp'); gbPop(fire ? 'Nhẫn pháp: Bão Đá Hỏa Thạch!' : 'Nhẫn pháp: Bão Đá!', fire ? '#ffb04a' : '#d8d0c0');
 }
-// L: Nhẫn pháp: Hỏa Pháp Sư (Hibōshi) — đốt dầu trên da, toàn thân bốc lửa
+// L: Nhẫn pháp: Hỏa Pháp Sư (Hibōshi) — đốt dầu trên da, lửa cuồn cuộn quanh người
 function gbHibo() {
   if (!canAct()) return;
-  const G2 = S.gb;
+  const G2 = S.gb, b = S.ball;
   if (G2.fire > 0) { G2.fire = 0; G2.cd.fire = 2; gbPop('Tắt lửa', '#c8ccd4'); return; }
   if (!gbCd('fire', 3)) { gbPop(`Hỏa Pháp Sư hồi ${G2.cd.fire.toFixed(1)} giây`); sfx('deny'); return; }
-  G2.fire = 8; S.flash = Math.max(S.flash, .3); sfx('boom');
-  gbPop('Nhẫn pháp: Hỏa Pháp Sư!', '#ff8a2a');
+  G2.fire = 10; S.flash = Math.max(S.flash, .35); sfx('boom');
+  G2.fx.push({ k: 'ignite', x: b.x, y: b.y, t: 0, max: .6 });
+  for (const t of nkTargets(b.x, b.y, 130, 10)) gbHit(t, 3);
+  gbPop('Nhẫn pháp: HỎA PHÁP SƯ!', G2.tao ? '#9fd8ff' : '#ff8a2a', true);
 }
-// K: Thế Thân — để lại khúc gỗ, hiện ra chỗ khác (ra sau lưng kẻ địch gần nhất nếu có)
+// K: Thế Thân — để lại khúc gỗ, hiện ra sau lưng kẻ địch gần nhất và đâm lén ngay
 function gbSubst() {
   if (!canAct() || !gbCd('k', .45)) return;
   const G2 = S.gb, b = S.ball, x0 = b.x, y0 = b.y;
   G2.logs.push({ x: x0, y: y0, t: 0, max: 1 });
-  const t = kkTarget(320);
+  gbGhost(b, .3);
+  const t = kkTarget(360);
   const lo = S.fight ? ARENA.l + R : R, hi = S.fight ? ARENA.r - R : LEVEL_W - R;
-  if (t) { const p = tPos(t), s = Math.sign(p.x - x0) || 1; b.x = clamp(p.x + s * 70, lo, hi); b.face = -s; }
-  else b.x = clamp(x0 - (b.face || 1) * 200, lo, hi);
+  if (t) {
+    const p = tPos(t), s = Math.sign(p.x - x0) || 1;
+    b.x = clamp(p.x + s * 60, lo, hi); b.face = -s;
+    gbPose('chop', .25);
+    gbHit(t, 4);
+    G2.fx.push({ k: 'chop', x: p.x, y: b.y - 16, d: -s, t: 0, max: .25, neck: true, fire: G2.fire > 0 });
+    gbPop('Ám sát!', '#e8e8f0');
+  } else b.x = clamp(x0 - (b.face || 1) * 200, lo, hi);
   b.vx = 0; b.vy = Math.min(b.vy, 0);
   S.safe = Math.max(S.safe, .5); S.tele.push({ x: x0, y: y0, t: .3 });
   sfx('tele');
 }
-// U: Hỏa Đạo Bạo Viêm — cột lửa Đạo quét về phía trước
+// U: Thiên Hỏa Liên Hoa — cảnh phim: màn hình tối, chớp qua từng kẻ địch chém lửa, rồi sen lửa khổng lồ nở bung
 function gbUlt() {
-  if (!canAct()) return;
+  if (!canAct() || S.gb.ult) return;
   const b = S.ball;
   if (S.energy < COST.volt) { gbPop(`Cần đầy năng lượng (${Math.floor(S.energy)}/100)`, '#ffd27a'); sfx('deny'); return; }
-  S.energy = 0; S.flash = .8; S.power = Math.max(S.power, 1.2);
-  S.gb.ult = { x: b.x, y: b.y + R, d: b.face || 1, t: 0, hit: new Set() };
-  gbPose('cast', .9); sfx('volt');
-  S.pops.push({ x: b.x, y: b.y - 100, t: 1.4, text: 'HỎA ĐẠO BẠO VIÊM!', c: '#ff6a2a', big: true });
+  S.energy = 0; S.power = Math.max(S.power, 3.4);
+  const tg = nkTargets(b.x, b.y, 900, 8).filter(t => Math.abs(tPos(t).y - b.y) < 360);
+  const main = tg.find(t => t.kind === 'boss') || tg[0];
+  const fx = main ? tPos(main).x : b.x + (b.face || 1) * 220, fy = main ? tPos(main).y : b.y - 20;
+  S.gb.ult = { t: 0, x0: b.x, y0: b.y, tg, i: 0, step: 0, lx: fx, ly: fy, bloomed: false, hit: new Set() };
+  if (!S.gb.fire) S.gb.fire = 4;
+  gbPose('cast', .4); sfx('roar');
+  S.pops.push({ x: b.x, y: b.y - 110, t: 2, text: 'NHẪN PHÁP: THIÊN HỎA LIÊN HOA!', c: S.gb.tao ? '#9fd8ff' : '#ff6a2a', big: true });
 }
 // F: Đạo Hoa · E: khăn che mặt
 function gbTao() {
   const G2 = S.gb; if (!canAct()) return;
   G2.tao = !G2.tao; S.flash = Math.max(S.flash, .4); sfx(G2.tao ? 'ui' : 'tele');
-  gbPop(G2.tao ? 'Đạo Hoa: hoa nở trên người, vết đen quanh mắt trái — mạnh hơn, hồi máu' : 'Thu Đạo Hoa', G2.tao ? '#ffb0d8' : '#c8ccd4');
+  G2.fx.push({ k: 'bloom', x: S.ball.x, y: S.ball.y - 20, t: 0, max: .8 });
+  gbPop(G2.tao ? 'ĐẠO HOA: Lam Hỏa — hoa nở, vết đen quanh mắt trái' : 'Thu Đạo Hoa', G2.tao ? '#bfeaff' : '#c8ccd4', G2.tao);
 }
 function gbMask() { const G2 = S.gb; G2.mask = !G2.mask; gbPop(G2.mask ? 'Đeo khăn che mặt — vào trận' : 'Bỏ khăn che mặt', '#c8ccd4'); }
+// nội tại Kẻ Rỗng: đòn chí tử không giết được (còn 20% máu), 40 giây một lần
+function gbUndying() {
+  if (CHAR !== 'gabimaru' || !S.gb || S.gb.cd.undying > 0) return false;
+  S.gb.cd.undying = 40; S.hp = Math.max(1, Math.ceil(S.maxHp * .2));
+  S.safe = Math.max(S.safe, 1.5); S.hurtT = S.t + 1.5; S.flash = .8; sfx('roar');
+  S.gb.fx.push({ k: 'bloom', x: S.ball.x, y: S.ball.y - 20, t: 0, max: 1 });
+  gbPop('Kẻ Rỗng: không gì giết được ta!', '#ffffff', true);
+  return true;
+}
 function updateGabimaru(dt) {
   const G2 = S.gb; if (!G2) return;
   for (const k in G2.cd) G2.cd[k] -= dt;
   G2.mt += dt; G2.poseT -= dt; if (G2.poseT <= 0) G2.pose = null;
   for (const f of G2.fx) f.t += dt; G2.fx = G2.fx.filter(f => f.t < f.max);
   for (const l of G2.logs) l.t += dt; G2.logs = G2.logs.filter(l => l.t < l.max);
+  for (const g of G2.ghosts) g.t -= dt; G2.ghosts = G2.ghosts.filter(g => g.t > 0);
+  for (const e of G2.embers) { e.t += dt; e.x += e.vx * dt; e.y += e.vy * dt; e.vy -= 160 * dt; } G2.embers = G2.embers.filter(e => e.t < e.life);
   for (const q of G2.stones) {
     q.t += dt; q.vy += 900 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.rot += dt * 14;
-    for (const t of nkTouch(q.x, q.y, q.r + 6)) { gbHit(t, 1.5); q.dead = true; break; }
+    if (q.fire) { q.hist.unshift({ x: q.x, y: q.y }); if (q.hist.length > 7) q.hist.pop(); }
+    for (const t of nkTouch(q.x, q.y, q.r + 6)) {
+      gbHit(t, q.fire ? 2.5 : 1.5); q.dead = true;
+      if (q.fire) { G2.fx.push({ k: 'boom', x: q.x, y: q.y, t: 0, max: .35 }); for (const t2 of nkTargets(q.x, q.y, 70, 6)) if (t2.ref !== t.ref) gbHit(t2, 1); }
+      break;
+    }
     if (q.t > 1.1 || q.y > DEATH_Y) q.dead = true;
   }
   G2.stones = G2.stones.filter(q => !q.dead);
   if (CHAR !== 'gabimaru') { G2.fire = 0; G2.ult = null; return; }
-  const b = S.ball;
+  const b = S.ball, C = gbCols();
+  // bóng mờ khi chạy nhanh
+  if (Math.abs(b.vx) > 320 && !S.dead && (G2.gT -= dt) <= 0) { G2.gT = .05; gbGhost(b, .22); }
   if (G2.fire > 0 && !S.dead) {
     G2.fire -= dt;
     if (G2.fire <= 0) { G2.cd.fire = 3; gbPop('Lửa tắt', '#c8ccd4'); }
-    if ((G2.burnT = (G2.burnT || 0) - dt) <= 0) { G2.burnT = .3; for (const t of nkTouch(b.x, b.y - 10, R + 14)) gbHit(t, 1); }
+    if ((G2.burnT = (G2.burnT || 0) - dt) <= 0) { G2.burnT = .3; for (const t of nkTouch(b.x, b.y - 10, R + 18)) gbHit(t, 1); }
+    // lưỡi lửa bốc từ khắp người
+    for (let i = 0; i < 3; i++) G2.embers.push({ x: b.x + (Math.random() - .5) * 26, y: b.y + R - Math.random() * 50, vx: (Math.random() - .5) * 40 - b.vx * .2, vy: -60 - Math.random() * 80, t: 0, life: .45 + Math.random() * .3, s: 6 + Math.random() * 7, c: i });
   }
-  if (G2.tao && !S.dead && S.hp < S.maxHp) { G2.regenAcc += S.maxHp * .015 * dt; if (G2.regenAcc >= 1) { const g = Math.floor(G2.regenAcc); G2.regenAcc -= g; S.hp = Math.min(S.maxHp, S.hp + g); hud(); } }
+  if (G2.tao && !S.dead) {
+    if (S.hp < S.maxHp) { G2.regenAcc += S.maxHp * .015 * dt; if (G2.regenAcc >= 1) { const g = Math.floor(G2.regenAcc); G2.regenAcc -= g; S.hp = Math.min(S.maxHp, S.hp + g); hud(); } }
+    if (Math.random() < dt * 8) G2.embers.push({ x: b.x + (Math.random() - .5) * 30, y: b.y - 30 - Math.random() * 20, vx: (Math.random() - .5) * 50, vy: -20, t: 0, life: 1.4, s: 3, petal: true });
+  }
   const U = G2.ult;
   if (U) {
-    U.t += dt;
-    const reach = Math.min(700, U.t * 1400), x0 = Math.min(U.x, U.x + U.d * reach), x1 = Math.max(U.x, U.x + U.d * reach);
-    for (const t of [...nkTargets((x0 + x1) / 2, U.y - 80, 420, 16)]) { const p = tPos(t); if (p.x >= x0 - 30 && p.x <= x1 + 30 && p.y > U.y - 260 && !U.hit.has(t.ref)) { U.hit.add(t.ref); gbHit(t, 7); } }
-    if (U.t > 1.1) G2.ult = null;
+    U.t += dt; b.vx = 0; b.vy = 0; S.safe = Math.max(S.safe, .1);
+    if (U.i < U.tg.length) {
+      // chớp qua từng kẻ địch, mỗi nhát một vệt chém lửa chữ thập
+      if ((U.step -= dt) <= 0) {
+        U.step = .09;
+        const t = U.tg[U.i++];
+        if (tAlive(t)) {
+          gbGhost(b, .4);
+          const p = tPos(t), s = Math.sign(p.x - b.x) || 1;
+          b.x = clamp(p.x - s * 40, S.fight ? ARENA.l + R : R, S.fight ? ARENA.r - R : LEVEL_W - R); b.y = Math.min(b.y, p.y); b.face = s;
+          gbPose(U.i % 2 ? 'chop' : 'chop2', .1);
+          gbHit(t, 4);
+          G2.fx.push({ k: 'cross', x: p.x, y: p.y, t: 0, max: .5, fire: true });
+          sfx('hit');
+        }
+      }
+    } else if (!U.back) {
+      // trở về, giơ tay: sen lửa nở
+      U.back = U.t; gbGhost(b, .4);
+      b.x = U.x0; b.y = U.y0; b.face = Math.sign(U.lx - b.x) || b.face; gbPose('cast', 1.2);
+      S.zoom = { z: 1, fx: U.lx, fy: U.ly };
+    } else {
+      const k = U.t - U.back;
+      if (S.zoom) S.zoom.z += ((k < .9 ? 1.35 : 1) - S.zoom.z) * Math.min(1, dt * 5);
+      if (k > .7 && !U.bloomed) {
+        U.bloomed = true; S.flash = .7; sfx('boom');
+        for (const t of nkTargets(U.lx, U.ly, 300, 20)) gbHit(t, t.kind === 'boss' ? 10 : 5);
+        const u = bossUnitAt(U.lx, U.ly, 200); if (u) { const B = S.boss; B.stun = Math.max(B.stun || 0, 1.5); B.act = null; }
+        S.bullets = []; S.tshots = [];
+      }
+      if (k > 1.5) { G2.ult = null; S.zoom = null; }
+    }
   }
 }
 // tư thế: hy độ cao hông, lean nghiêng thân, bl/fl chân sau/trước, ba/fa tay sau/trước (góc so với phương thẳng đứng)
@@ -11508,21 +11583,57 @@ function drawGabimaruFig(b, pose, ghost) {
   arm(P.fa, true);
   ctx.restore();
 }
+// lưỡi lửa hình giọt, nhọn phía trên
+function gbFlame(x, y, s, a, col) {
+  ctx.fillStyle = col; ctx.globalAlpha = a;
+  ctx.beginPath(); ctx.moveTo(x - s * .5, y); ctx.quadraticCurveTo(x - s * .55, y - s * .9, x + Math.sin(S.t * 18 + x) * s * .2, y - s * 1.8);
+  ctx.quadraticCurveTo(x + s * .55, y - s * .9, x + s * .5, y); ctx.quadraticCurveTo(x, y + s * .45, x - s * .5, y); ctx.fill();
+}
 function drawGabimaru(b, charged) {
-  const G2 = S.gb;
-  if (G2.fire > 0) {
-    // Hỏa Pháp Sư: lửa bốc quanh toàn thân
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    drawAura(b.x, b.y + R, 26, 70, 'rgb(255 90 20 / .35)', 0);
-    drawAura(b.x, b.y + R, 18, 56, 'rgb(255 190 60 / .45)', 2);
+  const G2 = S.gb, C = gbCols();
+  // bóng mờ tốc độ nhẫn giả
+  for (const g of G2.ghosts) {
+    ctx.save(); ctx.globalAlpha = .35 * g.t / g.max;
+    drawGabimaruFig({ x: g.x, y: g.y, face: g.face, vx: g.vx }, g.pose, true);
     ctx.restore();
   }
-  if (G2.tao) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; drawAura(b.x, b.y + R, 22, 62, 'rgb(255 170 210 / .18)', 4); ctx.restore(); }
+  if (G2.ult && G2.ult.i < G2.ult.tg.length) return;   // đang chớp qua kẻ địch: chỉ thấy bóng mờ
+  if (G2.fire > 0) {
+    // Hỏa Pháp Sư: quầng lửa sau lưng
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(b.x, b.y - 12, 6, b.x, b.y - 12, 70);
+    g.addColorStop(0, G2.tao ? 'rgb(190 230 255 / .55)' : 'rgb(255 200 80 / .55)'); g.addColorStop(1, 'rgb(255 60 0 / 0)');
+    ctx.fillStyle = g; ctx.fillRect(b.x - 70, b.y - 82, 140, 140);
+    for (let i = 0; i < 9; i++) { const x = b.x - 20 + i * 5, h = 26 + Math.sin(S.t * 22 + i * 1.7) * 8 + (i % 3) * 6; gbFlame(x, b.y + R, h * .55, .55, C[2 + (i % 2)]); }
+    ctx.restore();
+  }
+  if (G2.tao) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; drawAura(b.x, b.y + R, 22, 62, 'rgb(180 220 255 / .18)', 4); ctx.restore(); }
   drawGabimaruFig(b, G2.pose, false);
+  if (G2.fire > 0) {
+    // lưỡi lửa phía trước thân
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) { const x = b.x - 14 + i * 6, h = 18 + Math.sin(S.t * 26 + i * 2.3) * 6; gbFlame(x, b.y + R - 6, h * .45, .45, C[1 + (i % 2)]); }
+    ctx.restore();
+  }
   if (charged) { ctx.strokeStyle = 'rgb(220 210 190 / .7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 12, 32 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
 }
 function drawGabimaruFx() {
   const G2 = S.gb; if (!G2) return;
+  const C = gbCols(), U = G2.ult;
+  // Thiên Hỏa Liên Hoa: khung hình tối lại (vẽ lại Gabimaru và lửa bên trên)
+  if (U) {
+    const k = Math.min(1, U.t / .2) * (U.back && U.t - U.back > 1.1 ? Math.max(0, 1 - (U.t - U.back - 1.1) / .4) : 1);
+    ctx.fillStyle = `rgb(6 2 10 / ${(.6 * k).toFixed(2)})`; ctx.fillRect(S.cam.x - 200, S.cam.y - 200, viewW + 400, VIEW_H + 400);
+    if (U.back) drawGabimaruFig(S.ball, G2.pose, false);
+  }
+  // lửa và cánh hoa bay lên
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const e of G2.embers) {
+    const k = e.t / e.life;
+    if (e.petal) { ctx.globalAlpha = 1 - k; ctx.fillStyle = e.t * 10 % 2 < 1 ? '#ffc8e0' : '#ffffff'; ctx.beginPath(); ctx.ellipse(e.x + Math.sin(e.t * 5) * 8, e.y, 3, 1.6, e.t * 4, 0, Math.PI * 2); ctx.fill(); continue; }
+    gbFlame(e.x, e.y, e.s * (1 - k * .6), (1 - k) * .8, C[Math.min(3, Math.floor(k * 4))]);
+  }
+  ctx.restore();
   // khúc gỗ thế thân
   for (const l of G2.logs) {
     const k = l.t / l.max;
@@ -11533,36 +11644,78 @@ function drawGabimaruFx() {
     ctx.restore();
     if (k < .3) { ctx.fillStyle = `rgb(230 230 230 / ${(.6 * (1 - k / .3)).toFixed(2)})`; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(l.x + (i - 1.5) * 12, l.y - 10 - k * 30, 10 + k * 20, 0, Math.PI * 2); ctx.fill(); } }
   }
-  // nhát chém tay không
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const f of G2.fx) {
-    const k = f.t / f.max, fire = G2.fire > 0;
-    ctx.save(); ctx.translate(f.x, f.y); ctx.scale(f.d, 1);
-    ctx.strokeStyle = fire ? `rgb(255 140 40 / ${(1 - k).toFixed(2)})` : `rgb(235 235 245 / ${(1 - k).toFixed(2)})`; ctx.lineWidth = f.neck ? 5 : 3;
-    ctx.beginPath(); ctx.arc(-14, 0, f.neck ? 30 : 24, -1.1 + k * .4, 1.1); ctx.stroke();
-    ctx.restore();
-  }
-  // Hỏa Đạo Bạo Viêm: tường lửa cuộn về phía trước
-  const U = G2.ult;
-  if (U) {
-    const reach = Math.min(700, U.t * 1400), fade = U.t > .8 ? 1 - (U.t - .8) / .3 : 1;
-    for (let i = 0; i < 18; i++) {
-      const x = U.x + U.d * reach * (i / 17), h = 120 + 120 * Math.sin(i * 1.3 + S.t * 20) * .3 + (i / 17) * 80;
-      const g = ctx.createLinearGradient(0, U.y, 0, U.y - h);
-      g.addColorStop(0, `rgb(255 80 20 / ${(.7 * fade).toFixed(2)})`); g.addColorStop(.6, `rgb(255 180 60 / ${(.5 * fade).toFixed(2)})`); g.addColorStop(1, 'rgb(255 240 180 / 0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 30, U.y); ctx.quadraticCurveTo(x - 10, U.y - h * .6, x + Math.sin(S.t * 30 + i) * 8, U.y - h); ctx.quadraticCurveTo(x + 14, U.y - h * .5, x + 30, U.y); ctx.fill();
+    const k = f.t / f.max;
+    if (f.k === 'chop') {
+      // vệt chém tay không: viền trắng sắc, lửa bám theo nếu đang cháy
+      ctx.save(); ctx.translate(f.x, f.y); ctx.scale(f.d, 1);
+      const r = f.neck ? 40 : 30, a0 = -1.3 + k * .4, a1 = 1.2;
+      if (f.fire) { ctx.strokeStyle = C[2]; ctx.globalAlpha = .7 * (1 - k); ctx.lineWidth = f.neck ? 18 : 12; ctx.beginPath(); ctx.arc(-14, 0, r, a0, a1); ctx.stroke(); }
+      ctx.strokeStyle = f.fire ? C[0] : '#f4f4fa'; ctx.globalAlpha = 1 - k; ctx.lineWidth = f.neck ? 5 : 3.5; ctx.beginPath(); ctx.arc(-14, 0, r, a0, a1); ctx.stroke();
+      ctx.restore();
+    } else if (f.k === 'cross') {
+      // nhát chém chữ thập
+      const L = 46 * (.6 + .4 * Math.min(1, k * 4));
+      ctx.globalAlpha = 1 - k;
+      for (const [w, c] of [[14, f.fire ? C[3] : '#8890a0'], [7, f.fire ? C[1] : '#d8dce8'], [2.5, '#ffffff']]) {
+        ctx.strokeStyle = c; ctx.lineWidth = w;
+        ctx.beginPath(); ctx.moveTo(f.x - L, f.y - L * .8); ctx.lineTo(f.x + L, f.y + L * .8); ctx.moveTo(f.x + L, f.y - L * .8); ctx.lineTo(f.x - L, f.y + L * .8); ctx.stroke();
+      }
+    } else if (f.k === 'ignite') {
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = C[2]; ctx.lineWidth = 10 * (1 - k) + 2;
+      ctx.beginPath(); ctx.arc(f.x, f.y - 10, 20 + k * 130, 0, Math.PI * 2); ctx.stroke();
+      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = 30 + k * 120; gbFlame(f.x + Math.cos(a) * r, f.y - 10 + Math.sin(a) * r * .5, 14 * (1 - k), 1 - k, C[i % 3]); }
+    } else if (f.k === 'boom') {
+      ctx.globalAlpha = 1 - k; const g = ctx.createRadialGradient(f.x, f.y, 2, f.x, f.y, 50 * (.4 + k)); g.addColorStop(0, C[0]); g.addColorStop(.5, C[2]); g.addColorStop(1, 'rgb(255 0 0 / 0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, 50 * (.4 + k), 0, Math.PI * 2); ctx.fill();
+    } else if (f.k === 'dust') {
+      ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = `rgb(200 190 170 / ${(.5 * (1 - k)).toFixed(2)})`;
+      for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(f.x + (i - 2) * 10, f.y - 6 - k * 20, 6 + k * 10, 0, Math.PI * 2); ctx.fill(); }
+      ctx.globalCompositeOperation = 'lighter';
+    } else if (f.k === 'bloom') {
+      // hoa Đạo nở bung quanh người
+      for (let i = 0; i < 10; i++) {
+        const a = i / 10 * Math.PI * 2 + k * 2, r = 20 + k * 90;
+        ctx.globalAlpha = 1 - k; ctx.fillStyle = i % 2 ? '#ffc8e0' : '#ffffff';
+        ctx.beginPath(); ctx.ellipse(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * .6, 7, 3.5, a, 0, Math.PI * 2); ctx.fill();
+      }
     }
   }
+  ctx.globalAlpha = 1;
+  // sen lửa Thiên Hỏa Liên Hoa
+  if (U && U.back) {
+    const k = Math.min(1, (U.t - U.back) / .7), post = Math.max(0, U.t - U.back - .7), fade = Math.max(0, 1 - post / .8);
+    ctx.save(); ctx.translate(U.lx, U.ly);
+    for (let ring = 2; ring >= 0; ring--) {
+      const n = 8 + ring * 2, R2 = (50 + ring * 38) * k * (1 + post * .8);
+      for (let i = 0; i < n; i++) {
+        const a = i / n * Math.PI * 2 + ring * .3 + U.t * .6;
+        ctx.save(); ctx.rotate(a); ctx.globalAlpha = .75 * fade;
+        const g = ctx.createLinearGradient(0, 0, 0, -R2); g.addColorStop(0, C[0]); g.addColorStop(.5, C[1 + ring % 2]); g.addColorStop(1, C[3]);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(R2 * .35, -R2 * .55, 0, -R2); ctx.quadraticCurveTo(-R2 * .35, -R2 * .55, 0, 0); ctx.fill();
+        ctx.restore();
+      }
+    }
+    ctx.globalAlpha = fade; const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 60 * k); g.addColorStop(0, '#ffffff'); g.addColorStop(1, 'rgb(255 255 255 / 0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 60 * k, 0, Math.PI * 2); ctx.fill();
+    if (U.bloomed) { ctx.strokeStyle = C[1]; ctx.lineWidth = 8 * fade; ctx.beginPath(); ctx.arc(0, 0, 80 + post * 400, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  }
   ctx.restore();
-  // đá sỏi bay
+  // đá sỏi / thiên thạch lửa
   for (const q of G2.stones) {
+    if (q.fire) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < q.hist.length; i++) { const p = q.hist[i]; ctx.globalAlpha = .5 * (1 - i / q.hist.length); ctx.fillStyle = C[1 + (i % 3)]; ctx.beginPath(); ctx.arc(p.x, p.y, q.r * (1.6 - i * .15), 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    }
     ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot);
-    if (q.fire) { ctx.fillStyle = 'rgb(255 120 30 / .5)'; ctx.beginPath(); ctx.arc(0, 0, q.r * 2, 0, Math.PI * 2); ctx.fill(); }
-    ctx.fillStyle = '#8a8478'; ctx.beginPath(); ctx.moveTo(-q.r, -q.r * .3); ctx.lineTo(-q.r * .2, -q.r); ctx.lineTo(q.r, -q.r * .4); ctx.lineTo(q.r * .6, q.r); ctx.lineTo(-q.r * .7, q.r * .7); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = q.fire ? '#4a2a1a' : '#8a8478'; ctx.beginPath(); ctx.moveTo(-q.r, -q.r * .3); ctx.lineTo(-q.r * .2, -q.r); ctx.lineTo(q.r, -q.r * .4); ctx.lineTo(q.r * .6, q.r); ctx.lineTo(-q.r * .7, q.r * .7); ctx.closePath(); ctx.fill();
+    if (q.fire) { ctx.strokeStyle = C[1]; ctx.lineWidth = 1.2; ctx.stroke(); }
     ctx.restore();
   }
 }
-
 /* ---------- Asta & Yuno (Black Clover) bản mới: bộ chiêu theo phim và hai dạng biến hình cuối truyện ----------
    F đổi dạng (S.cl.form):
    · Asta — ÁC MA ĐỒNG HÓA (Devil Union với Liebe): tóc đen tuyền, mắt đỏ, 4 sừng đen, đôi cánh phản ma pháp, đuôi mũi tên,
