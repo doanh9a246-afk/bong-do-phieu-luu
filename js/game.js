@@ -11290,6 +11290,31 @@ const gbK = () => (S.gb.fire > 0 ? 1.5 : 1) * (S.gb.tao ? 1.3 : 1);
 // bảng màu lửa: lửa cam thường, Đạo Hoa thì Lam Hỏa xanh trắng
 const gbCols = () => S.gb && S.gb.tao ? ['#ffffff', '#bfeaff', '#5ab0ff', '#2a5aff'] : ['#fff6c0', '#ffd04a', '#ff7a1a', '#d8200a'];
 function gbGhost(b, t = .28) { S.gb.ghosts.push({ x: b.x, y: b.y, face: b.face || 1, vx: b.vx, pose: S.gb.pose, t, max: t }); }
+// đặt Gabimaru ở x sau khi dịch chuyển: đứng lên mặt đất / bục gần độ cao refY nhất (không lọt vào trong đất);
+// chỗ đến là tường, cửa đá thì không dịch chuyển (trả về false)
+function gbPlace(x, refY, air = false) {
+  const b = S.ball;
+  let best = null, bd = Infinity, bs = null;
+  for (const s of SOLIDS) {
+    if (s.broken || s.open || (s.gate && !S.gateClosed) || x + R < s.minX || x - R > s.maxX) continue;
+    if (!s.gd && s.pts[5] - s.minY > 60 && x > s.minX - R * .6 && x < s.maxX + R * .6) return false;   // tường, cửa
+    if (x < s.minX || x > s.maxX) continue;
+    const top = s.gd ? s.gd.f(x) : s.minY;
+    if (top < refY - 140) continue;   // mặt quá cao phía trên: không phải chỗ đứng
+    const dist = Math.abs(top - refY);
+    if (dist < bd) { bd = dist; best = top; bs = s; }
+  }
+  const stand = best !== null && best - refY < 320;
+  if (!stand && !air) return false;   // chỗ đến là vực: không dịch chuyển
+  if (stand && bs.maxX - bs.minX > R * 2) x = clamp(x, bs.minX + R, bs.maxX - R);   // lùi vào trong mép, không đứng hụt chân rơi xuống vực
+  if (stand && bs.gd) best = bs.gd.f(x);
+  b.x = x;
+  if (stand) b.y = best - R - 1;   // có chỗ đứng gần: đứng lên đó
+  else b.y = Math.min(b.y, refY - R);   // giữa không trung (đánh quái bay): ở ngang mục tiêu
+  b.vy = Math.min(b.vy, 0);
+  return true;
+}
+const gbFeet = t => t.kind === 'enemy' ? t.ref.f(t.ref.x) : t.kind === 'boss' ? t.ref.y : t.kind === 'turret' ? t.ref.f(t.ref.x) : tPos(t).y + 30;
 function gbHit(t, dmg) {
   if (!tAlive(t)) return;
   const p = tPos(t), fire = S.gb.fire > 0, C = gbCols();
@@ -11308,8 +11333,8 @@ function gbChop() {
   gbGhost(b, .22);
   const lo = S.fight ? ARENA.l + R : R, hi = S.fight ? ARENA.r - R : LEVEL_W - R;
   const tg = kkTarget(220);
-  if (tg) { const p = tPos(tg); if (Math.abs(p.x - b.x) > 60) b.x = clamp(p.x - d * 46, lo, hi); }
-  else b.x = clamp(b.x + d * 34, lo, hi);
+  if (tg) { const p = tPos(tg); if (Math.abs(p.x - b.x) > 60) gbPlace(clamp(p.x - d * 46, lo, hi), gbFeet(tg), tg.kind === 'flyer'); }
+  else gbPlace(clamp(b.x + d * 34, lo, hi), b.y + R);
   gbPose(neck ? 'twist' : i ? 'chop2' : 'chop', .22);
   const hx = b.x + d * (neck ? 48 : 42), hy = b.y - 16, hit = nkTouch(hx, hy, neck ? 52 : 44);
   for (const t of hit) gbHit(t, neck ? 5 : 2.5);
@@ -11351,12 +11376,14 @@ function gbSubst() {
   const lo = S.fight ? ARENA.l + R : R, hi = S.fight ? ARENA.r - R : LEVEL_W - R;
   if (t) {
     const p = tPos(t), s = Math.sign(p.x - x0) || 1;
-    b.x = clamp(p.x + s * 60, lo, hi); b.face = -s;
+    const air = t.kind === 'flyer';
+    if (!gbPlace(clamp(p.x + s * 60, lo, hi), gbFeet(t), air) && !gbPlace(clamp(p.x - s * 60, lo, hi), gbFeet(t), air)) { G2.logs.pop(); S.gb.cd.k = 0; return; }
+    b.face = Math.sign(p.x - b.x) || -s;
     gbPose('chop', .25);
     gbHit(t, 4);
-    G2.fx.push({ k: 'chop', x: p.x, y: b.y - 16, d: -s, t: 0, max: .25, neck: true, fire: G2.fire > 0 });
+    G2.fx.push({ k: 'chop', x: p.x, y: b.y - 16, d: b.face, t: 0, max: .25, neck: true, fire: G2.fire > 0 });
     gbPop('Ám sát!', '#e8e8f0');
-  } else b.x = clamp(x0 - (b.face || 1) * 200, lo, hi);
+  } else if (!gbPlace(clamp(x0 - (b.face || 1) * 200, lo, hi), b.y + R)) { G2.logs.pop(); S.gb.cd.k = 0; return; }
   b.vx = 0; b.vy = Math.min(b.vy, 0);
   S.safe = Math.max(S.safe, .5); S.tele.push({ x: x0, y: y0, t: .3 });
   sfx('tele');
@@ -11437,7 +11464,7 @@ function updateGabimaru(dt) {
         if (tAlive(t)) {
           gbGhost(b, .4);
           const p = tPos(t), s = Math.sign(p.x - b.x) || 1;
-          b.x = clamp(p.x - s * 40, S.fight ? ARENA.l + R : R, S.fight ? ARENA.r - R : LEVEL_W - R); b.y = Math.min(b.y, p.y); b.face = s;
+          gbPlace(clamp(p.x - s * 40, S.fight ? ARENA.l + R : R, S.fight ? ARENA.r - R : LEVEL_W - R), gbFeet(t), t.kind === 'flyer'); b.face = Math.sign(p.x - b.x) || s;
           gbPose(U.i % 2 ? 'chop' : 'chop2', .1);
           gbHit(t, 4);
           G2.fx.push({ k: 'cross', x: p.x, y: p.y, t: 0, max: .5, fire: true });
