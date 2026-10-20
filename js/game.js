@@ -91,15 +91,16 @@ const MAX_LIVES = 5;      // (cũ) không còn dùng tim: người chơi có tha
    dao động ±10%, 15% chí mạng ×1,8. */
 const CHAR_STATS = {
   chii: { hp: 600, atk: 100, def: 10 }, pika: { hp: 800, atk: 110, def: 20 }, rimuru: { hp: 1000, atk: 110, def: 30 },
-  saiyan: { hp: 1200, atk: 120, def: 40 }, stelle: { hp: 1500, atk: 130, def: 40 }, kiem: { hp: 1500, atk: 140, def: 30 },
+  saiyan: { hp: 1600, atk: 140, def: 50 }, stelle: { hp: 1500, atk: 130, def: 40 }, kiem: { hp: 1500, atk: 140, def: 30 },
   asta: { hp: 1600, atk: 140, def: 50 }, yuno: { hp: 1400, atk: 140, def: 30 }, pain: { hp: 1800, atk: 140, def: 60 },
-  goku: { hp: 2000, atk: 160, def: 60 }, namek: { hp: 2000, atk: 140, def: 80 }, luffy: { hp: 1800, atk: 150, def: 50 },
+  goku: { hp: 2400, atk: 180, def: 70 }, namek: { hp: 2000, atk: 140, def: 80 }, luffy: { hp: 1800, atk: 150, def: 50 },
   kurumi: { hp: 1600, atk: 150, def: 40 },
   mereo: { hp: 10000, atk: 180, def: 0 },
   zenitsu: { hp: 1400, atk: 170, def: 30 },
   yuutan: { hp: 2000, atk: 170, def: 50 },
   yuutan2: { hp: 2200, atk: 170, def: 50 },
   yuta: { hp: 2400, atk: 190, def: 60 },   // Okkotsu Yuta (khi sao chép vẫn giữ chỉ số này)
+  vegito: { hp: 5000, atk: 260, def: 120 },   // Vegito Blue (hợp thể Potara của Goku và Vegeta)
   thiquy: { hp: 2600, atk: 180, def: 60 }, thiquyK: { hp: 6000, atk: 260, def: 120 },   // YuuTan Thi Quỷ: Song Thể / dạng Quỷ Thi Giải   // YuuTan Song Sắc (thường phục)   // YuuTan: boss màn 5 làm nhân vật   // Zenitsu: nhanh gấp 10 lần   // Mereoleona: không giáp, máu cực nhiều, đánh là hút máu
 };
 const stat = () => (ytaCp() ? CHAR_STATS.yuta : CHAR === 'thiquy' && tqForm() ? CHAR_STATS.thiquyK : CHAR_STATS[CHAR]) || CHAR_STATS.chii;
@@ -442,6 +443,8 @@ function groundYAt(x) { for (const [a, b, f] of GROUNDS) if (x >= a && x <= b) r
 const S = {};
 function reset() {
   const ytaFix = !!(S.yta && S.yta.cp);
+  const vgFix = CHAR === 'vegito' && !ytaFix;
+  if (vgFix) CHAR = (S.vg && S.vg.from) || 'goku';   // đang là Vegito mà chơi lại: tách ra
   if (ytaFix) CHAR = 'yuta';   // đang sao chép mà chơi lại: trở về Yuta
   Object.assign(S, {
     ball: { x: SPAWN.x, y: SPAWN.y, vx: 0, vy: 0, rot: 0, squash: 0, run: 0, face: 1 },
@@ -476,6 +479,7 @@ function reset() {
     zoom: null,              // cảnh phim: phóng to quanh một điểm
     yta: newYta(),           // Yuta: Rika, sao chép nhân vật / đòn quái, Ngôn Linh
     tq: newTq(),             // YuuTan Thi Quỷ: đồng đội tóc bạc, Quỷ Thi Giải, Đạo Ngũ Hành
+    vg: newVg(),             // Vegito: nhân vật gốc, hiệu ứng kiếm KI
     yb: newYb(),             // YuuTan Song Sắc: tơ, Bỉ Ngạn, lưới, cánh đồng hoa
     yt: newYt(),             // YuuTan: tràng chém đang chạy, hàng chờ, Huyết Nhãn
     zn: newZn(),             // Zenitsu: vệt sét, Lục Liên, Thức thứ bảy
@@ -499,7 +503,7 @@ function reset() {
   $('hint').classList.remove('gone');
   hud();
   if (CHAR === 'saiyan') applyChar();   // chơi lại: Xayda về hình người
-  if (ytaFix) applyChar();
+  if (ytaFix || vgFix) applyChar();
 }
 
 /* ---------- Điều khiển ---------- */
@@ -586,7 +590,7 @@ const SFX = {
   ki()      { tone(900, 300, .1, 'sine', .06); noise(.08, .04, 3000); },
   ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
-const JUMP_SFX = { yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
+const JUMP_SFX = { yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', vegito: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
 function sfx(name) { if (!muted && audio()) SFX[name](); }
 function setMuted(m) {
   muted = m;
@@ -604,7 +608,7 @@ function setKey(k, on) {
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
-  if (k === 'volt' && on && !keys.volt) (CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
+  if (k === 'volt' && on && !keys.volt) (CHAR === 'vegito' ? vgUlt() : CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
   if (CHAR === 'kurumi' && on && !keys[k]) {
     if (k === 'egg') kuCloneArmy();
     else if (k === 'heal') kuDalet();
@@ -644,6 +648,7 @@ function setKey(k, on) {
     else if (k === 'heal') sxCycle();
     else if (k === 'regen' && S.ape > 0) apeTroi();
   }
+  if (k === 'terra' && on && !keys.terra && (CHAR === 'goku' || CHAR === 'saiyan' || CHAR === 'vegito')) vgFuse();   // Potara: Vegito
   if (k === 'egg' && on && !keys.egg && CHAR === 'namek') nkEgg();
   if (k === 'heal' && on && !keys.heal && CHAR === 'namek') nkHeal();
   if (k === 'heal' && on && !keys.heal && CHAR === 'mereo') mrBurial();
@@ -833,6 +838,7 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
     sfx('tele');
     return;
   }
+  if (!force && CHAR === 'vegito' && !fellOff() && Math.random() < .3) { vgDodge(); return; }   // Vegito: Bản Năng Chiến Binh
   // Rimuru (Đại Hiền Giả): chặn một đòn chí mạng mỗi 15 giây, trừ khi rơi xuống vực
   // Xayda biến khỉ: khỉ khổng lồ chịu đòn thay, mỗi đòn mất 1 máu khỉ
   if (!force && CHAR === 'kurumi' && S.ku.rasiel && !fellOff()) { kuForesee(); return; }
@@ -1341,6 +1347,8 @@ const CHARS = {
   thiquy:  { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 480, airJumps: 2, dmgK: 2, pierce: true },
   thiquyK: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 520, airJumps: 2, dmgK: 2, pierce: true, fly: true },
   // Xayda hoá Super Saiyan Blue (khỉ bị đánh bại): bộ chiêu cheat
+  // Vegito Blue: cheat, bay tự do, sát thương ×3
+  vegito: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .3, regen: 8, speed: 480, airJumps: 0, dmgK: 3, pierce: true, fly: true },
   ssb:    { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: 1, regen: 6, speed: 430, airJumps: 2, dmgK: 2, pierce: true },
 };
 // bay tự do: Goku luôn bay, Kurumi bay được khi ngưng đọng thời gian hoặc ở dạng Hồng Liên
@@ -1414,6 +1422,7 @@ const MOVES = {
   yuutan2: { tap: ybTap, hold: ybNet, web: ybSnap },
   thiquy: { tap: tqTap, hold: tqHold, web: tqL },
   yuta: { tap: ytaSlash, hold: ytaThrust, web: ytaSpeech },
+  vegito: { tap: vgTap, hold: vgFinal, web: vgSword },
 };
 // chiêu U: sát thương lên boss (trước hệ số nhân vật), thời gian choáng, số tia, âm thanh
 const ULTS = {
@@ -2084,6 +2093,7 @@ function updateGoku(dt) {
     for (const c of S.icicles) if (inB(c.x, c.y, 8)) c.dead = true;
     const T = S.turret;
     if (T.alive && inB(T.x, T.f(T.x) - 26, 26)) breakTurret();
+    if (K.multi && K.hitBoss && (K.rh = (K.rh || 0) + dt) > .18) { K.hitBoss = false; K.rh = 0; }   // Final Kamehameha trúng liên tục
     if (!K.hitBoss && bossOpen()) for (const u of S.boss.units) {
       const h = unitH(u);
       if (u.hidden || u.x + unitW(u) / 2 < xa || u.x - unitW(u) / 2 > xb || K.y + K.w < u.y - h || K.y - K.w > u.y) continue;
@@ -2099,6 +2109,7 @@ function updateGoku(dt) {
 function updateCharMoves(dt) {
   updateKiem(dt);
   updateGoku(dt);
+  updateVegito(dt);
   updateClover(dt);
   updateNamek(dt);
   updateLuffy(dt);
@@ -3016,7 +3027,7 @@ const CHAR_UI = {
   saiyan: { name: 'Xayda', from: 'Ngọc Rồng Online', tag: 'Hành tinh Xayda: Biến Khỉ vĩnh viễn, học chiêu của quái', energy: 'KI', locked: true,
     btn: { bolt: ['Đấm', 'Đấm Galick'], web: ['Trói', 'Trói / Dậm đất'], skill: ['Khiên', 'Khiên năng lượng'], volt: ['Khỉ', 'Biến Khỉ (bật/tắt)'] },
     short: ['Đấm Galick', 'Antomic', 'Trói', 'Khiên năng lượng', 'Biến Khỉ'],
-    more: ' · <kbd>H</kbd> Tái tạo năng lượng (khỉ: Trói) · <kbd>I</kbd> Huýt sáo · <kbd>O</kbd> Tự phát nổ (Blue: Final Flash) · <kbd>Y</kbd> chiêu học từ quái · <kbd>T</kbd> đổi chiêu học',
+    more: ' · <kbd>H</kbd> Tái tạo năng lượng (khỉ: Trói) · <kbd>I</kbd> Huýt sáo · <kbd>O</kbd> Tự phát nổ (Blue: Final Flash) · <kbd>Y</kbd> chiêu học từ quái · <kbd>T</kbd> đổi chiêu học · <kbd>F</kbd> Potara: hợp thể VEGITO',
     moreTap: ' · Hồi · Sáo · Nổ · Học · Đổi',
     kit: [['J', 'Đấm Galick (1 KI). Khỉ: lao tới đấm, luồng gió đấm bay xa'], ['Giữ J', 'Antomic (15). Khỉ: Antomic khổng lồ đuổi theo mục tiêu'],
       ['L', 'Trói quái và boss (25). Khỉ: Dậm đất — sóng chấn động chạy ra hai bên'], ['Shift', 'Khiên năng lượng 3 giây (20), hồi 10 giây; khỉ hồi 5 giây'],
@@ -3191,17 +3202,32 @@ const CHAR_UI = {
       ['U', 'SHINRA TENSEI: quả cầu đẩy khổng lồ tiêu diệt mọi quái xung quanh, phá bục và khoét hố mặt đất nó quét qua, 8 sát thương lên boss (cần đầy, nạp siêu nhanh)']],
     passive: 'giữ nhảy để lơ lửng · cheat: nhảy 3 lần, chạy nhanh, sát thương ×2, xuyên khiên boss, chakra nạp ×6. Bục bị phá tự hồi sau 6 giây.',
     tip: 'Pain: J Hắc Bổng · giữ J Vạn Tượng Thiên Dẫn · L Địa Bộc Thiên Tinh · Shift Ngạ Quỷ Đạo · U khi đầy: SHINRA TENSEI phá huỷ mọi thứ xung quanh. Giữ nhảy để lơ lửng.' },
+  vegito: { name: 'Vegito', from: 'Dragon Ball', tag: 'Hợp thể Potara Goku × Vegeta, Super Saiyan Blue', energy: 'KI', hidden: true,
+    btn: { bolt: ['KI', 'Chưởng KI đôi'], web: ['Kiếm', 'Kiếm Năng Lượng'], skill: ['Lướt', 'Lướt'], volt: ['Final', 'Final Kamehameha Tối Thượng'] },
+    short: ['Chưởng KI đôi', 'Final Kamehameha', 'Kiếm Năng Lượng', 'Lướt', 'Final Kamehameha Tối Thượng'],
+    more: ' · <kbd>↑</kbd>/<kbd>↓</kbd> bay lên/xuống · <kbd>F</kbd> tách hợp thể',
+    moreTap: ' · ▲▼ bay · Tách',
+    kit: [['↑ ↓ ← →', 'Bay tự do, không bao giờ rơi'],
+      ['J', 'Chưởng KI đôi: hai phát cùng lúc (miễn phí)'],
+      ['Giữ J', 'Final Kamehameha: tia xanh vàng xuyên mọi thứ, trúng boss liên tục suốt lúc phóng'],
+      ['L', 'Kiếm Năng Lượng: lưỡi kiếm KI chém rộng trước mặt, xuyên Khiên năng lượng'],
+      ['Shift', 'Lướt: lao tới, vô địch'],
+      ['U', 'Final Kamehameha Tối Thượng: tia khổng lồ quét ngang màn hình 2 giây, vô địch khi phóng (cần đầy KI, nạp siêu nhanh)'],
+      ['F', 'Tách hợp thể về Goku / Vegeta']],
+    passive: 'Vegito Blue: 5.000 máu, tấn công 260, phòng thủ 120, sát thương ×3, xuyên khiên, Bản Năng Chiến Binh 30% tự né đòn. Hợp thể lần đầu mỗi lượt chơi hồi 40% máu.',
+    tip: 'VEGITO BLUE! J Chưởng KI đôi · giữ J Final Kamehameha · L Kiếm Năng Lượng · U khi đầy KI: Final Kamehameha Tối Thượng · F tách ra.' },
   goku: { name: 'Goku', from: 'Dragon Ball', tag: 'Bay tự do, Kamehameha, Bản Năng Vô Cực (cheat)', energy: 'KI',
     btn: { bolt: ['KI', 'Chưởng KI'], web: ['Thuấn', 'Thuấn Di'], skill: ['Lướt', 'Lướt'], volt: ['UI', 'Bản Năng Vô Cực'] },
     short: ['Chưởng KI', 'Kamehameha', 'Thuấn Di', 'Lướt', 'Bản Năng Vô Cực'],
-    more: ' · <kbd>↑</kbd>/<kbd>↓</kbd> (<kbd>W</kbd>/<kbd>S</kbd>) bay lên/xuống',
-    moreTap: ' · ▲▼ bay lên/xuống',
+    more: ' · <kbd>↑</kbd>/<kbd>↓</kbd> (<kbd>W</kbd>/<kbd>S</kbd>) bay lên/xuống · <kbd>F</kbd> Potara: hợp thể VEGITO',
+    moreTap: ' · ▲▼ bay lên/xuống · Potara: Vegito',
     kit: [['↑ ↓ ← →', 'Bay tự do theo mọi hướng, thả nút là đứng lơ lửng, không bao giờ rơi xuống vực'],
       ['J', 'Chưởng KI: bắn nhanh (miễn phí)'],
       ['Giữ J', 'Kamehameha: tia năng lượng xanh xuyên mọi thứ, giữ càng lâu càng dài, 3–5 sát thương (miễn phí)'],
       ['L', 'Thuấn Di: biến mất, hiện ra sát kẻ thù gần nhất và đấm liên hoàn 3 phát, làm choáng boss (miễn phí, hồi 0,5 giây)'],
       ['Shift', 'Lướt: lao tới, vô địch (miễn phí, hồi 0,35 giây)'],
-      ['U', 'Bản Năng Vô Cực 25 giây: tóc bạc, tự né mọi đòn, nhanh hơn, sát thương ×4; khi hoá toả sóng KI quét sạch màn hình (cần đầy KI, nạp siêu nhanh)']],
+      ['U', 'Bản Năng Vô Cực 25 giây: tóc bạc, tự né mọi đòn, nhanh hơn, sát thương ×4; khi hoá toả sóng KI quét sạch màn hình (cần đầy KI, nạp siêu nhanh)'],
+      ['F', 'Potara: hợp thể với Vegeta thành VEGITO BLUE (5.000 máu, sát thương ×3); F lần nữa để tách ra']],
     passive: 'bay tự do, không rơi · cheat: chạy và bay nhanh, sát thương ×2, xuyên khiên boss, KI nạp ×6.',
     tip: 'Goku: ↑ ↓ ← → bay tự do · J Chưởng KI · giữ J Kamehameha · L Thuấn Di · Shift lướt · U khi đầy: BẢN NĂNG VÔ CỰC (tự né mọi đòn). Cheat: mọi chiêu miễn phí, sát thương ×2.' },
 };
@@ -3231,6 +3257,7 @@ function applyChar() {
   document.querySelectorAll('.touch .yta').forEach(el => { el.hidden = CHAR !== 'yuta'; });
   document.querySelectorAll('.touch .ytc').forEach(el => { el.hidden = !isYuta(); });
   document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
+  document.querySelectorAll('.touch .vg').forEach(el => { el.hidden = !(CHAR === 'goku' || CHAR === 'saiyan' || CHAR === 'vegito') || ytaCp(); el.textContent = CHAR === 'vegito' ? 'Tách' : 'Potara'; });
   document.querySelectorAll('.touch .gk').forEach(el => { el.hidden = !flying(); });
   document.querySelector('.touch [data-key="jump"]').setAttribute('aria-label', flying() ? 'Bay lên' : 'Nhảy');
   $('energyChip').title = `${u.energy}: ` + u.kit.map(([k, t]) => `${k} ${t}`).join(' · ');
@@ -3279,6 +3306,7 @@ function buildCharList() {
   const list = $('charList');
   list.textContent = '';
   for (const [id, u] of Object.entries(CHAR_UI)) {
+    if (u.hidden) continue;   // Vegito: chỉ có khi hợp thể
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'charopt'; btn.dataset.char = id;
     btn.setAttribute('aria-pressed', String(id === CHAR));
@@ -10353,6 +10381,199 @@ function demonFig(o, e, h, sw, sa) {
 }
 for (const k of Object.keys(DEMON_LOOK)) SH_DRAW[k] = (e, h, sw, sa) => demonFig(DEMON_LOOK[k], e, h, sw, sa);
 
+/* ---------- Vegito (Dragon Ball): hợp thể Potara của Goku và Vegeta ----------
+   Goku hoặc Xayda (Vegeta) bấm F đeo bông tai Potara → Vegito Super Saiyan Blue (CHAR = 'vegito', S.vg.from nhớ nhân vật gốc;
+   F lần nữa tách ra). Máu / tấn công / phòng thủ vượt trội, bay tự do, sát thương ×3, xuyên khiên.
+   J Chưởng KI đôi · giữ J Final Kamehameha (tia xanh vàng, trúng liên tục) · L Kiếm Năng Lượng (lưỡi kiếm KI chém rộng,
+   xuyên Khiên năng lượng) · Shift lướt · U khi đầy KI: Final Kamehameha Tối Thượng (tia khổng lồ quét cả màn hình 2 giây)
+   · nội tại Bản Năng Chiến Binh: 30% tự né đòn. Hợp thể lần đầu mỗi lượt chơi hồi 40% máu. */
+const VG_PAL = ['rgb(90 170 255 / .35)', '#ffd84a', '#ffffff'];
+function newVg() { return { from: null, healed: false, fx: [], cd: {}, pose: null, poseT: 0 }; }
+const isVgBase = () => CHAR === 'goku' || CHAR === 'saiyan';
+function vgCd(k, t) { const V = S.vg; if (V.cd[k] > 0) return false; V.cd[k] = t; return true; }
+function vgBurst(text, c) {
+  const b = S.ball;
+  S.flash = .9; S.safe = Math.max(S.safe, .8);
+  S.pops.push({ x: b.x, y: b.y - 90, t: 1.6, text, c, big: true });
+  for (let i = 0; i < 60; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 150 + Math.random() * 450;
+    S.parts.push({ x: b.x, y: b.y - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .9, c: ['#5fb8ff', '#ffd84a', '#ffffff', '#2f9bff'][i % 4], r: 4 + Math.random() * 7, g: 0 });
+  }
+  S.vg.fx.push({ k: 'ring', x: b.x, y: b.y, t: 0, max: .7 });
+}
+function vgClearKeys() { for (const k of ['bolt', 'web', 'volt', 'skill', 'egg', 'heal', 'terra', 'regen', 'whistle', 'boom']) keys[k] = false; S.charging = false; }
+// F: hợp thể / tách ra
+function vgFuse() {
+  if (!canAct() || ytaCp()) return;
+  const V = S.vg;
+  if (CHAR === 'vegito') {
+    if (!V.from) return;
+    vgClearKeys(); S.kame = null;
+    CHAR = V.from; V.from = null; applyChar();
+    vgBurst(CHAR === 'goku' ? 'Tách hợp thể: Goku' : 'Tách hợp thể: Vegeta', '#ffd27a'); sfx('tele');
+    return;
+  }
+  if (!isVgBase()) return;
+  vgClearKeys();
+  if (CHAR === 'saiyan') { S.ape = 0; if (S.sx) { S.sx.blue = false; S.sx.beam = null; } }
+  V.from = CHAR; CHAR = 'vegito'; S.kame = null;
+  applyChar();
+  if (!V.healed) { V.healed = true; healHp(.4); }
+  vgBurst('POTARA! VEGITO BLUE!', '#5fd0ff'); sfx('ui');
+}
+// J: Chưởng KI đôi
+function vgTap() {
+  if (S.shockCd > 0) return;
+  shoot('ki', 1200, .65, 2, .12, -18); shoot('ki', 1200, .65, 2, .12, -8);
+  sfx('ki');
+}
+// giữ J: Final Kamehameha — tia xanh vàng, trúng boss liên tục
+function vgFinal(hold) {
+  const k = chargeK(hold), d = S.ball.face || 1;
+  S.kame = { t: 0, dur: 1.1 + k * .5, d, x: S.ball.x, y: S.ball.y, len: 0, max: 800 + k * 500, w: 24 + k * 18, dmg: 2 + Math.round(k * 2), hitBoss: false, multi: true, pal: VG_PAL };
+  S.cast = 1.3;
+  sfx('kame');
+  S.pops.push({ x: S.ball.x, y: S.ball.y - 60, t: .8, text: 'Final Kamehameha!', c: '#ffd84a' });
+}
+// mục tiêu trúng đòn của Vegito
+function vgHit(t, dmg) {
+  if (!tAlive(t)) return;
+  const p = tPos(t);
+  boltSpark(p.x, p.y, '#9fe0ff', 10);
+  if (t.kind === 'boss') { LAST_PROBE = { x: S.ball.x, y: S.ball.y, t: S.t }; damageBoss(t.ref, dmg, 'haki'); }
+  else if (t.kind === 'enemy') { t.ref.inv = 0; t.ref.bub = 0; if (dmg >= 3 && !t.ref.mid) t.ref.hp = 1; killEnemy(t.ref, '#5fb8ff'); }
+  else if (t.kind === 'flyer') killFlyer(t.ref);
+  else { const T = S.turret; T.hp -= dmg; T.flash = .15; if (T.hp <= 0) breakTurret(); }
+}
+// L: Kiếm Năng Lượng — lưỡi kiếm KI xanh mọc từ tay, chém một vòng rộng trước mặt
+function vgSword() {
+  if (!canAct() || !vgCd('sword', .45)) return;
+  const b = S.ball, d = b.face || 1;
+  S.vg.pose = 'sword'; S.vg.poseT = .3; S.cast = .3;
+  S.vg.fx.push({ k: 'sword', x: b.x, y: b.y, d, t: 0, max: .3 });
+  const hit = new Set();
+  for (const [dx, dy, r] of [[60, -50, 60], [110, -20, 70], [150, 10, 70], [90, 30, 60]]) for (const t of nkTouch(b.x + d * dx, b.y + dy, r)) {
+    if (hit.has(t.ref)) continue; hit.add(t.ref); vgHit(t, 4);
+  }
+  b.vx += d * 200;
+  sfx(hit.size ? 'hit' : 'dash');
+}
+// U: Final Kamehameha Tối Thượng (cần đầy KI)
+function vgUlt() {
+  if (!canAct()) return;
+  const b = S.ball;
+  if (S.energy < COST.volt) { S.pops.push({ x: b.x, y: b.y - 50, t: .8, text: `Cần đầy KI (${Math.floor(S.energy)}/100)`, c: '#fff27a' }); sfx('deny'); return; }
+  S.energy = 0; S.flash = 1;
+  S.kame = { t: 0, dur: 2, d: b.face || 1, x: b.x, y: b.y, len: 0, max: 1900, w: 70, dmg: 4, hitBoss: false, multi: true, pal: VG_PAL };
+  S.cast = 2.2; S.power = Math.max(S.power, 2.2);
+  sfx('volt');
+  S.pops.push({ x: b.x, y: b.y - 100, t: 1.6, text: 'FINAL KAMEHAMEHA TỐI THƯỢNG!', c: '#ffd84a', big: true });
+}
+function updateVegito(dt) {
+  const V = S.vg; if (!V) return;
+  for (const k in V.cd) V.cd[k] -= dt;
+  V.poseT = Math.max(0, V.poseT - dt); if (V.poseT <= 0) V.pose = null;
+  for (const f of V.fx) f.t += dt;
+  V.fx = V.fx.filter(f => f.t < f.max);
+  if (CHAR === 'vegito' && !S.dead && Math.random() < dt * 24) {
+    const b = S.ball;
+    S.parts.push({ x: b.x + (Math.random() - .5) * 40, y: b.y + R - Math.random() * 50, vx: (Math.random() - .5) * 30, vy: -90 - Math.random() * 120, life: .5, c: Math.random() < .6 ? '#5fd0ff' : '#ffffff', r: 2 + Math.random() * 3, g: 0 });
+  }
+}
+// nội tại Bản Năng Chiến Binh: 30% tự né (không né được rơi vực / đòn chắc chắn chết)
+function vgDodge() {
+  const b = S.ball;
+  S.safe = Math.max(S.safe, .5); S.hitAtk = 0;
+  S.tele.push({ x: b.x, y: b.y, t: .3 });
+  S.pops.push({ x: b.x, y: b.y - 60, t: .6, text: 'Né!', c: '#9fe0ff' });
+  sfx('tele');
+}
+function drawVgFx() {
+  const V = S.vg; if (!V) return;
+  for (const f of V.fx) {
+    const k = f.t / f.max;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    if (f.k === 'ring') {
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#5fd0ff'; ctx.lineWidth = 8 * (1 - k) + 1;
+      ctx.beginPath(); ctx.arc(f.x, f.y, 20 + k * 260, 0, Math.PI * 2); ctx.stroke();
+    } else if (f.k === 'sword') {
+      const b = S.ball;
+      ctx.translate(b.x, b.y - 20); ctx.scale(f.d, 1);
+      const a0 = -1.5 + k * 2.6;
+      for (const [w, c] of [[26, 'rgb(90 170 255 / .3)'], [12, 'rgb(150 210 255 / .8)'], [4, '#ffffff']]) {
+        ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(0, 0, 130, -1.6, a0); ctx.stroke();
+      }
+      ctx.strokeStyle = '#e6f6ff'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(10 + Math.cos(a0) * 150, Math.sin(a0) * 150); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+// Vegito Blue: tóc xanh dựng kiểu Vegeta với một lọn mái rủ trước trán, bông tai Potara vàng, võ phục cam không kí hiệu
+// trên bộ đồ bó xanh đậm, đai xanh, găng và ủng trắng mũi vàng; hào quang xanh cháy quanh người
+function drawVegito(b, charged) {
+  const sq = b.squash, air = !S.onGround, running = !air && Math.abs(b.vx) > 30, ph = b.run;
+  const flyingNow = air && Math.abs(b.vx) > 80, bob = running ? Math.abs(Math.sin(ph)) * 2.5 : air ? Math.sin(S.t * 4) * 1.5 : 0;
+  const HAIR = '#3aa8ff', HAIRL = '#9fe0ff', HAIRD = '#1a5fc0', SKIN = '#ffd9b8', GI = '#f47b20', GID = '#b5520c', SUIT = '#1b2a6e', WHITE = '#f6f6f2', GOLD = '#f2c230', DK = '#14141a';
+  const d = b.face || 1, V = S.vg;
+  drawAura(b.x, b.y + R, 32, 84, 'rgb(60 150 255 / .3)', 0);
+  drawAura(b.x, b.y + R, 22, 66, 'rgb(170 225 255 / .42)', 2);
+  ctx.save();
+  ctx.translate(b.x, b.y + R - 2 + R * sq * .3);
+  ctx.scale(d * (1 + sq * .4), 1 - sq * .5);
+  ctx.translate(0, -bob);
+  if (flyingNow) { ctx.translate(0, -24); ctx.rotate(.3); ctx.translate(0, 24); }
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const kame = S.kame && S.kame.t < S.kame.dur, sword = V && V.pose === 'sword';
+  const arm = (x, a) => {
+    ctx.save(); ctx.translate(x, -33); ctx.rotate(a);
+    ctx.fillStyle = SUIT; ctx.fillRect(-2.5, -10, 5, 10);
+    ctx.fillStyle = WHITE; ctx.strokeStyle = '#9aa0a8'; ctx.lineWidth = .8;
+    ctx.beginPath(); ctx.arc(0, -11, 3.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  };
+  const armA = kame || S.cast > 0 || charged ? -1.55 : sword ? -2.2 : flyingNow ? -1.7 : air ? 2.3 : running ? Math.sin(ph + Math.PI) * .7 + 3 : 2.9;
+  arm(-4, kame ? -1.45 : flyingNow ? 2.6 : air ? 2.6 : running ? Math.sin(ph) * .7 + 3 : 3.1);
+  const legs = air ? [[-3, flyingNow ? 1.1 : .5], [3, flyingNow ? .6 : -.2]] : [[-3, Math.sin(ph) * .8], [3, Math.sin(ph + Math.PI) * .8]];
+  for (const [lx, ang] of legs) {
+    ctx.save(); ctx.translate(lx, -17); ctx.rotate(ang);
+    ctx.fillStyle = SUIT; ctx.fillRect(-3.4, 0, 6.8, 10);
+    ctx.fillStyle = WHITE; ctx.fillRect(-3.6, 9, 7.2, 6); ctx.fillStyle = GOLD; ctx.fillRect(-3.6, 13.5, 8.6, 2);
+    ctx.restore();
+  }
+  // thân: võ phục cam mở cổ chữ V lộ áo bó xanh đậm, đai xanh
+  ctx.fillStyle = GI; ctx.strokeStyle = GID; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-9.5, -37); ctx.lineTo(9.5, -37); ctx.lineTo(8.5, -17); ctx.lineTo(-8.5, -17); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = SUIT; ctx.beginPath(); ctx.moveTo(-4, -37); ctx.lineTo(6, -37); ctx.lineTo(1, -26); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#2a5fd8'; ctx.fillRect(-9, -20.5, 18, 3.8);
+  arm(5, armA);
+  // đầu
+  const hx = 1, hy = -46;
+  ctx.fillStyle = HAIR; ctx.strokeStyle = HAIRD; ctx.lineWidth = 1.2;
+  const back = [[9, -4], [11, -16], [6, -12], [5, -27], [0, -15], [-3, -31], [-6, -15], [-12, -26], [-11, -11], [-19, -18], [-12, -4], [-17, 2], [-9, 4], [-2, 2]];
+  ctx.beginPath(); back.forEach(([x, y], i) => i ? ctx.lineTo(hx + x, hy + y) : ctx.moveTo(hx + x, hy + y)); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgb(200 240 255 / .55)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(hx - 2, hy - 8); ctx.lineTo(hx - 3, hy - 26); ctx.moveTo(hx + 3, hy - 8); ctx.lineTo(hx + 5, hy - 22); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = SKIN; ctx.strokeStyle = '#a0704a'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(hx, hy, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // chân tóc nhọn kiểu Vegeta (đỉnh nhọn giữa trán)
+  ctx.fillStyle = HAIR; ctx.strokeStyle = HAIRD; ctx.lineWidth = 1.1;
+  ctx.beginPath(); ctx.moveTo(hx - 10, hy - 2); ctx.lineTo(hx - 9, hy - 9); ctx.lineTo(hx + 10, hy - 9); ctx.lineTo(hx + 10.5, hy - 3);
+  ctx.lineTo(hx + 6, hy - 6); ctx.lineTo(hx + 3, hy - 2.5); ctx.lineTo(hx, hy - 6.5); ctx.lineTo(hx - 5, hy - 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+  // lọn mái rủ trước trán của Vegito
+  ctx.fillStyle = HAIRL; ctx.beginPath(); ctx.moveTo(hx + 4, hy - 8); ctx.quadraticCurveTo(hx + 9, hy - 2, hx + 7, hy + 4); ctx.quadraticCurveTo(hx + 6, hy - 1, hx + 2, hy - 6); ctx.closePath(); ctx.fill();
+  // mắt xanh Blue, mày nhíu, cười tự tin
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(hx + 6, hy + 2, 2, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1fb8d8'; ctx.beginPath(); ctx.arc(hx + 6.6, hy + 2.2, 1.2, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = DK; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(hx + 3, hy - 2.2); ctx.lineTo(hx + 9.5, hy - .3); ctx.stroke();
+  ctx.strokeStyle = '#7a4a3a'; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(hx + 4.5, hy + 6.5); ctx.quadraticCurveTo(hx + 7, hy + 7.5, hx + 9, hy + 5.6); ctx.stroke();
+  // bông tai Potara
+  ctx.fillStyle = GOLD; ctx.strokeStyle = '#a07a10'; ctx.lineWidth = .8;
+  ctx.beginPath(); ctx.arc(hx - 4, hy + 6, 1.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#5fd06a'; ctx.beginPath(); ctx.arc(hx - 4, hy + 9.5, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
 /* ----- nền biển: hoàng hôn, đảo xa, thuyền hải tặc buồm đen, hải âu, mặt biển lấp lánh ----- */
 function paintShips(g, W, H) {
   for (let i = 0; i * 700 < W; i++) {
@@ -13303,6 +13524,7 @@ function drawCharFx() {
   }
   drawPainFx();
   drawGokuFx();
+  drawVgFx();
   // Kiếm khách: ảnh hiệu ứng gốc và ba cơn lốc Tam kiếm
   for (const o of S.ktor) drawKK('loc', Math.floor(o.ft * 30) % KK.loc.n, o.x, o.y, 80 * KE, 80 * KE, 1);
   for (const f of S.kfx) {
@@ -13322,7 +13544,7 @@ function drawCharge() {
     ctx.strokeStyle = 'rgb(255 190 120 / .8)'; ctx.lineWidth = 2;
     for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x, y, 6 + ((S.t * 60 + i * 12) % 36) * (1 - k * .3), 0, Math.PI * 2); ctx.stroke(); }
   }
-  else if (CHAR === 'goku') {
+  else if (CHAR === 'goku' || CHAR === 'vegito') {
     // Kamehameha đang tụ: quả cầu xanh giữa hai bàn tay khum ở hông
     const x = b.x - (b.face || 1) * 8, y = b.y - 20, r = 5 + k * 9;
     ctx.fillStyle = 'rgb(90 170 255 / .35)'; ctx.beginPath(); ctx.arc(x, y, r * 2, 0, Math.PI * 2); ctx.fill();
@@ -13569,8 +13791,8 @@ function drawBall() {
   if (CHAR === 'pika' && DMAX) { drawMaxCore(b, pw && !blink); return; }
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
-const CHAR_COLOR = { pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
-const CHAR_DRAW = { pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
+const CHAR_COLOR = { vegito: '#5fd0ff', pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
+const CHAR_DRAW = { vegito: drawVegito, pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
 // Khiên Hổ Phách của Stelle: vỏ lục giác màu hổ phách
 function drawAmber(b) {
   const r = R * 1.9 + Math.sin(S.t * 6) * 2, fade = S.amber < .8 && Math.floor(S.t * 14) % 2;
@@ -14727,7 +14949,7 @@ const BET_BOSS = {
 // Kurumi có 5 dạng: mỗi dạng là một đấu thủ riêng, giữ nguyên dạng suốt trận (máy không bấm F đổi dạng)
 const BET_KU = { base: 'Kurumi', rasiel: 'Kurumi · Rasiel', inv: 'Kurumi · Nghịch chuyển', wq: 'Kurumi · Lucifugus', crim: 'Kurumi · Hồng Liên Bất Diệt' };
 const BET_IDS = [...Object.keys(BET_BOSS).map(k => 'b:' + k),
-  ...Object.keys(CHAR_UI).flatMap(k => k === 'kurumi' ? Object.keys(BET_KU).map(f => f === 'base' ? 'c:kurumi' : 'c:kurumi.' + f) : ['c:' + k])];
+  ...Object.keys(CHAR_UI).filter(k => !CHAR_UI[k].hidden).flatMap(k => k === 'kurumi' ? Object.keys(BET_KU).map(f => f === 'base' ? 'c:kurumi' : 'c:kurumi.' + f) : ['c:' + k])];
 const betIsBoss = id => id[0] === 'b';
 const betKey = id => id.slice(2).split('.')[0];
 const betForm = id => id.split('.')[1] || null;
