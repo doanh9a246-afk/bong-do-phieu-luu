@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=f2099d11">
+<link rel="stylesheet" href="css/style.css?v=a569aede">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -221,10 +221,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=f2099d11&t=' + Date.now();
+  s.src = 'js/game.js?v=a569aede&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=f2099d11&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=a569aede&t=' + Date.now();
 })();
 </script>
 </body>
