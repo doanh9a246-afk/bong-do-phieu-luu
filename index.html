@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=777f16a0">
+<link rel="stylesheet" href="css/style.css?v=d2e4735f">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -211,6 +211,7 @@
     <button class="tbtn vg" type="button" data-key="terra" aria-label="Hợp thể Potara" hidden>Potara</button>
     <button class="tbtn gb" type="button" data-key="egg" aria-label="Khăn che mặt" hidden>Khăn</button>
     <button class="tbtn gb" type="button" data-key="terra" aria-label="Đạo Hoa" hidden>Đạo</button>
+    <button class="tbtn cl" type="button" data-key="terra" aria-label="Biến hình" hidden>Hóa</button>
     <button class="tbtn web" type="button" data-key="web" aria-label="Lưới điện">Lưới</button>
     <button class="tbtn volt" id="voltBtn" type="button" data-key="volt" aria-label="100.000 Vôn">100K</button>
     <button class="tbtn power" id="skillBtn" type="button" data-key="skill" aria-label="Lao điện">⚡</button>
@@ -224,10 +225,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=777f16a0&t=' + Date.now();
+  s.src = 'js/game.js?v=d2e4735f&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=777f16a0&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=d2e4735f&t=' + Date.now();
 })();
 </script>
 </body>
