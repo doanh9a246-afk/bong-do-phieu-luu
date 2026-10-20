@@ -11183,32 +11183,42 @@ function updateBong(dt) {
     if (P.t <= 0) { D.split = null; boltSpark(b.x, b.y, '#ff4a4a', 20); }
   }
 }
-// hình quả bóng đỏ bóng loáng, mắt to nhìn theo hướng chạy; Phồng To vẽ to gấp 4
-function drawBong(b, charged) {
-  const D = S.bd, sq = b.squash, d = b.face || 1;
-  const k = D && D.giant > 0 ? Math.min(4, 1 + (D.giant > .3 ? 3 : D.giant * 10)) : 1;
-  const r = R * k;
+// Quả bóng đỏ đúng như bản đầu tiên của game: bóng đỏ trơn viền đen, mảng tối hình lưỡi liềm, vệt sáng xoay theo khi lăn,
+// đốm sáng trắng; Vô địch thì hoá vàng cam. Vẽ lên canvas nhỏ với 0,3 điểm ảnh mỗi đơn vị như bản gốc rồi phóng to không
+// làm mịn → hạt pixel to như lúc mới lập game. Tâm tại (x, y), bán kính r, góc lăn rot, độ bẹp sq.
+const BONG_PX = .3, BONG_CV = document.createElement('canvas');
+function bongSprite(x, y, r, rot, sq, gold) {
+  const k = r / R, n = Math.ceil((r * 2 + 16) * BONG_PX), g = BONG_CV.getContext('2d');
+  if (!g) return;
+  if (BONG_CV.width !== n) { BONG_CV.width = n; BONG_CV.height = n; } else g.clearRect(0, 0, n, n);
+  g.setTransform(BONG_PX * k, 0, 0, BONG_PX * k, n / 2, n / 2);
+  g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2);
+  g.fillStyle = gold ? '#ffb000' : '#e3262b'; g.fill();
+  g.save(); g.clip();
+  g.fillStyle = gold ? '#e07800' : '#b5161b';
+  g.beginPath(); g.arc(6, 8, R, 0, Math.PI * 2); g.arc(-4, -4, R, 0, Math.PI * 2, true); g.fill('evenodd');
+  // vệt xoay để thấy bóng lăn
+  g.rotate(rot || 0);
+  g.fillStyle = 'rgb(255 255 255 / .12)'; g.fillRect(-R, -3, R * 2, 6);
+  g.restore();
+  g.lineWidth = 3.5; g.strokeStyle = '#14141a';
+  g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#ffffff';
+  g.beginPath(); g.ellipse(-8, -10, 6, 4, -.6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgb(255 255 255 / .5)';
+  g.beginPath(); g.arc(-14, -2, 2, 0, Math.PI * 2); g.fill();
+  const w = n / BONG_PX;
   ctx.save();
-  ctx.translate(b.x, b.y + R - r * (1 - sq * .5));
-  ctx.scale(1 + sq * .4, 1 - sq * .5);
-  if (charged || (D && D.giant > 0)) { ctx.fillStyle = 'rgb(255 80 80 / .25)'; ctx.beginPath(); ctx.arc(0, 0, r * 1.35, 0, Math.PI * 2); ctx.fill(); }
-  const gr = ctx.createRadialGradient(-r * .35, -r * .4, r * .1, 0, 0, r);
-  gr.addColorStop(0, '#ff8a7a'); gr.addColorStop(.45, '#e3262b'); gr.addColorStop(1, '#8a0a14');
-  ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#5a060c'; ctx.lineWidth = 2 * k; ctx.stroke();
-  // sọc lăn theo góc quay
-  ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip();
-  ctx.rotate(b.rot || 0); ctx.strokeStyle = 'rgb(255 255 255 / .25)'; ctx.lineWidth = 3 * k;
-  ctx.beginPath(); ctx.ellipse(0, 0, r * .35, r * 1.05, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(x, y + r * sq * .6); ctx.scale(1 + sq * .5, 1 - sq * .6);
+  ctx.drawImage(BONG_CV, -w / 2, -w / 2, w, w);
   ctx.restore();
-  ctx.fillStyle = 'rgb(255 255 255 / .55)'; ctx.beginPath(); ctx.ellipse(-r * .38, -r * .45, r * .22, r * .14, -.6, 0, Math.PI * 2); ctx.fill();
-  // mắt
-  for (const ex of [.12, .5]) {
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(d * ex * r, -r * .15, r * .17, r * .24, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#14141a'; ctx.beginPath(); ctx.ellipse(d * (ex * r + r * .06), -r * .12, r * .08, r * .13, 0, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.strokeStyle = '#5a060c'; ctx.lineWidth = 1.6 * k; ctx.beginPath(); ctx.arc(d * r * .3, r * .22, r * .14, .2, Math.PI - .2); ctx.stroke();
-  ctx.restore();
+}
+// nhân vật: Phồng To vẽ to gấp 4, tâm nhích lên để đáy bóng vẫn chạm đất
+function drawBong(b, charged) {
+  const D = S.bd;
+  const k = D && D.giant > 0 ? Math.min(4, 1 + (D.giant > .3 ? 3 : D.giant * 10)) : 1;
+  bongSprite(b.x, b.y + R - R * k, R * k, b.rot, b.squash, charged);
 }
 function drawBongFx() {
   const D = S.bd; if (!D) return;
@@ -11222,12 +11232,7 @@ function drawBongFx() {
       ctx.restore();
     }
   }
-  const ball = (x, y, r) => {
-    const gr = ctx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r);
-    gr.addColorStop(0, '#ff9a8a'); gr.addColorStop(.5, '#e3262b'); gr.addColorStop(1, '#8a0a14');
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgb(255 255 255 / .5)'; ctx.beginPath(); ctx.arc(x - r * .35, y - r * .4, r * .2, 0, Math.PI * 2); ctx.fill();
-  };
+  const ball = (x, y, r) => bongSprite(x, y, r, x / r, 0, false);
   for (const m of D.minis) ball(m.x, m.y, m.r);
   if (D.split) for (const q of D.split.balls) {
     ctx.save(); ctx.globalAlpha = .35; ctx.fillStyle = '#ff4a4a'; ctx.beginPath(); ctx.arc(q.x - q.vx * .03, q.y - q.vy * .03, q.r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
