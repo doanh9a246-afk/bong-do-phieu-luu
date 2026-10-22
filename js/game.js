@@ -602,7 +602,7 @@ const SFX = {
   ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
 const JUMP_SFX = { yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', vegito: 'hop', bong: 'boing', gabimaru: 'hop', yuuna: 'hop', luck: 'zap', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
-function sfx(name) { if (name !== 'deny' && name !== 'step') SFX_N++; if (!muted && audio()) SFX[name](); }   // SFX_N: để biết chiêu có ra đòn (lồng tiếng)
+function sfx(name) { if (!muted && audio()) SFX[name](); }
 function setMuted(m) {
   muted = m;
   try { localStorage.setItem('bongdo.muted', m ? '1' : '0'); } catch (e) {}
@@ -611,7 +611,6 @@ function setMuted(m) {
 }
 
 function setKey(k, on) {
-  const vn0 = SFX_N, vWas = keys[k];   // lồng tiếng: chiêu vừa ra đòn thì hô
   audio();
   if (S.boss && S.boss.cine) { keys[k] = false; return; }   // cảnh kết của Zoro
   if (isYuta() && (k === 'learn' || k === 'zmove')) { if (on && !keys[k]) (k === 'learn' ? ytaCopy() : ytaRevert()); keys[k] = on; return; }   // Yuta: Y sao chép, Z trở về
@@ -678,7 +677,6 @@ function setKey(k, on) {
     if (S.boss && S.boss.ts > 0 && !S.tsEsc && !S.dead) escapeTimeStop();
     else activateSkill();
   }
-  if (on && !vWas && k !== 'bolt' && SFX_N > vn0) voiceKey(k);
   keys[k] = on;
   if (on && !S.moved) { S.moved = true; setTimeout(() => $('hint').classList.add('gone'), 1500); }
 }
@@ -742,7 +740,6 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { reset(); return; }
   if (e.code === 'KeyN') { setMap(MAP % 12 + 1); return; }
   if (e.code === 'KeyM') { setMuted(!muted); return; }
-  if (e.code === 'KeyB') { setVoice(!VOICE_ON); return; }
   if (e.code === 'KeyB' && TEST_MODE) { warpToBoss(); return; }
   const k = KEYMAP[e.code];
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
@@ -783,7 +780,6 @@ cv.addEventListener('wheel', e => {
 $('restart').addEventListener('click', e => { reset(); e.currentTarget.blur(); });
 $('again').addEventListener('click', reset);
 $('mute').addEventListener('click', e => { setMuted(!muted); e.currentTarget.blur(); });
-$('voiceBtn').addEventListener('click', e => { setVoice(!VOICE_ON); e.currentTarget.blur(); });
 setMuted(muted);
 $('again2').addEventListener('click', reset);
 
@@ -1144,14 +1140,14 @@ function spend(cost) {
 }
 function startCharge() {
   if (!canAct()) return;
-  if (CH().simple) { noteLearn('tap'); vc('tap', () => MOVES[CHAR].tap()); return; }   // không có chiêu giữ J: bấm là đánh ngay
+  if (CH().simple) { noteLearn('tap'); MOVES[CHAR].tap(); return; }   // không có chiêu giữ J: bấm là đánh ngay
   S.charging = true; S.chargeT = 0;
 }
 function releaseCharge() {
   if (!S.charging) return;
   S.charging = false;
   if (!canAct()) return;
-  if (S.chargeT < BALL_HOLD) { noteLearn('tap'); vc('tap', () => MOVES[CHAR].tap()); } else { noteLearn('hold'); vc('hold', () => MOVES[CHAR].hold(S.chargeT)); }
+  if (S.chargeT < BALL_HOLD) { noteLearn('tap'); MOVES[CHAR].tap(); } else { noteLearn('hold'); MOVES[CHAR].hold(S.chargeT); }
 }
 // Tia sét (Thunder Shock): bắn thẳng, rẻ, nhanh
 function fireShock() {
@@ -14427,7 +14423,6 @@ function ynFinish(B, u) {
     umb: { x: b.x + d * 16, y: b.y - 22, vy: -160, rot: 0, vr: d * 7, down: false } };
   b.face = d; b.vx = 0;
   sfx('umbrella');
-  voSay('', 'Cầm ô vướng tay quá.', VOICE.yuuna, true);
   return true;
 }
 // vị trí nắm đấm (toạ độ thế giới) theo tư thế đang vẽ
@@ -14504,7 +14499,7 @@ function ynFinUpdate(dt) {
     if (s < .3) { ynPose('shake', .1); if (Math.random() < .5) { const p = ynFist(b, 0); if (p) S.parts.push({ x: p.x, y: p.y, vx: (Math.random() - .5) * 200, vy: 60 + Math.random() * 120, life: .5, c: '#9a0a18', r: 2 }); } }
     else { const k = clamp((s - .3) / .35, 0, 1); b.x = F.tx + (m.x - F.tx) * k; ynPose(k < 1 ? 'walk' : 'drop', .1); }
   }
-  if (F.t >= T.pick) { Y.fin = null; ynPose('shoulder', .3); S.pops.push({ x: b.x, y: b.y - 70, t: 1.2, text: 'Tiếp theo.', c: '#e8d8ff' }); voSay('', 'Tiếp theo.', VOICE.yuuna, true); }
+  if (F.t >= T.pick) { Y.fin = null; ynPose('shoulder', .3); S.pops.push({ x: b.x, y: b.y - 70, t: 1.2, text: 'Tiếp theo.', c: '#e8d8ff' }); }
 }
 // lỗ thủng trên thân boss: vẽ lại nền trong vòng tròn để nhìn xuyên qua được, viền rách đỏ sẫm
 function drawYnFinHole() {
@@ -14545,90 +14540,6 @@ function drawYnFinFx() {
   const m = F.umb;
   if (F.t <= YN_FIN_T.end + .55) { ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.down ? 0 : m.rot); drawUmbrella(-F.d * 26, 0, F.d > 0 ? Math.PI / 2 : -Math.PI / 2, 52, false, 0); ctx.restore(); }
 }
-/* ---------- Lồng tiếng: nhân vật hô tên chiêu (giọng đọc của trình duyệt, Web Speech API) ----------
-   Nhân vật anime hô bằng tiếng Nhật nếu máy có giọng Nhật; không có thì đọc tiếng Việt (tên chiêu trong bảng hướng dẫn).
-   Máy không có giọng nào phù hợp thì im lặng (không đọc sai ngôn ngữ). B / nút "Lồng tiếng" để bật tắt, máy nhớ lựa chọn.
-   Chỉ hô khi chiêu thật sự ra đòn (đo bằng việc chiêu có phát âm thanh hay không), J chỉ thỉnh thoảng hô tiếng hét ngắn. */
-// pitch/rate: cao độ, tốc độ giọng; tap: các tiếng hét ngắn khi đánh J; mỗi phím: [tiếng Nhật, tiếng Việt]
-const VOICE = {
-  pika: { p: 1.9, r: 1.2, tap: ['ピカ!', 'ピッカ!'], hold: ['ピーカー!'], web: ['ピカピカ!'], skill: ['ピカッ!'], volt: ['ピカチュウウ!'], zmove: ['ピカピカピカチュウ!'], dmax: ['ピカチュウ!'] },
-  chii: { p: 2, r: 1.1, tap: ['わっ!', 'ヤー!'], skill: ['わあっ!'] },
-  rimuru: { p: 1.3, tap: ['はっ!'], hold: ['黒雷!', 'Hắc Lôi!'], web: ['暴食者!', 'Kẻ Ăn Thịt!'], volt: ['メギド!', 'Megiddo!'] },
-  stelle: { p: 1.25, vi: true, tap: ['', 'Hây!'] },
-  saiyan: { p: .85, tap: ['はっ!', 'でりゃ!'], hold: ['ギャリック砲!', 'Đấm Galick!'], web: ['はあっ!'], volt: ['ファイナルフラッシュ!', 'Final Flash!'], boom: ['さらばだ、ブルマ…', 'Tạm biệt…'] },
-  kiem: { p: 1, vi: true, tap: ['', 'Hà!'] },
-  asta: { p: 1.05, r: 1.15, tap: ['うおおっ!', 'だあっ!'], hold: ['うおおおお!'], web: ['ブラックディバイダー!', 'Hắc Phân Kiếm!'], volt: ['ブラックメテオライト!', 'Hắc Thiên Thạch!'], terra: ['悪魔同化!', 'Ác Ma Đồng Hoá!'] },
-  yuno: { p: .95, tap: ['はっ!'], hold: ['天つ風の斬撃!', 'Thiên Phong Trảm!'], web: ['風創成魔法!', 'Phong Sáng Tạo Ma Pháp!'], volt: ['スピリット・オブ・ゼファー!', 'Spirit of Zephyr!'], terra: ['精霊同化!', 'Tinh Linh Nhập Thể!'] },
-  pain: { p: .7, r: .9, tap: ['…'], hold: ['万象天引!', 'Vạn Tượng Thiên Dẫn!'], web: ['地爆天星!', 'Địa Bạo Thiên Tinh!'], volt: ['神羅天征!', 'Thần La Thiên Chinh!'] },
-  goku: { p: 1.1, tap: ['はっ!', 'だりゃ!'], hold: ['かーめーはーめー波ー!', 'Kamehameha!'], web: ['瞬間移動!', 'Dịch chuyển tức thời!'], volt: ['身勝手の極意!', 'Bản Năng Vô Cực!'], terra: ['ポタラだ!', 'Hợp thể Potara!'] },
-  namek: { p: .8, tap: ['はっ!'], hold: ['魔閃光!', 'Masenko!'], volt: ['魔貫光殺砲!', 'Makankosappo!'] },
-  luffy: { p: 1.15, r: 1.15, tap: ['ゴムゴムのピストル!', 'Súng Cao Su!'], hold: ['ゴムゴムのガトリング!', 'Gatling!'], web: ['ゴムゴムのバズーカ!', 'Bazooka!'], volt: ['ゴムゴムのキングコングガン!', 'King Kong Gun!'], boom: ['覇王色!'] },
-  kurumi: { p: 1.45, r: .95, tap: ['きひひひ!', 'うふふ!'], hold: ['ザフキエル!', 'Zafkiel!'], web: ['ザイン!', 'Zayin!'], skill: ['アレフ!', 'Aleph!'], volt: ['さあ、わたくしたちの戦争を始めましょう!', 'Bắt đầu cuộc chiến của chúng ta nào!'], heal: ['ダレット!', 'Dalet!'] },
-  mereo: { p: .95, tap: ['はあっ!'], hold: ['カルディア・レオ!'], web: ['獅子の領域!'], volt: ['レオ・パルマ!'] },
-  zenitsu: { p: 1.15, r: 1.1, tap: ['雷の呼吸、壱ノ型、霹靂一閃!', 'Lôi Hô Hấp, Nhất Thức!'], hold: ['六連!', 'Lục Liên!'], web: ['漆ノ型、火雷神!', 'Thất Thức, Hoả Lôi Thần!'], volt: ['神速!', 'Thần Tốc!'] },
-  yuutan: { p: 1.3, vi: true, tap: ['', 'Hư!'], hold: ['', 'Thiên Trảm!'], volt: ['', 'Tam Ảnh Sát!'] },
-  yuutan2: { p: 1.3, vi: true, tap: ['', 'Hừ.'], volt: ['', 'Bỉ Ngạn Hoa!'] },
-  thiquy: { p: 1.25, vi: true, tap: ['', 'Hừ.'], terra: ['', 'Quỷ Thi Giải!'] },
-  yuta: { p: 1, tap: ['はっ!'], web: ['止まれ!', 'Đứng lại!'], volt: ['来い、里香!', 'Đến đây, Rika!'], egg: ['里香!', 'Rika!'] },
-  vegito: { p: .95, tap: ['はっ!', 'ふん!'], hold: ['ファイナルかめはめ波!', 'Final Kamehameha!'], web: ['スピリッツソード!', 'Kiếm Linh Hồn!'], volt: ['これで終わりだ!', 'Kết thúc rồi!'] },
-  bong: { p: 1.6, vi: true, tap: ['', 'Bóng!'], hold: ['', 'Phồng To!'], web: ['', 'Siêu Nảy!'], volt: ['', 'Phân Thân!'] },
-  gabimaru: { p: .9, tap: ['はっ!'], hold: ['忍法!'], web: ['忍法、火法師!', 'Nhẫn pháp, Hoả Pháp Sư!'], skill: ['変わり身!', 'Thế Thân!'], volt: ['忍法、天火蓮華!', 'Thiên Hoả Liên Hoa!'], terra: ['タオ!', 'Đạo!'] },
-  yuuna: { p: 1.35, vi: true, tap: ['', 'Hừ.'], hold: ['', 'Dài ra nào.'], web: ['', 'Bung ô.'], skill: ['', 'Lại đây.'], volt: ['', 'Chó cắn chó.'], egg: ['', 'Bay đi.'], fin: ['', 'Cầm ô vướng tay quá.'], fin2: ['', 'Tiếp theo.'] },
-  luck: { p: 1.15, r: 1.1, tap: ['あはは!', 'それっ!'], hold: ['雷鳴の崩玉!', 'Lôi Minh Băng Cầu!'], web: ['雷神の靴!', 'Lôi Thần Hài!'], skill: ['はやいでしょ?', 'Nhanh chứ hả?'],
-    volt: () => [['雷神の怒り!', 'Lôi Thần Thịnh Nộ!'], ['雷狼百裂!', 'Lôi Lang Bách Liệt!'], ['雷鬼神拳!', 'Thiên Lôi Chiến Quỷ Quyền!']][S.lk ? S.lk.form : 0],
-    terra: () => [['あーあ、もう終わり?', 'Hết vui rồi à?'], ['精霊同化!', 'Tinh Linh Nhập Thể!'], ['雷鬼化! もっと戦おうよ!', 'Sấm Sét Chiến Quỷ! Đánh tiếp đi!']][S.lk ? S.lk.form : 0], egg: ['マナ感知!', 'Cảm nhận ma lực!'] },
-};
-const VO_IDX = { tap: 0, hold: 1, web: 2, skill: 3, volt: 4 };
-var VOICE_ON = true;
-try { VOICE_ON = localStorage.getItem('bongdo.voice') !== '0'; } catch (e) {}
-var SFX_N = 0, VO_LAST = 0, VO_TAPN = 0;
-function voFind(lang) {
-  if (typeof speechSynthesis === 'undefined') return null;
-  const vs = speechSynthesis.getVoices() || [];
-  return vs.find(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith(lang) && /natural|online|google/i.test(v.name)) || vs.find(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith(lang)) || null;
-}
-// nói một câu; prio: tuyệt kĩ, chen ngang câu đang nói
-function voSay(ja, vi, cfg, prio) {
-  if (!VOICE_ON || muted || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
-  const now = performance.now();
-  if (!prio && now - VO_LAST < 650) return;
-  const vJa = !cfg.vi && ja ? voFind('ja') : null, vVi = vi ? voFind('vi') : null;
-  const text = vJa ? ja : vVi ? vi : null, voice = vJa || vVi;
-  if (!text || !voice) return;
-  const ss = speechSynthesis;
-  if (ss.speaking) { if (!prio) return; ss.cancel(); }
-  VO_LAST = now;
-  const u = new SpeechSynthesisUtterance(text);
-  u.voice = voice; u.lang = voice.lang; u.pitch = clamp(cfg.p || 1, 0, 2); u.rate = clamp((cfg.r || 1) * 1.05, .5, 2); u.volume = .95;
-  try { ss.speak(u); } catch (e) {}
-}
-// chiêu của phím k vừa ra đòn: hô tên chiêu
-function voiceKey(k) {
-  const cfg = VOICE[CHAR]; if (!cfg) return;
-  let e = cfg[k]; if (typeof e === 'function') e = e();
-  if (k === 'tap') {
-    // đánh thường: thỉnh thoảng hét ngắn
-    if ((VO_TAPN++ % 3) || performance.now() - VO_LAST < 1400) return;
-    const list = cfg.tap || [];
-    if (cfg.vi) voSay('', list[1] || '', cfg, false);
-    else voSay(list[Math.floor(Math.random() * list.length)] || '', '', cfg, false);
-    return;
-  }
-  const short = CHAR_UI[CHAR] && CHAR_UI[CHAR].short, vi0 = VO_IDX[k] != null && short ? short[VO_IDX[k]] : '';
-  if (!e && !vi0) return;
-  const ja = e ? e[0] : '', vi = (e && e[1]) || vi0;
-  voSay(ja, vi, cfg, k === 'volt' || k === 'terra');
-}
-// chạy chiêu fn; nếu chiêu có phát âm thanh (nghĩa là đã ra đòn) thì hô
-function vc(k, fn) { const n0 = SFX_N; fn(); if (SFX_N > n0) voiceKey(k); }
-function setVoice(on) {
-  VOICE_ON = on;
-  try { localStorage.setItem('bongdo.voice', on ? '1' : '0'); } catch (e) {}
-  const el = $('voiceBtn'); if (el) { el.setAttribute('aria-pressed', String(on)); el.textContent = on ? 'Lồng tiếng: Bật (B)' : 'Lồng tiếng: Tắt (B)'; }
-  if (!on && typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
-}
-if (typeof speechSynthesis !== 'undefined' && speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', () => {});   // nạp danh sách giọng sớm
-setVoice(VOICE_ON);   // cập nhật nút theo lựa chọn đã lưu
 /* ----- âm thanh hiệu ứng mới ----- */
 Object.assign(SFX, {
   // sấm: tiếng nổ lách tách cao + tiếng ầm trầm kéo dài
