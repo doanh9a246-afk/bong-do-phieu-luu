@@ -3482,6 +3482,44 @@ var GXC = {
       u: { t: 'barrage', name: 'The Eclipse (27 nhát)', n: 27, dmg: 2.4, reach: 160, col: '#ffd23a', ult: true }, e: { t: 'proj', name: 'Kiếm Kỹ: Sonic Leap', shape: 'crescent', n: 1, spd: 900, r: 26, dmg: 5, pierce: true, col: '#7af07a', life: .6 } },
     forms: [{ name: 'Đơn kiếm', k: 1 }, { name: 'SONG KIẾM', k: 1.6, spd: 1.2, aura: '#7ac8ff', weapon: 'sword2' }] },
 };
+
+// mô tả chi tiết chiêu: sát thương ước tính lên boss (theo chỉ số công, chưa tính chí mạng và giáp boss), tầm, hiệu ứng, hồi chiêu
+const GX_SHAPE = { orb: 'Cầu năng lượng', wave: 'Sóng xung kích', crescent: 'Sóng chém hình trăng', shuriken: 'Phi tiêu gió', rock: 'Khối đá', spear: 'Lôi thương', yoyo: 'Yo-yo thép' };
+function gxDesc(C, A, cd) {
+  const dm = v => Math.round(v * 2.4 * 10 * C.stats.atk / 100), X = A.dmg != null ? dm(A.dmg) : 0, cdt = A.ult ? ' · cần đầy năng lượng' : cd ? ` · hồi ${gxVn(cd)} giây` : '';
+  switch (A.t) {
+    case 'combo': { const n = A.n || 4; return n === 1 ? `Một cú đấm ~${X} sát thương, lướt tới mục tiêu trong tầm 220, quái thường chết ngay${cdt}` : `Chuỗi ${n} nhát, tự lướt tới mục tiêu trong tầm 220 · mỗi nhát ~${X}, nhát ${n} ×2 (~${X * 2}) · tầm đánh 44${cdt}`; }
+    case 'proj': return `${A.n > 1 ? A.n + ' × ' : ''}${GX_SHAPE[A.shape] || 'Đạn'} bay ${A.spd}/giây trong ${gxVn(A.life)} giây · ${A.tick ? `~${X} mỗi 0,12 giây khi chạm (đánh liên tục)` : `~${X} mỗi mục tiêu`}${A.pierce ? ' · xuyên qua kẻ địch' : ''}${A.boom ? ` · nổ bán kính ${A.boom} (lan ~${Math.round(X * .6)})` : ''}${A.pull ? ' · hút quái lại gần' : ''}${A.back ? ' · bay về tay' : ''}${A.spread && A.n > 1 ? ' · xoè quạt' : ''}${cdt}`;
+    case 'beam': return `Tia thẳng dài ${A.len}, dày ${A.w} · trúng mọi thứ trên đường, ~${X} mỗi mục tiêu${cdt}`;
+    case 'dashline': return `Lướt ${A.len} xuyên qua kẻ địch · ~${X} mỗi mục tiêu trên đường · vô địch 0,3 giây${cdt}`;
+    case 'blink': return `Chớp ra sau lưng kẻ địch gần nhất (tầm 380) và đánh ~${X}; không có ai thì lùi 220 · vô địch 0,45 giây${cdt}`;
+    case 'barrage': return `${A.n} đòn liên hoàn trong ${gxVn((A.n * .035).toFixed(1))} giây · mỗi đòn ~${X} lên mọi thứ trong tầm ${A.reach} (tổng tới ~${X * A.n} một mục tiêu) · vô địch 0,3 giây${cdt}`;
+    case 'spikes': return `${A.count} gai đá trồi lần lượt phía trước, cách nhau ${A.gap} (xa tới ${50 + (A.count - 1) * A.gap}) · mỗi gai ~${X}${cdt}`;
+    case 'aoe': return `Nổ quanh người bán kính ${A.r} · ~${X} mỗi mục tiêu${cdt}`;
+    case 'grab': return `Móc kẻ địch trong tầm ${A.range}, kéo sát lại và đánh ~${X}${cdt}`;
+    case 'clones': return `Gọi ${A.n} phân thân trong ${A.dur} giây · tự lao vào kẻ địch gần nhất, mỗi đòn ~${dm(C.kit.web.dmg || 2)} (0,35 giây một đòn)${cdt}`;
+    case 'heal': return `Hồi ${Math.round(A.pct * 100)}% máu tối đa (${Math.round(C.stats.hp * A.pct)} máu)${cdt}`;
+    case 'domain': return `Trong ${A.dur} giây: khoá cứng boss và mọi quái; cứ 0,4 giây gây ~${X} lên mọi thứ trong bán kính 900 (tổng ~${X * Math.round(A.dur / .4)})${cdt}`;
+    case 'bigbeam': return `Tụ lực 0,7 giây rồi bắn tia khổng lồ dài 1400, cao 140 · ~${X} mỗi mục tiêu · cần đầy năng lượng`;
+    case 'nuke': return `Tụ lực 0,7 giây rồi đánh mọi thứ trong bán kính 1100 · ~${X} mỗi mục tiêu · cần đầy năng lượng`;
+    case 'giantfist': return `Nắm đấm đá khổng lồ trồi lên sau 0,7 giây, đánh mọi thứ trong bán kính 1100 · ~${X} mỗi mục tiêu · cần đầy năng lượng`;
+    case 'rampage': return `Chớp qua tối đa ${A.n} kẻ địch, mỗi cú ~${X}, rồi nổ quanh mình bán kính 700 ~${X} · vô địch suốt chiêu · cần đầy năng lượng`;
+  }
+  return '';
+}
+const gxVn = v => String(v).replace('.', ',');
+function gxKitText(C) {
+  const K = C.kit, eCd = K.e.t === 'domain' ? 12 : K.e.t === 'heal' ? 10 : .8;
+  const forms = C.forms.slice(1).map(f => `${f.name}: sát thương ×${gxVn(f.k)}${f.spd ? `, tốc độ ×${gxVn(f.spd)}` : ''}${f.fly ? ', bay tự do' : ''}${f.dodge ? `, né ${Math.round(f.dodge * 100)}% đòn` : ''}${f.weapon ? ', đổi vũ khí' : ''}${f.kit ? ', chiêu giữ J mạnh hơn' : ''}`).join(' · ');
+  return [['Chỉ số', `Máu ${C.stats.hp} · Công ${C.stats.atk} · Thủ ${C.stats.def} · Tốc độ ${C.speed} · sát thương chiêu ×2,4`],
+    ['J', `${K.tap.name}: ${gxDesc(C, K.tap, K.tap.n === 1 ? .3 : .15)}`], ['Giữ J', `${K.hold.name}: ${gxDesc(C, K.hold, .45)}`],
+    ['L', `${K.web.name}: ${gxDesc(C, K.web, .55)}`], ['Shift', `${K.k.name}: ${gxDesc(C, K.k, .4)}`], ['U', `${K.u.name}: ${gxDesc(C, K.u)}`],
+    ['E', `${K.e.name}: ${gxDesc(C, K.e, eCd)}`], ['F', `Đổi trạng thái (nhân sát thương mọi chiêu): ${forms}`]];
+}
+function gxPassiveText(C) {
+  const g = C.guard;
+  return `${g.name}${g.block ? `: tự chặn ${Math.round(g.block * 100)}% đòn đánh trúng` : g.dodge ? `: tự né ${Math.round(g.dodge * 100)}% đòn đánh trúng (lùi lại)` : g.lifesteal ? `: mỗi đòn trúng hồi ${g.lifesteal * 100}% máu tối đa` : ''} · sát thương ước tính là lên boss, chưa tính chí mạng (×1,8) và giáp boss · cheat: mọi chiêu miễn phí, xuyên khiên boss, nhảy 3 lần.`;
+}
 const GX_KEYS = [['tap', 'J'], ['hold', 'Giữ J'], ['web', 'L'], ['k', 'Shift'], ['u', 'U'], ['f', 'F'], ['e', 'E']];
 for (const id in GXC) {
   const C = GXC[id], K = C.kit;
@@ -3493,8 +3531,8 @@ for (const id in GXC) {
     btn: { bolt: [K.tap.name.split(/[ :]/)[0], K.tap.name], web: [K.web.name.split(/[ :]/)[0], K.web.name], skill: [K.k.name.split(/[ :]/)[0], K.k.name], volt: [K.u.name.split(/[ :]/)[0], K.u.name] },
     short: [K.tap.name, K.hold.name, K.web.name, K.k.name, K.u.name],
     more: ` · <kbd>F</kbd> ${C.forms.slice(1).map(f => f.name).join(' / ')} · <kbd>E</kbd> ${K.e.name}`, moreTap: ' · Biến · ' + K.e.name.split(/[ :]/)[0],
-    kit: [['J', K.tap.name], ['Giữ J', K.hold.name], ['L', K.web.name], ['Shift', K.k.name], ['U', K.u.name + ' (cần đầy năng lượng)'], ['F', 'Đổi trạng thái: ' + C.forms.map(f => f.name).join(' → ')], ['E', K.e.name]],
-    passive: `${C.guard.name}${C.guard.block ? ` (chặn ${Math.round(C.guard.block * 100)}% đòn)` : C.guard.dodge ? ` (né ${Math.round(C.guard.dodge * 100)}% đòn)` : ''} · cheat: mọi chiêu miễn phí, xuyên khiên boss, nhảy 3 lần.`,
+    kit: gxKitText(C),
+    passive: gxPassiveText(C),
     tip: `${C.name}: J ${K.tap.name} · giữ J ${K.hold.name} · L ${K.web.name} · Shift ${K.k.name} · U ${K.u.name} · F đổi trạng thái · E ${K.e.name}.` };
 }
 CHARS.gxFly = { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .35, regen: 10, speed: 620, airJumps: 2, dmgK: 2.4, pierce: true, fly: true };
