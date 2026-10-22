@@ -103,7 +103,8 @@ const CHAR_STATS = {
   vegito: { hp: 5000, atk: 260, def: 120 },
   bong: { hp: 3200, atk: 230, def: 90 },
   gabimaru: { hp: 2600, atk: 200, def: 70 },
-  yuuna: { hp: 15000, atk: 420, def: 220 },   // Yuuna (Dog Bite Dog): áp đảo mọi nhân vật   // Gabimaru (Hell's Paradise)   // Quả Bóng Đỏ   // Vegito Blue (hợp thể Potara của Goku và Vegeta)
+  yuuna: { hp: 15000, atk: 420, def: 220 },
+  luck: { hp: 3400, atk: 250, def: 90 },   // Luck Voltia (Black Clover)   // Yuuna (Dog Bite Dog): áp đảo mọi nhân vật   // Gabimaru (Hell's Paradise)   // Quả Bóng Đỏ   // Vegito Blue (hợp thể Potara của Goku và Vegeta)
   thiquy: { hp: 2600, atk: 180, def: 60 }, thiquyK: { hp: 6000, atk: 260, def: 120 },   // YuuTan Thi Quỷ: Song Thể / dạng Quỷ Thi Giải   // YuuTan Song Sắc (thường phục)   // YuuTan: boss màn 5 làm nhân vật   // Zenitsu: nhanh gấp 10 lần   // Mereoleona: không giáp, máu cực nhiều, đánh là hút máu
 };
 const stat = () => (ytaCp() ? CHAR_STATS.yuta : CHAR === 'thiquy' && tqForm() ? CHAR_STATS.thiquyK : CHAR_STATS[CHAR]) || CHAR_STATS.chii;
@@ -483,6 +484,7 @@ function reset() {
     yta: newYta(),           // Yuta: Rika, sao chép nhân vật / đòn quái, Ngôn Linh
     tq: newTq(),             // YuuTan Thi Quỷ: đồng đội tóc bạc, Quỷ Thi Giải, Đạo Ngũ Hành
     cl: newCl(),             // Asta / Yuno: dạng biến hình, nhát chém, đạn, khiên Notos
+    lk: newLk(),             // Luck Voltia: trạng thái sấm, cầu sét, hưng phấn
     yn: newYn(),             // Yuuna: cây ô
     dbd: null,               // màn 12: xác lủng người, boss Lee
     gb: newGb(),             // Gabimaru: lửa Hỏa Pháp Sư, Đạo Hoa, đá, khúc gỗ thế thân
@@ -599,7 +601,7 @@ const SFX = {
   ki()      { tone(900, 300, .1, 'sine', .06); noise(.08, .04, 3000); },
   ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
-const JUMP_SFX = { yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', vegito: 'hop', bong: 'boing', gabimaru: 'hop', yuuna: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
+const JUMP_SFX = { yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', vegito: 'hop', bong: 'boing', gabimaru: 'hop', yuuna: 'hop', luck: 'zap', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
 function sfx(name) { if (!muted && audio()) SFX[name](); }
 function setMuted(m) {
   muted = m;
@@ -617,7 +619,7 @@ function setKey(k, on) {
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
-  if (k === 'volt' && on && !keys.volt) (CHAR === 'asta' ? asU() : CHAR === 'yuno' ? yuU() : CHAR === 'yuuna' ? ynUlt() : CHAR === 'gabimaru' ? gbUlt() : CHAR === 'bong' ? bdSplit() : CHAR === 'vegito' ? vgUlt() : CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
+  if (k === 'volt' && on && !keys.volt) (CHAR === 'asta' ? asU() : CHAR === 'yuno' ? yuU() : CHAR === 'luck' ? lkUlt() : CHAR === 'yuuna' ? ynUlt() : CHAR === 'gabimaru' ? gbUlt() : CHAR === 'bong' ? bdSplit() : CHAR === 'vegito' ? vgUlt() : CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
   if (CHAR === 'kurumi' && on && !keys[k]) {
     if (k === 'egg') kuCloneArmy();
     else if (k === 'heal') kuDalet();
@@ -659,6 +661,7 @@ function setKey(k, on) {
     else if (k === 'regen' && S.ape > 0) apeTroi();
   }
   if ((CHAR === 'asta' || CHAR === 'yuno') && k === 'terra' && on && !keys.terra) clForm();   // Asta: Ác Ma Đồng Hóa · Yuno: Tinh Linh Nhập Thể / Tinh Linh Vương
+  if (CHAR === 'luck' && on && !keys[k]) { if (k === 'terra') lkForm(); else if (k === 'egg') lkSense(); }   // Luck: F đổi trạng thái, E cảm nhận ma lực
   if (CHAR === 'yuuna' && on && !keys[k]) { if (k === 'terra') ynFold(); else if (k === 'egg') ynThrow(); }   // Yuuna: F gập ô, E ném ô
   if (CHAR === 'gabimaru' && on && !keys[k]) { if (k === 'terra') gbTao(); else if (k === 'egg') gbMask(); }   // Gabimaru: F Đạo Hoa, E khăn che mặt
   if (k === 'terra' && on && !keys.terra && (CHAR === 'goku' || CHAR === 'saiyan' || CHAR === 'vegito')) vgFuse();   // Potara: Vegito
@@ -698,6 +701,7 @@ function activateSkill() {
   if (!S.dead && !S.won && !S.lost && S.ghostCd <= 0) { S.ghost = .7; S.ghostCd = 1; }
   // bị Vegeta trói: Shift/K giật đứt dây
   if (CHAR === 'kurumi' && !S.bound) { if (!S.dead && !S.won && !S.lost) kuAleph(); return; }   // Kurumi: K là Aleph
+  if (CHAR === 'luck' && !S.bound) { if (!S.dead && !S.won && !S.lost) lkStep(); return; }   // Luck: K Lôi Bộ
   if (CHAR === 'yuuna' && !S.bound) { if (!S.dead && !S.won && !S.lost) ynHook(); return; }   // Yuuna: K Móc Cán
   if (CHAR === 'gabimaru' && !S.bound) { if (!S.dead && !S.won && !S.lost) gbSubst(); return; }   // Gabimaru: K Thế Thân
   if (CHAR === 'zenitsu' && !S.bound) { if (!S.dead && !S.won && !S.lost) znBlink(); return; }   // Zenitsu: K Lôi Bộ
@@ -811,7 +815,7 @@ function step(h) {
   else if (input) b.vx += input * accel * h;
   else b.vx *= 1 - (S.onGround ? (slick ? .5 : 10) : 2) * h;
   if (!input && !slick && S.onGround && Math.abs(b.vx) < 12) b.vx = 0;
-  const maxv = S.dash ? TACKLE_SPEED : CH().speed * (CHAR === 'yuuna' && S.yn.fold ? 1.25 : 1) * (CHAR === 'zenitsu' ? znSpd() / 10 : 1) * (CHAR === 'bong' && S.bd ? 1 + S.bd.spd : 1) * (CHAR === 'luffy' ? LF_GEARS[S.lf.gear].spd : 1) * (CHAR === 'kurumi' && S.ku.haste > 0 ? 1.8 : 1) * (S.ape > 0 ? 1.15 : 1) * (S.black > 0 ? 1.2 : 1) * (S.ui > 0 ? 1.3 : 1);
+  const maxv = S.dash ? TACKLE_SPEED : CH().speed * (CHAR === 'yuuna' && S.yn.fold ? 1.25 : 1) * (CHAR === 'luck' && S.lk ? lkF().spd : 1) * (CHAR === 'zenitsu' ? znSpd() / 10 : 1) * (CHAR === 'bong' && S.bd ? 1 + S.bd.spd : 1) * (CHAR === 'luffy' ? LF_GEARS[S.lf.gear].spd : 1) * (CHAR === 'kurumi' && S.ku.haste > 0 ? 1.8 : 1) * (S.ape > 0 ? 1.15 : 1) * (S.black > 0 ? 1.2 : 1) * (S.ui > 0 ? 1.3 : 1);
   b.vx = clamp(b.vx, -maxv, maxv);
   if (flying()) {
     // Goku bay tự do: ▲ lên, ▼ xuống, không có trọng lực, thả nút thì đứng lơ lửng
@@ -853,6 +857,7 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
     sfx('tele');
     return;
   }
+  if (!force && CHAR === 'luck' && S.lk.sense > 0 && !fellOff()) { lkDodge(); return; }   // Luck: cảm nhận ma lực né trước
   if (!force && CHAR === 'yuuna' && S.yn.open > 0 && !fellOff()) { ynBlock(); return; }   // Yuuna: ô bung đỡ mọi đòn
   if (!force && CHAR === 'vegito' && !fellOff() && Math.random() < .3) { vgDodge(); return; }   // Vegito: Bản Năng Chiến Binh
   // Rimuru (Đại Hiền Giả): chặn một đòn chí mạng mỗi 15 giây, trừ khi rơi xuống vực
@@ -1374,6 +1379,9 @@ const CHARS = {
   // Quả Bóng Đỏ: cheat, nảy 4 lần, lăn càng lâu càng nhanh
   // Gabimaru: cheat, nhẫn giả nhanh nhẹn, nhảy 3 lần
   // Yuuna: cheat, chỉ số áp đảo, sát thương ×4, nhảy 3 lần
+  // Luck Voltia: cheat, nhanh, nhảy 3 lần; Tinh Linh Nhập Thể / Sấm Sét Chiến Quỷ thì bay
+  luck: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .35, regen: 8, speed: 580, airJumps: 2, dmgK: 2, pierce: true },
+  luckSD: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .3, regen: 10, speed: 640, airJumps: 2, dmgK: 2, pierce: true, fly: true },
   yuuna: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .4, regen: 10, speed: 560, airJumps: 2, dmgK: 4, pierce: true },
   gabimaru: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 520, airJumps: 2, dmgK: 2, pierce: true },
   bong: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .25, regen: 8, speed: 520, airJumps: 3, dmgK: 3, pierce: true },
@@ -1382,7 +1390,7 @@ const CHARS = {
 };
 // bay tự do: Goku luôn bay, Kurumi bay được khi ngưng đọng thời gian hoặc ở dạng Hồng Liên
 const flying = () => CH().fly || (CHAR === 'kurumi' && !!S.ku && (S.ku.stop || S.ku.crim));
-const CH = () => CHAR === 'asta' && S.cl && S.cl.form === 'devil' ? CHARS.astaDU : CHAR === 'yuno' && S.cl && (S.cl.form === 'dive' || S.cl.form === 'king') ? (S.cl.form === 'king' ? CHARS.yunoKing : CHARS.yunoDive) : CHAR === 'thiquy' && tqForm() ? CHARS.thiquyK : CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
+const CH = () => CHAR === 'luck' && S.lk && S.lk.form > 0 ? CHARS.luckSD : CHAR === 'asta' && S.cl && S.cl.form === 'devil' ? CHARS.astaDU : CHAR === 'yuno' && S.cl && (S.cl.form === 'dive' || S.cl.form === 'king') ? (S.cl.form === 'king' ? CHARS.yunoKing : CHARS.yunoDive) : CHAR === 'thiquy' && tqForm() ? CHARS.thiquyK : CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
 const cost = k => CH().cost[k];
 /* ---------- Pikachu: Dynamax (G) và tuyệt kĩ Z (Z) ----------
    Dynamax: to gấp 10 lần, vĩnh viễn (lưu trên máy tới khi bấm G lần nữa), bộ chiêu chuyển sang hack.
@@ -1455,6 +1463,7 @@ const MOVES = {
   bong: { tap: bdMini, hold: bdGiant, web: bdSlam },
   gabimaru: { tap: gbChop, hold: gbStones, web: gbHibo },
   yuuna: { tap: ynTap, hold: ynExtend, web: ynOpen },
+  luck: { tap: lkTap, hold: lkOrb, web: lkBoots },
 };
 // chiêu U: sát thương lên boss (trước hệ số nhân vật), thời gian choáng, số tia, âm thanh
 const ULTS = {
@@ -2145,6 +2154,7 @@ function updateCharMoves(dt) {
   updateBong(dt);
   updateGabimaru(dt);
   updateYuuna(dt);
+  updateLuck(dt);
   updateCl(dt);
   updateClover(dt);
   updateNamek(dt);
@@ -3030,7 +3040,7 @@ function hud() {
 const CHAR_KEY = 'bongdo.char';
 // mật khẩu chỉ lưu dưới dạng mã băm; mở rồi thì máy đó nhớ
 const PW_HASH = 2576725674;   // 123456
-const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan', 'yuutan2', 'thiquy', 'yuta', 'bong', 'gabimaru', 'yuuna']
+const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan', 'yuutan2', 'thiquy', 'yuta', 'bong', 'gabimaru', 'yuuna', 'luck']
   .map(id => [id, { hash: PW_HASH, key: 'bongdo.lock.' + id }]));
 // Kurumi khoá riêng bằng mật khẩu đặc biệt (khoá mới: máy đã mở bằng mật khẩu cũ cũng phải nhập lại)
 Object.assign(LOCKS.kurumi, { hash: 890022063, key: 'bongdo.lock2.kurumi' });   // mật khẩu: 0
@@ -3252,6 +3262,19 @@ const CHAR_UI = {
       ['U', 'SHINRA TENSEI: quả cầu đẩy khổng lồ tiêu diệt mọi quái xung quanh, phá bục và khoét hố mặt đất nó quét qua, 8 sát thương lên boss (cần đầy, nạp siêu nhanh)']],
     passive: 'giữ nhảy để lơ lửng · cheat: nhảy 3 lần, chạy nhanh, sát thương ×2, xuyên khiên boss, chakra nạp ×6. Bục bị phá tự hồi sau 6 giây.',
     tip: 'Pain: J Hắc Bổng · giữ J Vạn Tượng Thiên Dẫn · L Địa Bộc Thiên Tinh · Shift Ngạ Quỷ Đạo · U khi đầy: SHINRA TENSEI phá huỷ mọi thứ xung quanh. Giữ nhảy để lơ lửng.' },
+  luck: { name: 'Luck Voltia', from: 'Black Clover', tag: 'Kẻ cuồng chiến Hắc Bộc Ngưu — ma pháp Sấm Sét: Tinh Linh Nhập Thể, Sấm Sét Chiến Quỷ (cheat)', energy: 'Ma lực',
+    btn: { bolt: ['Quyền', 'Lôi Thần Quyền'], web: ['Hài', 'Lôi Thần Hài'], skill: ['Bộ', 'Lôi Bộ'], volt: ['Lôi', 'Tuyệt kĩ Sấm'] },
+    short: ['Lôi Thần Quyền', 'Lôi Minh Băng Cầu', 'Lôi Thần Hài', 'Lôi Bộ', 'Tuyệt kĩ Sấm'],
+    more: ' · <kbd>F</kbd> đổi trạng thái · <kbd>E</kbd> cảm nhận ma lực', moreTap: ' · Biến · Cảm',
+    kit: [['J', 'Lôi Thần Quyền: chớp tới đấm bằng găng sấm, chuỗi 4 nhát, nhát 4 nổ Lôi Minh Băng Cầu sát mặt'],
+      ['Giữ J', 'Lôi Minh Băng Cầu: cầu sét nổ tung (Tinh Linh: 3 quả đuổi mục tiêu · Chiến Quỷ: 5 quả + sét giáng)'],
+      ['L', 'Lôi Thần Hài: giày sấm lao chữ chi xuyên qua mọi kẻ địch trên đường'],
+      ['Shift', 'Lôi Bộ: chớp sét ra sau lưng kẻ địch gần nhất và đánh, vô địch thoáng chốc'],
+      ['U', 'Thường: Lôi Thần Thịnh Nộ (sét giáng xuống mọi kẻ địch) · Tinh Linh: Lôi Lang Bách Liệt (chớp qua từng kẻ địch, cột sét) · Chiến Quỷ: Thiên Lôi Chiến Quỷ Quyền (bóng quỷ sấm khổng lồ đấm xuống cả màn hình)'],
+      ['F', 'Đổi trạng thái: thường → TINH LINH NHẬP THỂ (sấm hoá thân, tóc sáng, bay, ×1,7, Thực Lôi xuyên khiên) → SẤM SÉT CHIẾN QUỶ (sấm đen tím, sừng sét, bay, ×2,6, chạm là giật)'],
+      ['E', 'Cảm Nhận Ma Lực: đoán trước dòng ma lực, tự né 3 đòn kế tiếp trong 10 giây']],
+    passive: 'Cuồng Chiến: mỗi đòn trúng tăng Hưng Phấn (tối đa +50% sát thương) · cheat: mọi chiêu miễn phí, sát thương ×2, xuyên khiên boss, nhảy 3 lần.',
+    tip: 'Luck: J Lôi Thần Quyền · giữ J Lôi Minh Băng Cầu · L Lôi Thần Hài · Shift Lôi Bộ · U tuyệt kĩ sấm · F Tinh Linh Nhập Thể / Sấm Sét Chiến Quỷ · E cảm nhận ma lực.' },
   yuuna: { name: 'Yuuna', from: 'Dog Bite Dog', tag: 'Cô gái tóc tím với cây ô đen: vác ô quật lủng người — chỉ số áp đảo mọi nhân vật (cheat)', energy: 'Sát khí',
     btn: { bolt: ['Quật', 'Quật Ô'], web: ['Bung', 'Bung Ô'], skill: ['Móc', 'Móc Cán'], volt: ['Chó', 'Chó Cắn Chó'] },
     short: ['Quật Ô', 'Kéo Dài Ô', 'Bung Ô', 'Móc Cán', 'Chó Cắn Chó'],
@@ -3349,6 +3372,7 @@ function applyChar() {
   document.querySelectorAll('.touch .ytc').forEach(el => { el.hidden = !isYuta(); });
   document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
   document.querySelectorAll('.touch .cl').forEach(el => { el.hidden = CHAR !== 'asta' && CHAR !== 'yuno'; });
+  document.querySelectorAll('.touch .lk').forEach(el => { el.hidden = CHAR !== 'luck'; });
   document.querySelectorAll('.touch .yn').forEach(el => { el.hidden = CHAR !== 'yuuna'; });
   document.querySelectorAll('.touch .gb').forEach(el => { el.hidden = CHAR !== 'gabimaru'; });
   document.querySelectorAll('.touch .vg').forEach(el => { el.hidden = !(CHAR === 'goku' || CHAR === 'saiyan' || CHAR === 'vegito') || ytaCp(); el.textContent = CHAR === 'vegito' ? 'Tách' : 'Potara'; });
@@ -13978,6 +14002,381 @@ function dbdSolid(s, x0, x1) {
   ctx.fillStyle = 'rgb(255 255 255 / .25)'; ctx.fillRect(s.minX, s.minY, s.maxX - s.minX, 3);
 }
 
+/* ---------- Luck Voltia (Black Clover): "kẻ cuồng chiến" của Hắc Bộc Ngưu, ma pháp Sấm Sét ----------
+   Ngoại hình: tóc vàng nhạt bù xù dựng ngược, mắt luôn nhắm cười (mở ra xanh lam khi nghiêm túc), áo choàng ngắn Hắc Bộc Ngưu
+   có hình đầu bò, áo trong xanh đen cổ cao, quần xám, Lôi Thần Thủ Giáp (găng sấm) và Lôi Thần Hài (giày sấm).
+   Ba trạng thái (F): thường → TINH LINH NHẬP THỂ (sấm hoá thân, tóc trắng xanh phát sáng, bay, Ma Pháp Thực Lôi của Vương Quốc Trái Tim)
+   → SẤM SÉT CHIẾN QUỶ (sấm đen tím viền vàng, sừng sét, mắt vàng đỏ, bay, sát thương ×2,6).
+   J Lôi Thần Quyền (chuỗi 4 đấm, nhát 4 nổ Lôi Minh Băng Cầu) · giữ J Lôi Minh Băng Cầu (cầu sét, trạng thái cao bắn nhiều)
+   · L Lôi Thần Hài: lao chữ chi xuyên qua mọi kẻ địch · Shift Lôi Bộ: chớp sét né · U tuyệt kĩ theo trạng thái
+   · E Cảm Nhận Ma Lực: đoán trước 3 đòn kế tiếp và né · nội tại Cuồng Chiến: mỗi đòn trúng tăng Hưng Phấn (tối đa +50% sát thương). */
+const LK_FORMS = [
+  { id: 'base', name: 'Luck Voltia', k: 1, spd: 1, col: ['#ffffff', '#fff6a0', '#ffd23a', '#3aa8ff'] },
+  { id: 'spirit', name: 'TINH LINH NHẬP THỂ', k: 1.7, spd: 1.25, col: ['#ffffff', '#c8f4ff', '#5ad8ff', '#2a6aff'] },
+  { id: 'fiend', name: 'SẤM SÉT CHIẾN QUỶ', k: 2.6, spd: 1.5, col: ['#fff4c0', '#ffd23a', '#b84aff', '#3a0a5a'] },
+];
+function newLk() { return { cd: {}, pose: null, poseT: 0, cur: null, mt: 0, combo: 0, form: 0, hype: 0, sense: 0, fx: [], orbs: [], bolts: [], ghosts: [], gT: 0, ult: null, pend: [], tf: 0, arcT: 0 }; }
+const lkF = () => LK_FORMS[S.lk ? S.lk.form : 0];
+const lkK = () => lkF().k * (1 + S.lk.hype * .05);
+const lkCols = () => lkF().col;
+function lkCd(k, t) { const L = S.lk; if (L.cd[k] > 0) return false; L.cd[k] = t * (L.form === 2 ? .7 : L.form === 1 ? .85 : 1); return true; }
+function lkPose(p, t) { S.lk.pose = p; S.lk.poseT = t; }
+function lkPop(text, c, big) { S.pops.push({ x: S.ball.x, y: S.ball.y - 80, t: big ? 1.4 : 1, text, c: c || lkCols()[1], big }); }
+function lkGhost(b, t = .22) { S.lk.ghosts.push({ x: b.x, y: b.y, face: b.face || 1, vx: b.vx, pose: S.lk.pose, t, max: t }); }
+function lkLater(t, fn) { S.lk.pend.push({ t, fn }); }
+// tia sét: đường gấp khúc ngẫu nhiên + nhánh, vẽ theo khung hình (nhấp nháy tự nhiên)
+function lkBolt(x1, y1, x2, y2, w = 3, cols = lkCols(), branch = true, g = ctx) {
+  const n = Math.max(3, Math.floor(Math.hypot(x2 - x1, y2 - y1) / 18)), pts = [[x1, y1]], nx = -(y2 - y1), ny = x2 - x1, nl = Math.hypot(nx, ny) || 1;
+  for (let i = 1; i < n; i++) { const t = i / n, j = (Math.random() - .5) * Math.min(40, n * 6); pts.push([x1 + (x2 - x1) * t + nx / nl * j, y1 + (y2 - y1) * t + ny / nl * j]); }
+  pts.push([x2, y2]);
+  g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const [lw, c, a] of [[w * 4, cols[3], .35], [w * 2, cols[2], .7], [w, cols[0], 1]]) {
+    g.globalAlpha = a; g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
+  }
+  if (branch) for (let i = 1; i < pts.length - 1; i += 2) if (Math.random() < .35) {
+    const [px, py] = pts[i], a = Math.atan2(y2 - y1, x2 - x1) + (Math.random() - .5) * 2, L = 12 + Math.random() * 26;
+    g.globalAlpha = .7; g.strokeStyle = cols[1]; g.lineWidth = Math.max(1, w * .6); g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * L * .5 + (Math.random() - .5) * 8, py + Math.sin(a) * L * .5 + (Math.random() - .5) * 8); g.lineTo(px + Math.cos(a) * L, py + Math.sin(a) * L); g.stroke();
+  }
+  g.restore();
+}
+function lkHit(t, dmg) {
+  if (!tAlive(t)) return;
+  const L = S.lk, p = tPos(t), b = S.ball, C = lkCols();
+  L.fx.push({ k: 'zap', x: p.x, y: p.y, t: 0, max: .22, r: 26 + L.form * 10 });
+  for (let i = 0; i < 6 + L.form * 3; i++) { const a = Math.random() * Math.PI * 2, sp = 140 + Math.random() * 260; S.parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: .3, c: C[i % 3], r: 2 + Math.random() * 3, g: 0 }); }
+  const d = dmg * lkK();
+  if (t.kind === 'boss') { LAST_PROBE = { x: b.x, y: b.y, t: S.t }; damageBoss(t.ref, d, L.form ? 'haki' : 'shock'); }   // Thực Lôi (Tinh Linh / Chiến Quỷ) xuyên khiên phép
+  else if (t.kind === 'enemy') { const e = t.ref; e.inv = 0; e.bub = 0; if (e.role === 'khien') e.dir = -(Math.sign(b.x - e.x) || 1); if (d >= 3 && !e.mid) e.hp = 1; e.goreDir = Math.sign(e.x - b.x) || 1; killEnemy(e, C[2]); }
+  else if (t.kind === 'flyer') killFlyer(t.ref);
+  else { const T = S.turret; T.hp -= d; T.flash = .15; if (T.hp <= 0) breakTurret(); }
+  // Cuồng Chiến: càng đánh càng hưng phấn
+  L.hype = Math.min(10, L.hype + .5); L.hypeT = 4;
+}
+const lkLo = () => S.fight ? ARENA.l + R : R, lkHi = () => S.fight ? ARENA.r - R : LEVEL_W - R;
+// J: Lôi Thần Quyền — chớp tới đấm, nhát 4 nổ Lôi Minh Băng Cầu sát mặt
+function lkTap() {
+  const L = S.lk; if (!canAct() || !lkCd('j', .15)) return;
+  const b = S.ball, d = b.face || 1, i = L.combo++ % 4, last = i === 3;
+  const tg = kkTarget(240 + L.form * 80);
+  if (tg) { const p = tPos(tg); if (Math.abs(p.x - b.x) > 60) { lkGhost(b); const x0 = b.x, y0 = b.y; gbPlace(clamp(p.x - d * 44, lkLo(), lkHi()), gbFeet(tg), tg.kind === 'flyer' || L.form > 0); L.fx.push({ k: 'line', x1: x0, y1: y0 - 10, x2: b.x, y2: b.y - 10, t: 0, max: .14, w: 3 }); } }
+  lkPose(last ? 'orb' : i % 2 ? 'punch2' : 'punch', .2);
+  const hx = b.x + (b.face || 1) * 36, hy = b.y - 14;
+  const hit = nkTouch(hx, hy, last ? 60 + L.form * 14 : 42 + L.form * 8);
+  for (const t of hit) lkHit(t, last ? 5 : 2.5);
+  L.fx.push({ k: last ? 'burst' : 'fist', x: hx, y: hy, d: b.face || 1, t: 0, max: last ? .35 : .16, r: last ? 50 + L.form * 20 : 20 });
+  if (L.form && !last) L.bolts.push({ x1: hx, y1: hy, x2: hx + (b.face || 1) * (60 + Math.random() * 60), y2: hy + (Math.random() - .5) * 60, t: .1 });
+  sfx(hit.length ? 'zap' : 'dash');
+  if (last && hit.length) lkPop('Lôi Minh Băng Cầu!', lkCols()[1]);
+}
+// giữ J: Lôi Minh Băng Cầu — cầu sét bay thẳng, nổ tung; Tinh Linh 3 quả đuổi mục tiêu, Chiến Quỷ 5 quả + sét giáng
+function lkOrb(hold) {
+  const L = S.lk; if (!canAct() || !lkCd('orb', .45)) return;
+  const b = S.ball, d = b.face || 1, n = [1, 3, 5][L.form], big = hold > .9;
+  lkPose('orb', .3);
+  for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * .22; L.orbs.push({ x: b.x + d * 28, y: b.y - 14, vx: d * Math.cos(a) * 760, vy: Math.sin(a) * 760, t: 0, r: (big ? 16 : 11) + L.form * 3, home: L.form > 0 }); }
+  sfx('volt'); lkPop(n > 1 ? `Lôi Minh Băng Cầu ×${n}!` : 'Lôi Minh Băng Cầu!');
+}
+// L: Lôi Thần Hài — lao chữ chi xuyên qua kẻ địch, mỗi cú vấp sét
+function lkBoots() {
+  const L = S.lk; if (!canAct() || !lkCd('boots', .55)) return;
+  const b = S.ball, d = b.face || 1, x0 = b.x, y0 = b.y, len = 360 + L.form * 160;
+  const hit = ynLine(x0, y0 - 14, d, len + 30, 70);
+  lkGhost(b, .35);
+  if (!gbPlace(clamp(x0 + d * len, lkLo(), lkHi()), b.y + R, L.form > 0)) gbPlace(clamp(x0 + d * len * .5, lkLo(), lkHi()), b.y + R, true);
+  S.safe = Math.max(S.safe, .35);
+  // vệt sét chữ chi
+  const pts = [[x0, y0 - 10]]; for (let i = 1; i < 6; i++) pts.push([x0 + (b.x - x0) * i / 6, y0 - 10 + (i % 2 ? -36 : 30)]); pts.push([b.x, b.y - 10]);
+  for (let i = 0; i < pts.length - 1; i++) L.bolts.push({ x1: pts[i][0], y1: pts[i][1], x2: pts[i + 1][0], y2: pts[i + 1][1], t: .3, w: 4 + L.form });
+  for (const t of hit) lkHit(t, 4);
+  sfx('zap'); lkPop('Lôi Thần Hài!');
+}
+// Shift: Lôi Bộ — chớp sét ra sau lưng kẻ địch gần nhất (hoặc lùi lại), vô địch thoáng chốc
+function lkStep() {
+  const L = S.lk; if (!canAct() || !lkCd('k', .35)) return;
+  const b = S.ball, x0 = b.x, y0 = b.y, t = kkTarget(380);
+  lkGhost(b, .3);
+  let ok;
+  if (t) { const p = tPos(t), s = Math.sign(p.x - x0) || 1; ok = gbPlace(clamp(p.x + s * 56, lkLo(), lkHi()), gbFeet(t), true); if (ok) { b.face = -s; lkHit(t, 2); } }
+  else ok = gbPlace(clamp(x0 - (b.face || 1) * 220, lkLo(), lkHi()), b.y + R, L.form > 0);
+  if (!ok) { L.cd.k = 0; return; }
+  L.bolts.push({ x1: x0, y1: y0 - 10, x2: b.x, y2: b.y - 10, t: .25, w: 4 });
+  S.safe = Math.max(S.safe, .45); b.vy = Math.min(b.vy, 0); sfx('zap');
+}
+// E: Cảm Nhận Ma Lực — đọc trước dòng ma lực: né 3 đòn kế tiếp trong 10 giây
+function lkSense() {
+  const L = S.lk; if (!canAct() || !lkCd('sense', 12)) { if (canAct()) { lkPop(`Cảm nhận ma lực hồi ${Math.ceil(L.cd.sense)} giây`, '#c8d8ff'); sfx('deny'); } return; }
+  L.sense = 3; L.senseT = 10; L.fx.push({ k: 'sense', x: S.ball.x, y: S.ball.y - 14, t: 0, max: .8 }); sfx('ui');
+  lkPop('Cảm Nhận Ma Lực: thấy hết rồi nhé~', '#c8f4ff', true);
+}
+function lkDodge() {
+  const L = S.lk, b = S.ball;
+  L.sense--; S.safe = Math.max(S.safe, .5); S.hitAtk = 0;
+  lkGhost(b, .3); b.x = clamp(b.x - (b.face || 1) * 60, lkLo(), lkHi());
+  L.bolts.push({ x1: b.x + (b.face || 1) * 60, y1: b.y - 10, x2: b.x, y2: b.y - 10, t: .2, w: 3 });
+  S.pops.push({ x: b.x, y: b.y - 70, t: .7, text: 'Thấy trước rồi!', c: '#c8f4ff' }); sfx('tele');
+}
+// F: đổi trạng thái — sét giáng xuống từ trời
+function lkForm() {
+  const L = S.lk; if (!canAct() || L.ult || !lkCd('form', .8)) return;
+  L.form = (L.form + 1) % 3; L.tf = 1; L.cur = null;
+  const b = S.ball, F2 = lkF();
+  S.flash = Math.max(S.flash, L.form ? .7 : .3); sfx(L.form ? 'volt' : 'tele');
+  L.bolts.push({ x1: b.x + (Math.random() - .5) * 40, y1: b.y - 700, x2: b.x, y2: b.y - 10, t: .45, w: 9 });
+  L.fx.push({ k: 'burst', x: b.x, y: b.y - 14, d: 1, t: 0, max: .6, r: 120 });
+  for (const t of nkTargets(b.x, b.y, 160, 10)) lkHit(t, 3);
+  lkPop(L.form ? F2.name + '!' : 'Trở về dạng thường', F2.col[1], true);
+  if (L.form === 2) S.pops.push({ x: b.x, y: b.y - 120, t: 1.6, text: '“Đánh nữa đi! Vui quá đi mất!”', c: '#ffd23a' });
+  applyChar();
+}
+// U: tuyệt kĩ theo trạng thái (cần đầy năng lượng)
+// thường: Lôi Thần Thịnh Nộ — sét giáng xuống mọi kẻ địch quanh mình · Tinh Linh: Lôi Lang Bách Liệt — chớp qua từng kẻ địch, mỗi cú một cột sét
+// Chiến Quỷ: Thiên Lôi Chiến Quỷ Quyền — triệu bóng chiến quỷ sấm khổng lồ, đấm xuống cả màn hình
+function lkUlt() {
+  const L = S.lk; if (!canAct() || L.ult) return;
+  if (S.energy < COST.volt) { lkPop(`Cần đầy năng lượng (${Math.floor(S.energy)}/100)`, '#ffd27a'); sfx('deny'); return; }
+  S.energy = 0; S.power = Math.max(S.power, 3);
+  const b = S.ball, tg = nkTargets(b.x, b.y, 900 + L.form * 200, 12).filter(t => Math.abs(tPos(t).y - b.y) < 420);
+  L.ult = { t: 0, form: L.form, tg, i: 0, step: .2, done: false };
+  lkPose('cast', .6); sfx('volt');
+  S.pops.push({ x: b.x, y: b.y - 110, t: 2, text: ['LÔI THẦN THỊNH NỘ!', 'LÔI LANG BÁCH LIỆT!', 'THIÊN LÔI CHIẾN QUỶ QUYỀN!'][L.form], c: lkCols()[1], big: true });
+}
+function updateLuck(dt) {
+  const L = S.lk; if (!L) return;
+  for (const k in L.cd) L.cd[k] -= dt;
+  L.mt += dt; L.poseT -= dt; if (L.poseT <= 0) L.pose = null;
+  L.tf = Math.max(0, L.tf - dt * 1.5);
+  for (const f of L.fx) f.t += dt; L.fx = L.fx.filter(f => f.t < f.max);
+  for (const g of L.ghosts) g.t -= dt; L.ghosts = L.ghosts.filter(g => g.t > 0);
+  for (const q of L.bolts) q.t -= dt; L.bolts = L.bolts.filter(q => q.t > 0);
+  if (CHAR !== 'luck') { L.ult = null; L.orbs = []; L.pend = []; return; }
+  const b = S.ball;
+  for (const p of L.pend) if ((p.t -= dt) <= 0 && !p.done) { p.done = true; if (!S.dead) p.fn(); }
+  L.pend = L.pend.filter(p => !p.done);
+  if (L.hypeT > 0) L.hypeT -= dt; else L.hype = Math.max(0, L.hype - dt * 2);
+  if (L.senseT > 0 && (L.senseT -= dt) <= 0) L.sense = 0;
+  if (Math.abs(b.vx) > 300 && !S.dead && (L.gT -= dt) <= 0) { L.gT = .05; lkGhost(b, .18); }
+  // hồ quang quanh người theo trạng thái
+  if ((L.arcT -= dt) <= 0 && !S.dead) {
+    L.arcT = [.25, .1, .06][L.form];
+    const a = Math.random() * Math.PI * 2, r = 20 + L.form * 12;
+    L.bolts.push({ x1: b.x + Math.cos(a) * 8, y1: b.y - 16 + Math.sin(a) * 14, x2: b.x + Math.cos(a) * r * 1.6, y2: b.y - 16 + Math.sin(a) * r * 1.4, t: .08, w: 1.4 + L.form * .4, nb: true });
+    if (L.form === 2 && S.onGround && Math.random() < .5) L.bolts.push({ x1: b.x, y1: b.y + R, x2: b.x + (Math.random() - .5) * 140, y2: b.y + R + 2, t: .1, w: 2, nb: true });   // sét bò trên mặt đất
+  }
+  // Chiến Quỷ: chạm vào là giật
+  if (L.form === 2 && (L.touchT = (L.touchT || 0) - dt) <= 0) { L.touchT = .25; for (const t of nkTouch(b.x, b.y - 10, R + 20)) lkHit(t, 1); }
+  // cầu sét
+  for (const o of L.orbs) {
+    o.t += dt;
+    if (o.home) { const tg = nkTargets(o.x, o.y, 420, 1)[0]; if (tg) { const p = tPos(tg), a = Math.atan2(p.y - o.y, p.x - o.x), sp = Math.hypot(o.vx, o.vy); o.vx += (Math.cos(a) * sp - o.vx) * Math.min(1, dt * 5); o.vy += (Math.sin(a) * sp - o.vy) * Math.min(1, dt * 5); } }
+    o.x += o.vx * dt; o.y += o.vy * dt;
+    const hit = nkTouch(o.x, o.y, o.r + 8);
+    if (hit.length || o.t > 1.3) {
+      o.dead = true; L.fx.push({ k: 'burst', x: o.x, y: o.y, d: 1, t: 0, max: .4, r: 70 + o.r * 2 });
+      for (const t of nkTargets(o.x, o.y, 70 + o.r * 2, 8)) lkHit(t, 4);
+      if (S.lk.form === 2) L.bolts.push({ x1: o.x + (Math.random() - .5) * 60, y1: o.y - 600, x2: o.x, y2: o.y, t: .3, w: 6 });
+      if (hit.length) sfx('boom');
+    }
+  }
+  L.orbs = L.orbs.filter(o => !o.dead);
+  const U = L.ult;
+  if (U) {
+    U.t += dt; S.safe = Math.max(S.safe, .2);
+    if (U.form === 0) {
+      // sét giáng lần lượt xuống từng kẻ địch rồi một loạt nữa
+      if (U.i < U.tg.length * 2 && (U.step -= dt) <= 0) {
+        U.step = .08; const t = U.tg[U.i % U.tg.length]; U.i++;
+        if (t && tAlive(t)) { const p = tPos(t); L.bolts.push({ x1: p.x + (Math.random() - .5) * 80, y1: p.y - 700, x2: p.x, y2: p.y + 20, t: .3, w: 7 }); lkHit(t, 5); sfx('zap'); }
+      }
+      if (U.t > 1.6 || (!U.tg.length && U.t > .6)) L.ult = null;
+    } else if (U.form === 1) {
+      // Lôi Lang: chớp qua từng kẻ địch, để lại cột sét
+      b.vx = 0; b.vy = Math.min(b.vy, 0);
+      if (U.i < U.tg.length) {
+        if ((U.step -= dt) <= 0) {
+          U.step = .1; const t = U.tg[U.i++];
+          if (tAlive(t)) { const x0 = b.x, y0 = b.y, p = tPos(t), s = Math.sign(p.x - b.x) || 1; lkGhost(b, .4); gbPlace(clamp(p.x + s * 40, lkLo(), lkHi()), gbFeet(t), true); b.face = -s; lkPose(U.i % 2 ? 'punch' : 'punch2', .1); L.bolts.push({ x1: x0, y1: y0 - 10, x2: b.x, y2: b.y - 10, t: .35, w: 5 }, { x1: p.x, y1: p.y - 500, x2: p.x, y2: p.y + 20, t: .35, w: 8 }); lkHit(t, 8); sfx('zap'); }
+        }
+      } else if (!U.done) { U.done = U.t; lkPose('cast', .5); for (const t of nkTargets(b.x, b.y, 700, 20)) lkHit(t, 6); S.flash = .5; sfx('boom'); L.fx.push({ k: 'burst', x: b.x, y: b.y - 14, d: 1, t: 0, max: .6, r: 260 }); }
+      else if (U.t - U.done > .6) L.ult = null;
+    } else {
+      // Chiến Quỷ: bóng quỷ sấm khổng lồ mọc sau lưng, giơ nắm đấm, đấm xuống
+      b.vx = 0; b.vy = Math.min(b.vy, 0);
+      if (!U.done && U.t > 1) {
+        U.done = U.t; S.flash = .9; sfx('boom');
+        for (const t of nkTargets(b.x, b.y, 1100, 30)) lkHit(t, 16);
+        for (let i = 0; i < 14; i++) { const x = b.x + (i - 6.5) * 120; L.bolts.push({ x1: x + (Math.random() - .5) * 80, y1: b.y - 800, x2: x, y2: b.y + R, t: .5, w: 8 }); }
+        L.fx.push({ k: 'burst', x: b.x + (b.face || 1) * 200, y: b.y, d: 1, t: 0, max: .8, r: 420 });
+      }
+      if (U.done && U.t - U.done > .9) L.ult = null;
+    }
+  }
+}
+/* ----- vẽ ----- */
+function lkPoseOf(b, pose) {
+  const t = S.lk.mt, fly = S.lk.form > 0 && !S.onGround;
+  if (pose === 'punch') return { hy: -42, lean: .35, bl: [-.7, -.5], fl: [.7, .1], ba: [-.6, -1.4], fa: [1.55, 1.57] };
+  if (pose === 'punch2') return { hy: -42, lean: .4, bl: [-.8, -.5], fl: [.6, 0], ba: [1.55, 1.57], fa: [-.6, -1.4] };
+  if (pose === 'orb') return { hy: -42, lean: .25, bl: [-.6, -.3], fl: [.6, .1], ba: [-.4, -.2], fa: [1.4, 1.2] };
+  if (pose === 'cast') return { hy: -46, lean: -.1, bl: [-.3, -.1], fl: [.4, .1], ba: [2.6, 2.9], fa: [2.8, 3.1] };
+  if (fly) return { hy: -46, lean: .2 + Math.sin(t * 3) * .03, bl: [.25, .2], fl: [.45, .1], ba: [-.5, -.2], fa: [.5, 1.2] };
+  if (S.onGround && Math.abs(b.vx) > 60) { const s = Math.sin(t * 16); return { hy: -40, lean: .6, bl: [-.9 * s - .3, -.9 * s - .7 - 1.1 * Math.max(0, s)], fl: [.9 * s - .3, .9 * s - .7 - 1.1 * Math.max(0, -s)], ba: [-1.6, -1.2], fa: [-1.5, -1.1] }; }
+  if (!S.onGround) return { hy: -46, lean: .3, bl: [.3, -1.2], fl: [1.2, -.4], ba: [-1, -.4], fa: [.8, 1.6] };
+  // đứng: hai tay thả lỏng, người lắc lư vui vẻ
+  return { hy: -45 + Math.sin(t * 4) * .8, lean: .06 + Math.sin(t * 2) * .03, bl: [-.15, -.05], fl: [.2, .05], ba: [.3, .6], fa: [.5, .9] };
+}
+function drawLuckFig(b, pose, ghost) {
+  const L = S.lk, d = b.face || 1, fl = L.form, fy = b.y + R - 2 - (fl && !S.onGround ? 0 : 0), SC = .6, C = LK_FORMS[fl].col;
+  let P = lkPoseOf(b, pose);
+  if (!ghost) {
+    if (!L.cur) L.cur = JSON.parse(JSON.stringify(P));
+    const k = 1 - Math.exp(-(L.pose ? 34 : 16) / 60), Q = L.cur;
+    Q.hy += (P.hy - Q.hy) * k; Q.lean += (P.lean - Q.lean) * k;
+    for (const n of ['bl', 'fl', 'ba', 'fa']) for (let i = 0; i < 2; i++) Q[n][i] += (P[n][i] - Q[n][i]) * k;
+    P = Q;
+  }
+  const HAIR = fl === 1 ? '#f4fcff' : fl === 2 ? '#f6e6a0' : '#f2e2a0', HAIRD = fl === 1 ? '#9ae0ff' : fl === 2 ? '#c89a40' : '#c8b070', SK = fl === 2 ? '#e8d0c0' : '#f8dcc8',
+    CAPE = '#141218', CAPEL = '#2a2630', SHIRT = '#1c2638', PANTS = '#5a5e6a', GLOVE = fl === 2 ? '#2a1040' : '#e8e4d8', BOOT = '#2a2a34';
+  ctx.save(); ctx.translate(b.x, fy); ctx.scale(d * SC, SC); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const hy = P.hy, sx = Math.sin(P.lean) * 32, sy = hy - Math.cos(P.lean) * 32, cx = sx + Math.sin(P.lean) * 15, cy = sy - Math.cos(P.lean) * 15;
+  const wave = Math.sin(L.mt * 9), sp = Math.min(1, Math.abs(b.vx) / 600);
+  // áo choàng ngắn Hắc Bộc Ngưu bay phía sau
+  ctx.fillStyle = CAPE; ctx.beginPath(); ctx.moveTo(sx - 8, sy - 2); ctx.lineTo(sx + 6, sy - 2);
+  ctx.quadraticCurveTo(sx - 10, sy + 14, sx - 18 - sp * 20 + wave * 2, sy + 22 - sp * 6); ctx.lineTo(sx - 26 - sp * 22, sy + 16 - sp * 8 + wave * 2); ctx.closePath(); ctx.fill();
+  const glove = (hx, hy2) => {
+    ctx.fillStyle = GLOVE; ctx.beginPath(); ctx.arc(hx, hy2, 4.4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = C[2]; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(hx, hy2, 4.6, 0, Math.PI * 2); ctx.stroke();
+  };
+  const arm = (a, front) => {
+    const ox = sx + (front ? 3 : -3), oy = sy + 4;
+    const ex = ox + Math.sin(a[0]) * 16, ey = oy + Math.cos(a[0]) * 16, hx = ex + Math.sin(a[1]) * 15, hy2 = ey + Math.cos(a[1]) * 15;
+    ctx.strokeStyle = front ? SHIRT : '#121a28'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = SK; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(hx, hy2); ctx.stroke();
+    glove(hx, hy2); return [hx, hy2];
+  };
+  const leg = (a, back) => {
+    const rx = back ? -3 : 3, kx = rx + Math.sin(a[0]) * 22, ky = hy + Math.cos(a[0]) * 22, fx = kx + Math.sin(a[1]) * 22, fy2 = ky + Math.cos(a[1]) * 22;
+    ctx.strokeStyle = back ? '#44484f' : PANTS; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(rx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy2 - 6); ctx.stroke();
+    // Lôi Thần Hài: giày có cánh sét
+    ctx.fillStyle = BOOT; ctx.beginPath(); ctx.moveTo(fx - 4, fy2 - 10); ctx.lineTo(fx + 4, fy2 - 10); ctx.lineTo(fx + 11, fy2 - 1); ctx.lineTo(fx + 11, fy2 + 1.5); ctx.lineTo(fx - 5, fy2 + 1.5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C[2]; ctx.beginPath(); ctx.moveTo(fx - 4, fy2 - 8); ctx.lineTo(fx - 11, fy2 - 14); ctx.lineTo(fx - 8, fy2 - 7); ctx.lineTo(fx - 13, fy2 - 6); ctx.lineTo(fx - 4, fy2 - 3); ctx.closePath(); ctx.fill();
+    return [fx, fy2];
+  };
+  arm(P.ba, false); const fb = leg(P.bl, true), ff = leg(P.fl, false);
+  // thân: áo cổ cao xanh đen, thắt lưng
+  ctx.fillStyle = SHIRT; ctx.beginPath(); ctx.moveTo(sx - 9, sy - 1); ctx.lineTo(sx + 9, sy - 1); ctx.lineTo(9, hy + 2); ctx.lineTo(-9, hy + 2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#2a3650'; ctx.fillRect(sx - 4, sy - 5, 8, 6);
+  ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-9, hy - 3, 18, 4); ctx.fillStyle = '#c8a040'; ctx.fillRect(-2, hy - 3, 4, 4);
+  // vai áo choàng + hình đầu bò
+  ctx.fillStyle = CAPE; ctx.beginPath(); ctx.ellipse(sx - 2, sy + 1, 11, 5, -.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = CAPEL; ctx.beginPath(); ctx.arc(sx - 4, sy + 1, 2.4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = CAPEL; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx - 7, sy - 1); ctx.lineTo(sx - 9, sy - 3); ctx.moveTo(sx - 1, sy - 1); ctx.lineTo(sx + 1, sy - 3); ctx.stroke();
+  // cổ, đầu
+  ctx.fillStyle = SK; ctx.fillRect(sx - 2.5, sy - 6, 5, 6);
+  ctx.beginPath(); ctx.ellipse(cx + 1.5, cy + 1, 8, 9, 0, 0, Math.PI * 2); ctx.fill();
+  // tóc bù xù dựng ngược (Tinh Linh: phát sáng, lọn tóc là tia sét)
+  ctx.fillStyle = HAIRD; ctx.beginPath();
+  const spikes = [[-10, 2], [-15, -6], [-9, -6], [-13, -14], [-5, -12], [-5, -20], [1, -13], [5, -20], [7, -12], [13, -15], [10, -7], [13, -3], [8, -4]];
+  spikes.forEach(([x, y], i) => i ? ctx.lineTo(cx + x - sp * 3 * (x < 0), cy + y - (fl ? Math.sin(L.mt * 20 + i) * 1.5 : 0)) : ctx.moveTo(cx + x, cy + y)); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = HAIR; ctx.beginPath();
+  [[-8, 0], [-12, -6], [-7, -6], [-10, -12], [-3, -10], [-3, -17], [2, -11], [5, -17], [6, -10], [11, -12], [9, -5], [10, -1], [4, -4], [2, -1], [-2, -4], [-4, 0]].forEach(([x, y], i) => i ? ctx.lineTo(cx + x, cy + y) : ctx.moveTo(cx + x, cy + y)); ctx.closePath(); ctx.fill();
+  // mắt: thường nhắm cười; Tinh Linh mở mắt xanh phát sáng; Chiến Quỷ mắt vàng đỏ, vạch sét trên má
+  if (fl === 0 && !ghost) { ctx.strokeStyle = '#4a3020'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(cx + 3, cy); ctx.quadraticCurveTo(cx + 5.5, cy - 2.5, cx + 8, cy); ctx.stroke(); }
+  else {
+    const ec = fl === 1 ? '#5ad8ff' : '#ffb020';
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(cx + 5.6, cy, 2.6, 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = ec; ctx.beginPath(); ctx.arc(cx + 6.2, cy, 1.6, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = fl === 1 ? 'rgb(90 216 255 / .6)' : 'rgb(255 170 30 / .7)'; ctx.globalAlpha = .6; ctx.beginPath(); ctx.ellipse(cx + 6, cy, 3.2, 2, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
+  // nụ cười toe toét của kẻ cuồng chiến
+  ctx.fillStyle = '#5a2020'; ctx.beginPath(); ctx.moveTo(cx + 2, cy + 4.5); ctx.quadraticCurveTo(cx + 6, cy + (fl === 2 ? 10 : 8.5), cx + 9.5, cy + 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(cx + 3.5, cy + 4.6, 5, 1.2);
+  if (fl === 2) {
+    // sừng sét và vết vằn quỷ
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const s of [-1, 1]) { ctx.fillStyle = C[1]; ctx.beginPath(); ctx.moveTo(cx + 1 + s * 5, cy - 12); ctx.lineTo(cx + 1 + s * 11, cy - 24 + Math.sin(L.mt * 30) * 1.5); ctx.lineTo(cx + 1 + s * 8, cy - 18); ctx.lineTo(cx + 1 + s * 12, cy - 30); ctx.lineTo(cx + 1 + s * 3, cy - 13); ctx.closePath(); ctx.fill(); }
+    ctx.strokeStyle = C[2]; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx - 3, cy + 1); ctx.lineTo(cx, cy + 3); ctx.lineTo(cx - 2, cy + 5); ctx.lineTo(cx + 1, cy + 8); ctx.stroke();
+    ctx.restore();
+  }
+  const fa = arm(P.fa, true);
+  ctx.restore();
+  return { fa, ff, fb };
+}
+function drawLuck(b, charged) {
+  const L = S.lk, C = lkCols(), fl = L.form;
+  for (const g of L.ghosts) { ctx.save(); ctx.globalAlpha = .3 * g.t / g.max; drawLuckFig({ x: g.x, y: g.y, face: g.face, vx: g.vx }, g.pose, true); ctx.restore(); }
+  if (L.ult && L.ult.form === 1 && L.ult.i < L.ult.tg.length) return;   // đang chớp qua kẻ địch
+  // hào quang theo trạng thái
+  if (fl || L.tf > 0) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(b.x, b.y - 14, 4, b.x, b.y - 14, 60 + fl * 20);
+    g.addColorStop(0, fl === 2 ? 'rgb(184 74 255 / .5)' : 'rgb(120 220 255 / .5)'); g.addColorStop(.6, fl === 2 ? 'rgb(255 200 50 / .15)' : 'rgb(60 120 255 / .15)'); g.addColorStop(1, 'rgb(0 0 0 / 0)');
+    ctx.globalAlpha = .8 + .2 * Math.sin(S.t * 20); ctx.fillStyle = g; ctx.fillRect(b.x - 90, b.y - 100, 180, 180);
+    if (fl === 2) { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgb(30 0 50 / .12)'; ctx.beginPath(); ctx.ellipse(b.x, b.y - 10, 26, 42, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
+  if (fl === 2) {
+    // bóng chiến quỷ sấm mờ phía sau
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .28 + .1 * Math.sin(S.t * 8); ctx.strokeStyle = C[2]; ctx.lineWidth = 2;
+    const x = b.x - (b.face || 1) * 14, y = b.y - 40;
+    ctx.beginPath(); ctx.arc(x, y - 30, 16, 0, Math.PI * 2); ctx.moveTo(x - 10, y - 44); ctx.lineTo(x - 18, y - 64); ctx.moveTo(x + 10, y - 44); ctx.lineTo(x + 18, y - 64);
+    ctx.moveTo(x - 30, y); ctx.quadraticCurveTo(x, y - 18, x + 30, y); ctx.lineTo(x + 22, y + 40); ctx.lineTo(x - 22, y + 40); ctx.closePath(); ctx.stroke(); ctx.restore();
+  }
+  const P = drawLuckFig(b, L.pose, false);
+  // găng và giày sấm toé tia lửa điện
+  if (Math.random() < .5 + fl * .2) { const d = b.face || 1, SC = .6, hx = b.x + d * P.fa[0] * SC, hy = b.y + R - 2 + P.fa[1] * SC; lkBolt(hx, hy, hx + (Math.random() - .5) * 24, hy + (Math.random() - .5) * 24, 1.2, C, false); }
+  if (!S.onGround || Math.abs(b.vx) > 200) { const d = b.face || 1, SC = .6; for (const f of [P.ff, P.fb]) { const x = b.x + d * f[0] * SC, y = b.y + R - 2 + f[1] * SC; lkBolt(x, y, x - d * (10 + Math.random() * 18), y + Math.random() * 10, 1.2, C, false); } }
+  if (charged) { ctx.strokeStyle = C[2]; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 12, 32 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
+  if (L.sense > 0) { ctx.save(); ctx.strokeStyle = 'rgb(200 244 255 / .5)'; ctx.setLineDash([4, 6]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(b.x, b.y - 12, 44, S.t, S.t + Math.PI * 2); ctx.stroke(); ctx.restore(); }
+}
+function drawLuckFx() {
+  const L = S.lk; if (!L) return;
+  const C = lkCols(), U = L.ult;
+  if (U && U.form === 2) {
+    // bóng chiến quỷ khổng lồ giơ nắm đấm sét
+    const b = S.ball, k = Math.min(1, U.t / .6), hit = U.done ? Math.min(1, (U.t - U.done) / .15) : 0, fade = U.done ? Math.max(0, 1 - (U.t - U.done - .3) / .6) : 1;
+    ctx.save(); ctx.fillStyle = `rgb(10 0 20 / ${(.5 * k * fade).toFixed(2)})`; ctx.fillRect(S.cam.x - 200, S.cam.y - 200, viewW + 400, VIEW_H + 400);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = k * fade;
+    const x = b.x - (b.face || 1) * 40, y = b.y - 40, s = 1 + k * 2.4;
+    ctx.translate(x, y); ctx.scale(b.face || 1, 1);
+    const g = ctx.createRadialGradient(0, -90 * s, 10, 0, -90 * s, 160 * s); g.addColorStop(0, 'rgb(255 220 120 / .5)'); g.addColorStop(.5, 'rgb(184 74 255 / .35)'); g.addColorStop(1, 'rgb(40 0 80 / 0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, -90 * s, 110 * s, 150 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = C[1]; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, -150 * s, 26 * s, 0, Math.PI * 2); ctx.stroke();
+    for (const sd of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sd * 18 * s, -170 * s); ctx.lineTo(sd * 34 * s, -210 * s); ctx.lineTo(sd * 24 * s, -190 * s); ctx.lineTo(sd * 40 * s, -230 * s); ctx.stroke(); }
+    ctx.fillStyle = '#ffd23a'; for (const sd of [-1, 1]) { ctx.beginPath(); ctx.ellipse(sd * 9 * s + 6 * s, -152 * s, 5 * s, 2.4 * s, 0, 0, Math.PI * 2); ctx.fill(); }
+    // nắm đấm: giơ cao rồi giáng xuống phía trước
+    const fx = (40 + hit * 140) * s, fy = (-220 + hit * 220) * s;
+    ctx.beginPath(); ctx.moveTo(20 * s, -120 * s); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.fillStyle = 'rgb(255 230 140 / .7)'; ctx.beginPath(); ctx.arc(fx, fy, 22 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    if (Math.random() < .7) lkBolt(x + (Math.random() - .5) * 200, y - 300, x + (Math.random() - .5) * 120, y - 60, 2, C);
+  }
+  for (const q of L.bolts) lkBolt(q.x1, q.y1, q.x2, q.y2, q.w || 3, C, !q.nb);
+  for (const o of L.orbs) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(o.x, o.y, 1, o.x, o.y, o.r * 2); g.addColorStop(0, '#ffffff'); g.addColorStop(.4, C[2]); g.addColorStop(1, 'rgb(0 0 0 / 0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    for (let i = 0; i < 3; i++) { const a = Math.random() * Math.PI * 2; lkBolt(o.x, o.y, o.x + Math.cos(a) * o.r * 1.8, o.y + Math.sin(a) * o.r * 1.8, 1.2, C, false); }
+  }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const f of L.fx) {
+    const k = f.t / f.max;
+    if (f.k === 'zap' || f.k === 'fist') {
+      ctx.globalAlpha = 1 - k; ctx.fillStyle = C[0]; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (.4 + k * .6), 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = C[2]; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (.6 + k), 0, Math.PI * 2); ctx.stroke();
+    } else if (f.k === 'burst') {
+      ctx.globalAlpha = 1 - k; const g = ctx.createRadialGradient(f.x, f.y, 2, f.x, f.y, f.r); g.addColorStop(0, '#ffffff'); g.addColorStop(.35, C[1]); g.addColorStop(.7, C[2]); g.addColorStop(1, 'rgb(0 0 0 / 0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (.4 + k * .6), 0, Math.PI * 2); ctx.fill();
+      ctx.restore(); if (k < .5) for (let i = 0; i < 5; i++) { const a = Math.random() * Math.PI * 2; lkBolt(f.x, f.y, f.x + Math.cos(a) * f.r, f.y + Math.sin(a) * f.r, 2, C); } ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    } else if (f.k === 'line') {
+      ctx.restore(); lkBolt(f.x1, f.y1, f.x2, f.y2, f.w, C); ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    } else if (f.k === 'sense') {
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#c8f4ff'; ctx.lineWidth = 2; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(f.x, f.y, 20 + k * 260 + i * 30, 0, Math.PI * 2); ctx.stroke(); }
+    }
+  }
+  ctx.restore();
+}
+
 /* ----- nền biển: hoàng hôn, đảo xa, thuyền hải tặc buồm đen, hải âu, mặt biển lấp lánh ----- */
 function paintShips(g, W, H) {
   for (let i = 0; i * 700 < W; i++) {
@@ -16937,6 +17336,7 @@ function drawCharFx() {
   drawBongFx();
   drawGabimaruFx();
   drawYuunaFx();
+  drawLuckFx();
   drawClFx();
   // Kiếm khách: ảnh hiệu ứng gốc và ba cơn lốc Tam kiếm
   for (const o of S.ktor) drawKK('loc', Math.floor(o.ft * 30) % KK.loc.n, o.x, o.y, 80 * KE, 80 * KE, 1);
@@ -16963,6 +17363,12 @@ function drawCharge() {
     ctx.fillStyle = 'rgb(90 170 255 / .35)'; ctx.beginPath(); ctx.arc(x, y, r * 2, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#5fb8ff'; ctx.beginPath(); ctx.arc(x, y, r * 1.2, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#e6f6ff'; ctx.beginPath(); ctx.arc(x, y, r * .6, 0, Math.PI * 2); ctx.fill();
+  }
+  else if (CHAR === 'luck') {
+    // Lôi Minh Băng Cầu đang tụ trong lòng bàn tay
+    const x = b.x + (b.face || 1) * 22, y = b.y - 14;
+    lkBolt(x, y, x + (Math.random() - .5) * 30, y + (Math.random() - .5) * 30, 1.5);
+    ctx.fillStyle = 'rgb(255 240 150 / .5)'; ctx.beginPath(); ctx.arc(x, y, 5 + k * 10, 0, Math.PI * 2); ctx.fill();
   }
   else if (CHAR === 'yuuna') {
     // Kéo Dài Ô đang tụ: vạch tím báo chiều dài cán ô sẽ phóng ra
@@ -17219,8 +17625,8 @@ function drawBall() {
   if (CHAR === 'pika' && DMAX) { drawMaxCore(b, pw && !blink); return; }
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
-const CHAR_COLOR = { yuuna: '#7a4ab8', gabimaru: '#465064', bong: '#e3262b', vegito: '#5fd0ff', pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
-const CHAR_DRAW = { yuuna: drawYuuna, gabimaru: drawGabimaru, bong: drawBong, vegito: drawVegito, pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
+const CHAR_COLOR = { luck: '#ffd23a', yuuna: '#7a4ab8', gabimaru: '#465064', bong: '#e3262b', vegito: '#5fd0ff', pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
+const CHAR_DRAW = { luck: drawLuck, yuuna: drawYuuna, gabimaru: drawGabimaru, bong: drawBong, vegito: drawVegito, pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
 // Khiên Hổ Phách của Stelle: vỏ lục giác màu hổ phách
 function drawAmber(b) {
   const r = R * 1.9 + Math.sin(S.t * 6) * 2, fade = S.amber < .8 && Math.floor(S.t * 14) % 2;
