@@ -90,22 +90,23 @@ const MAX_LIVES = 5;      // (cũ) không còn dùng tim: người chơi có tha
    hết máu là thua. Rơi vực mất 25% máu tối đa rồi về điểm hồi sinh. Đòn của người chơi gây sát thương = gốc chiêu × 10 × atk/100,
    dao động ±10%, 15% chí mạng ×1,8. */
 const CHAR_STATS = {
-  chii: { hp: 600, atk: 100, def: 10 }, pika: { hp: 800, atk: 110, def: 20 }, rimuru: { hp: 1000, atk: 110, def: 30 },
-  saiyan: { hp: 1600, atk: 140, def: 50 }, stelle: { hp: 1500, atk: 130, def: 40 }, kiem: { hp: 1500, atk: 140, def: 30 },
-  asta: { hp: 2600, atk: 200, def: 80 }, yuno: { hp: 2400, atk: 200, def: 60 }, pain: { hp: 1800, atk: 140, def: 60 },
-  goku: { hp: 2400, atk: 180, def: 70 }, namek: { hp: 2000, atk: 140, def: 80 }, luffy: { hp: 1800, atk: 150, def: 50 },
-  kurumi: { hp: 1600, atk: 150, def: 40 },
-  mereo: { hp: 10000, atk: 180, def: 0 },
-  zenitsu: { hp: 1400, atk: 170, def: 30 },
-  yuutan: { hp: 2000, atk: 170, def: 50 },
-  yuutan2: { hp: 2200, atk: 170, def: 50 },
-  yuta: { hp: 2400, atk: 190, def: 60 },   // Okkotsu Yuta (khi sao chép vẫn giữ chỉ số này)
-  vegito: { hp: 5000, atk: 260, def: 120 },
-  bong: { hp: 3200, atk: 230, def: 90 },
-  gabimaru: { hp: 2600, atk: 200, def: 70 },
-  yuuna: { hp: 15000, atk: 420, def: 220 },
-  luck: { hp: 3400, atk: 250, def: 90 },   // Luck Voltia (Black Clover)   // Yuuna (Dog Bite Dog): áp đảo mọi nhân vật   // Gabimaru (Hell's Paradise)   // Quả Bóng Đỏ   // Vegito Blue (hợp thể Potara của Goku và Vegeta)
-  thiquy: { hp: 2600, atk: 180, def: 60 }, thiquyK: { hp: 6000, atk: 260, def: 120 },   // YuuTan Thi Quỷ: Song Thể / dạng Quỷ Thi Giải   // YuuTan Song Sắc (thường phục)   // YuuTan: boss màn 5 làm nhân vật   // Zenitsu: nhanh gấp 10 lần   // Mereoleona: không giáp, máu cực nhiều, đánh là hút máu
+  // cân bằng lại 22/10/2026: nhân vật cũ nâng lên ngang tầm nhóm mới (~3000–3800 máu, 230–260 công); Yuuna vẫn áp đảo, sau là Saitama, Vegito
+  chii: { hp: 2400, atk: 210, def: 70 }, pika: { hp: 2800, atk: 230, def: 80 }, rimuru: { hp: 3000, atk: 235, def: 90 },
+  saiyan: { hp: 3200, atk: 240, def: 90 }, stelle: { hp: 3000, atk: 235, def: 90 }, kiem: { hp: 3000, atk: 240, def: 85 },
+  asta: { hp: 3600, atk: 260, def: 110 }, yuno: { hp: 3400, atk: 260, def: 95 }, pain: { hp: 3400, atk: 250, def: 100 },
+  goku: { hp: 3600, atk: 255, def: 105 }, namek: { hp: 3400, atk: 240, def: 120 }, luffy: { hp: 3400, atk: 250, def: 95 },
+  kurumi: { hp: 3200, atk: 250, def: 90 },
+  mereo: { hp: 12000, atk: 250, def: 40 },   // Mereoleona: máu khổng lồ, giáp mỏng, hút máu
+  zenitsu: { hp: 3000, atk: 255, def: 80 },
+  yuutan: { hp: 3400, atk: 255, def: 95 },
+  yuutan2: { hp: 3400, atk: 255, def: 95 },
+  yuta: { hp: 3600, atk: 260, def: 100 },   // Okkotsu Yuta (khi sao chép vẫn giữ chỉ số này)
+  vegito: { hp: 6000, atk: 300, def: 150 },
+  bong: { hp: 3800, atk: 260, def: 110 },
+  gabimaru: { hp: 3600, atk: 255, def: 100 },
+  yuuna: { hp: 15000, atk: 420, def: 220 },   // Yuuna (Dog Bite Dog): áp đảo mọi nhân vật
+  luck: { hp: 3600, atk: 260, def: 100 },   // Luck Voltia (Black Clover)
+  thiquy: { hp: 3600, atk: 250, def: 100 }, thiquyK: { hp: 7000, atk: 300, def: 150 },   // YuuTan Thi Quỷ: Song Thể / dạng Quỷ Thi Giải
 };
 const stat = () => (ytaCp() ? CHAR_STATS.yuta : CHAR === 'thiquy' && tqForm() ? CHAR_STATS.thiquyK : CHAR_STATS[CHAR]) || CHAR_STATS.chii;
 const DMG_K = 10;   // 1 điểm sát thương gốc của chiêu = 10 máu
@@ -1339,16 +1340,16 @@ function updatePikachuMoves(dt) {
 /* ---------- Nhân vật khác: Chiikawa, Rimuru, Stelle ----------
    Mọi nhân vật dùng chung các nút (J, giữ J, L, Shift, U) nhưng mỗi người một bộ chiêu. */
 const CHARS = {
-  pika:   { cost: { tap: COST.shock, hold: COST.ball, web: COST.web, tackle: COST.tackle }, tackleCd: TACKLE_CD, regen: 1, speed: MAXV, airJumps: 0, dmgK: 1 },
+  pika:   { cost: { tap: COST.shock, hold: COST.ball, web: COST.web, tackle: COST.tackle }, tackleCd: TACKLE_CD, regen: 1, speed: MAXV, airJumps: 0, dmgK: 2 },
   // Pikachu Dynamax (phím G): to gấp 10 lần, vĩnh viễn, bộ chiêu hack như Stelle
   pikaMax: { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .35, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
   // Chiikawa: bộ chiêu đơn giản, chỉ J (ném gậy) và K/Shift (lăn tròn); không có giữ J, L, U
-  chii:   { cost: { tap: 1, tackle: 8 }, tackleCd: .8, regen: 2, speed: 300, airJumps: 0, dmgK: 1, simple: true },
-  rimuru: { cost: { tap: 4, hold: 25, web: 20, tackle: 20 }, tackleCd: .8, regen: 1.3, speed: 330, airJumps: 1, dmgK: 1 },
+  chii:   { cost: { tap: 1, tackle: 8 }, tackleCd: .8, regen: 2, speed: 300, airJumps: 0, dmgK: 2, simple: true },
+  rimuru: { cost: { tap: 4, hold: 25, web: 20, tackle: 20 }, tackleCd: .8, regen: 1.3, speed: 330, airJumps: 1, dmgK: 2 },
   // Stelle: bộ kĩ năng "hack" — mọi chiêu miễn phí, nhảy 3 lần, sát thương ×2, xuyên khiên boss
   stelle: { cost: { tap: 0, hold: 0, web: 0, tackle: 0 }, tackleCd: .35, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
   // Xayda (Ngọc Rồng Online): Shift là Khiên năng lượng nên hồi chiêu lâu
-  saiyan: { cost: { tap: 1, hold: 15, web: 25, tackle: 20 }, tackleCd: 10, regen: 1, speed: 330, airJumps: 0, dmgK: 1 },
+  saiyan: { cost: { tap: 1, hold: 15, web: 25, tackle: 20 }, tackleCd: 10, regen: 1, speed: 330, airJumps: 0, dmgK: 2 },
   // Kiếm khách (Hải Tặc Tí Hon), Asta, Yuno (Black Clover): bộ kĩ năng tầm cheat như Stelle —
   // mọi chiêu miễn phí, nhảy 3 lần, chạy nhanh, sát thương ×2, xuyên khiên boss. U của Kiếm khách là Tam kiếm (không cần đầy).
   kiem:   { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .35, regen: 6, speed: 400, airJumps: 2, dmgK: 2, pierce: true },
