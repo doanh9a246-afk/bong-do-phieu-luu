@@ -602,7 +602,7 @@ const SFX = {
   ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
 const JUMP_SFX = { yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', vegito: 'hop', bong: 'boing', gabimaru: 'hop', yuuna: 'hop', luck: 'zap', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
-function sfx(name) { if (!muted && audio()) SFX[name](); }
+function sfx(name) { if (name !== 'deny' && name !== 'step') SFX_N++; if (!muted && audio()) SFX[name](); }   // SFX_N: để biết chiêu có ra đòn (lồng tiếng)
 function setMuted(m) {
   muted = m;
   try { localStorage.setItem('bongdo.muted', m ? '1' : '0'); } catch (e) {}
@@ -611,6 +611,7 @@ function setMuted(m) {
 }
 
 function setKey(k, on) {
+  const vn0 = SFX_N, vWas = keys[k];   // lồng tiếng: chiêu vừa ra đòn thì hô
   audio();
   if (S.boss && S.boss.cine) { keys[k] = false; return; }   // cảnh kết của Zoro
   if (isYuta() && (k === 'learn' || k === 'zmove')) { if (on && !keys[k]) (k === 'learn' ? ytaCopy() : ytaRevert()); keys[k] = on; return; }   // Yuta: Y sao chép, Z trở về
@@ -677,6 +678,7 @@ function setKey(k, on) {
     if (S.boss && S.boss.ts > 0 && !S.tsEsc && !S.dead) escapeTimeStop();
     else activateSkill();
   }
+  if (on && !vWas && k !== 'bolt' && SFX_N > vn0) voiceKey(k);
   keys[k] = on;
   if (on && !S.moved) { S.moved = true; setTimeout(() => $('hint').classList.add('gone'), 1500); }
 }
@@ -740,6 +742,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { reset(); return; }
   if (e.code === 'KeyN') { setMap(MAP % 12 + 1); return; }
   if (e.code === 'KeyM') { setMuted(!muted); return; }
+  if (e.code === 'KeyB') { setVoice(!VOICE_ON); return; }
   if (e.code === 'KeyB' && TEST_MODE) { warpToBoss(); return; }
   const k = KEYMAP[e.code];
   if (k) { e.preventDefault(); if (!e.repeat) setKey(k, true); }
@@ -780,6 +783,7 @@ cv.addEventListener('wheel', e => {
 $('restart').addEventListener('click', e => { reset(); e.currentTarget.blur(); });
 $('again').addEventListener('click', reset);
 $('mute').addEventListener('click', e => { setMuted(!muted); e.currentTarget.blur(); });
+$('voiceBtn').addEventListener('click', e => { setVoice(!VOICE_ON); e.currentTarget.blur(); });
 setMuted(muted);
 $('again2').addEventListener('click', reset);
 
@@ -932,6 +936,7 @@ function respawn() {
 }
 
 function update(dt) {
+  if (S.yn && S.yn.fin) dt *= ynFinSlow();   // Yuuna kết liễu: quay chậm
   S.t += dt;
   // Bầu trời địa ngục: chuyển dần sang đỏ đen khi Naamah xuất hiện, trở lại khi Naamah bị hạ
   const Bo = S.boss, hellSky = !Bo.dead && (Bo.phase >= (MAP === 2 ? 2 : 3) || !!(Bo.cut && Bo.cut.burst));
@@ -1139,14 +1144,14 @@ function spend(cost) {
 }
 function startCharge() {
   if (!canAct()) return;
-  if (CH().simple) { noteLearn('tap'); MOVES[CHAR].tap(); return; }   // không có chiêu giữ J: bấm là đánh ngay
+  if (CH().simple) { noteLearn('tap'); vc('tap', () => MOVES[CHAR].tap()); return; }   // không có chiêu giữ J: bấm là đánh ngay
   S.charging = true; S.chargeT = 0;
 }
 function releaseCharge() {
   if (!S.charging) return;
   S.charging = false;
   if (!canAct()) return;
-  if (S.chargeT < BALL_HOLD) { noteLearn('tap'); MOVES[CHAR].tap(); } else { noteLearn('hold'); MOVES[CHAR].hold(S.chargeT); }
+  if (S.chargeT < BALL_HOLD) { noteLearn('tap'); vc('tap', () => MOVES[CHAR].tap()); } else { noteLearn('hold'); vc('hold', () => MOVES[CHAR].hold(S.chargeT)); }
 }
 // Tia sét (Thunder Shock): bắn thẳng, rẻ, nhanh
 function fireShock() {
@@ -13152,7 +13157,7 @@ function ynSlam(power = 1, target = null) {
     // sóng chấn lan trên mặt đất phía trước
     for (const t of nkTargets(b.x + d * 140, b.y, 120, 8)) if (!hit.includes(t) && Math.abs(tPos(t).y - b.y) < 70) ynHit(t, 3 * power, 'hole');
     S.flash = Math.max(S.flash, .15 * power);
-    sfx(hit.length ? 'boom' : 'stomp');
+    sfx(hit.length ? 'punch' : 'stomp');
     if (hit.length) ynPop(hit.some(t => t.kind !== 'boss') ? 'LỦNG!' : 'QUẬT!', '#ff5a8a', true);
   });
 }
@@ -13200,7 +13205,7 @@ function ynOpen() {
   Y.open = 3; ynPose('open', .2);
   Y.fx.push({ k: 'gust', x: b.x + d * 30, y: b.y - 14, d, t: 0, max: .4 });
   for (const t of nkTargets(b.x + d * 60, b.y, 110, 8)) ynHit(t, 2, 'hole');
-  sfx('storm'); ynPop(S.onGround ? 'Bung Ô — khiên!' : 'Bung Ô — dù!', '#c9a0ff');
+  sfx('umbrella'); ynPop(S.onGround ? 'Bung Ô — khiên!' : 'Bung Ô — dù!', '#c9a0ff');
 }
 function ynBlock() {
   const Y = S.yn, b = S.ball;
@@ -13331,6 +13336,9 @@ function ynPoseOf(b, pose) {
   if (pose === 'drop') return { hy: -46, lean: .02, bl: [-.12, -.05], fl: [.18, .05], ba: [.15, .3], fa: [.35, .1], ua: 1 };
   if (pose === 'walk') { const s = Math.sin((Y.fin ? Y.fin.t : t) * 9); return { hy: -45, lean: .08, bl: [-.45 * s, -.45 * s - .35 * Math.max(0, s)], fl: [.45 * s, .45 * s - .35 * Math.max(0, -s)], ba: [.12, .25], fa: [.12, .25], ua: 1 }; }
   if (pose === 'windup') return { hy: -41, lean: -.18, bl: [-.75, -.35], fl: [.75, .15], ba: [1.3, 1.6], fa: [-1, -2.1], ua: 1 };
+  if (pose === 'lift') return { hy: -44, lean: .15, bl: [-.85, -.45], fl: [.8, .12], ba: [-1, -1.6], fa: [2.15, 2.15], ua: 1 };
+  if (pose === 'flick') return { hy: -41, lean: .5, bl: [-1, -.5], fl: [.9, .1], ba: [-1.1, -1.7], fa: [1.1, .8], ua: 1 };
+  if (pose === 'shake') { const s = Math.sin(t * 40); return { hy: -46, lean: .04, bl: [-.12, -.05], fl: [.18, .05], ba: [.15, .3], fa: [.6 + s * .25, .9 + s * .5], ua: 1 }; }
   if (pose === 'thru') return { hy: -42, lean: .45, bl: [-.95, -.5], fl: [.85, .1], ba: [-1, -1.7], fa: [1.57, 1.57], ua: 1 };
   if (pose === 'stab') return { hy: -44, lean: .3, bl: [-.6, -.4], fl: [.7, .1], ba: [-.6, -.3], fa: [1.5, 1.57], ua: 1.57 };
   if (pose === 'sweep') return { hy: -42, lean: .35, bl: [-.7, -.5], fl: [.6, 0], ba: [-.8, -.4], fa: [.9, .7], ua: .55 };
@@ -13460,7 +13468,7 @@ function drawYuunaFig(b, pose, ghost) {
   ctx.fillStyle = HAIRD; ctx.beginPath(); ctx.moveTo(cx + 9.5, cy - 2); ctx.quadraticCurveTo(cx + 11, cy + 8, cx + 9, cy + 17); ctx.lineTo(cx + 7.5, cy + 10); ctx.quadraticCurveTo(cx + 8.5, cy + 3, cx + 8, cy - 2); ctx.fill();
   // tay trước + cây ô (đang kết liễu: đoạn tay trong thân boss bị che, chỉ thấy ở lỗ thủng và sau lưng)
   const F2 = !ghost && Y.fin && Y.fin.reach > 0 ? Y.fin : null;
-  if (F2) { ctx.save(); const cur = ctx.getTransform(); ctx.setTransform(W0); const u = F2.u, bw = Math.max(F2.w * .55, clamp(F2.w * .26, 13, 36) + 16); ctx.beginPath(); ctx.rect(u.x - 3000, u.y - 3000, 6000, 6000); ctx.rect(u.x - bw, u.y - F2.h, bw * 2, F2.h); ctx.arc(F2.hx ?? u.x, F2.holeY, clamp(F2.w * .26, 13, 36) - 1, 0, Math.PI * 2); ctx.clip('evenodd'); ctx.setTransform(cur); }
+  if (F2) { ctx.save(); const cur = ctx.getTransform(); ctx.setTransform(W0); const u = F2.u, bw = Math.max(F2.w * .55, ynHoleR(F2) + 16); ctx.beginPath(); ctx.rect(u.x - 3000, u.y - 3000, 6000, 6000); ctx.rect(u.x - bw, u.y - F2.h, bw * 2, F2.h); ctx.arc(F2.hx ?? u.x, F2.holeY, ynHoleR(F2) - 1, 0, Math.PI * 2); ctx.clip('evenodd'); ctx.setTransform(cur); }
   const fa = arm(P.fa, true);
   if (F2) ctx.restore();
   if (!thrownAway) {
@@ -14083,7 +14091,7 @@ function lkTap() {
   for (const t of hit) lkHit(t, last ? 5 : 2.5);
   L.fx.push({ k: last ? 'burst' : 'fist', x: hx, y: hy, d: b.face || 1, t: 0, max: last ? .35 : .16, r: last ? 50 + L.form * 20 : 20 });
   if (L.form && !last) L.bolts.push({ x1: hx, y1: hy, x2: hx + (b.face || 1) * (60 + Math.random() * 60), y2: hy + (Math.random() - .5) * 60, t: .1 });
-  sfx(hit.length ? 'zap' : 'dash');
+  sfx(hit.length ? 'crackle' : 'swoosh');
   if (last && hit.length) lkPop('Lôi Minh Băng Cầu!', lkCols()[1]);
 }
 // giữ J: Lôi Minh Băng Cầu — cầu sét bay thẳng, nổ tung; Tinh Linh 3 quả đuổi mục tiêu, Chiến Quỷ 5 quả + sét giáng
@@ -14106,7 +14114,7 @@ function lkBoots() {
   const pts = [[x0, y0 - 10]]; for (let i = 1; i < 6; i++) pts.push([x0 + (b.x - x0) * i / 6, y0 - 10 + (i % 2 ? -36 : 30)]); pts.push([b.x, b.y - 10]);
   for (let i = 0; i < pts.length - 1; i++) L.bolts.push({ x1: pts[i][0], y1: pts[i][1], x2: pts[i + 1][0], y2: pts[i + 1][1], t: .3, w: 4 + L.form });
   for (const t of hit) lkHit(t, 4);
-  sfx('zap'); lkPop('Lôi Thần Hài!');
+  sfx('thunder'); lkPop('Lôi Thần Hài!');
 }
 // Shift: Lôi Bộ — chớp sét ra sau lưng kẻ địch gần nhất (hoặc lùi lại), vô địch thoáng chốc
 function lkStep() {
@@ -14138,7 +14146,7 @@ function lkForm() {
   const L = S.lk; if (!canAct() || L.ult || !lkCd('form', .8)) return;
   L.form = (L.form + 1) % 3; L.tf = 1; L.cur = null;
   const b = S.ball, F2 = lkF();
-  S.flash = Math.max(S.flash, L.form ? .7 : .3); sfx(L.form ? 'volt' : 'tele');
+  S.flash = Math.max(S.flash, L.form ? .7 : .3); sfx('thunder');
   L.bolts.push({ x1: b.x + (Math.random() - .5) * 40, y1: b.y - 700, x2: b.x, y2: b.y - 10, t: .45, w: 9 });
   L.fx.push({ k: 'burst', x: b.x, y: b.y - 14, d: 1, t: 0, max: .6, r: 120 });
   for (const t of nkTargets(b.x, b.y, 160, 10)) lkHit(t, 3);
@@ -14395,20 +14403,38 @@ function drawLuckFx() {
   ctx.restore();
 }
 
-/* ----- Yuuna kết liễu boss (mọi màn): bỏ ô xuống, thong thả bước tới, một đấm lủng người ----------
-   Như cảnh Gaku (Sakamoto Days) đấm xuyên người cảnh sát: buông cây ô rơi xuống đất, đi bộ tới, kéo nắm đấm ra sau,
-   khung hình phóng to, một khung đảo màu kiểu manga lúc va chạm, nắm đấm xuyên qua thân để lại lỗ thủng nhìn xuyên được
-   (thấy cả nền phía sau), máu và luồng khí bắn ra sau lưng; giữ nguyên một nhịp rồi boss mới gục. Sau đó nhặt ô lên. */
-const YN_FIN_T = { drop: .5, walk: 1.15, wind: 1.5, end: 2.55, pick: 3.2 };
+/* ----- Yuuna kết liễu boss (mọi màn): như Gaku (Sakamoto Days) đấm xuyên người cảnh sát ----------
+   Buông cây ô xuống đất → thong thả bước tới, đòn đánh của boss bật ra khỏi người như không ("Không đau.") → kéo nắm đấm
+   → MỘT cú đấm thẳng xuyên thủng ngực (khung đảo màu, quay cực chậm, lỗ thủng nhìn xuyên được, máu và luồng khí bắn ra sau lưng)
+   → boss bị xiên trên cánh tay, nhấc bổng khỏi mặt đất → hất tay, xác văng đi → vẩy máu trên tay, nhặt ô lên: "Tiếp theo."
+   Cả thế giới quay chậm theo nhịp cảnh (ynFinSlow nhân vào dt của update). */
+const YN_FIN_T = { drop: .35, walk: 1.25, wind: 1.5, lift: 1.75, liftEnd: 2.15, flick: 2.45, end: 2.7, pick: 3.4 };
+function ynFinSlow() {
+  const F = S.yn.fin, T = YN_FIN_T, t = F.t;
+  if (t < T.drop) return .8;
+  if (t < T.walk) return .75;
+  if (t < T.wind) return .4;
+  if (t < T.wind + .16) return .14;   // khoảnh khắc nắm đấm xuyên qua
+  if (t < T.liftEnd) return .4;
+  if (t < T.end) return .5;
+  return 1;
+}
 function ynFinish(B, u) {
   if (CHAR !== 'yuuna' || B.ynFin || !S.yn || S.yn.fin || S.dead || (BET && BET.fight) || BET_CTX) return false;
   const Y = S.yn, b = S.ball, d = Math.sign(u.x - b.x) || b.face || 1, w = unitW(u), h = unitH(u);
   Y.ult = null; Y.thrown = null; Y.open = 0; Y.pend = []; Y.extL = 0;
-  Y.fin = { B, u, t: 0, d, w, h, x0: b.x, y0: b.y, tx: u.x - d * (w / 2 + 22), holeY: u.y - h * .55, reach: 0, hit: false, done: false,
+  Y.fin = { B, u, t: 0, d, w, h, x0: b.x, y0: b.y, ux0: u.x, uy0: u.y, tx: u.x - d * (w / 2 + 22), holeY: u.y - h * .55, holeOff: h * .55, reach: 0, hit: false, done: false, deflect: 0,
     umb: { x: b.x + d * 16, y: b.y - 22, vy: -160, rot: 0, vr: d * 7, down: false } };
   b.face = d; b.vx = 0;
-  sfx('tele');
+  sfx('umbrella');
+  voSay('', 'Cầm ô vướng tay quá.', VOICE.yuuna, true);
   return true;
+}
+// vị trí nắm đấm (toạ độ thế giới) theo tư thế đang vẽ
+function ynFist(b, reach) {
+  const P = S.yn.cur, d = b.face || 1, SC = .6; if (!P) return null;
+  const sy = P.hy - Math.cos(P.lean) * 32, sx = Math.sin(P.lean) * 32, ox = sx + 3, oy = sy + 4, a = P.fa, L2 = 16 + reach;
+  return { x: b.x + d * (ox + Math.sin(a[0]) * 17 + Math.sin(a[1]) * L2) * SC, y: b.y + R - 2 + (oy + Math.cos(a[0]) * 17 + Math.cos(a[1]) * L2) * SC };
 }
 function ynFinUpdate(dt) {
   const Y = S.yn, F = Y.fin; if (!F) return;
@@ -14418,88 +14444,201 @@ function ynFinUpdate(dt) {
   const m = F.umb;
   if (!m.down) {
     m.vy += 1500 * dt; m.y += m.vy * dt; m.rot += m.vr * dt; m.x += d * 20 * dt;
-    const gy = groundYAt(m.x), fl = (gy != null ? gy : u.y) - 3;
+    const gy = groundYAt(m.x), fl = (gy != null ? gy : F.uy0) - 3;
     if (m.y >= fl) { if (m.vy > 300) { m.vy = -m.vy * .25; m.y = fl; sfx('step'); } else { m.y = fl; m.down = true; m.rot = 0; } }
   }
-  const gy = groundYAt(b.x), floorY = (gy != null ? gy : u.y) - R;
-  const want = () => Math.min(floorY, clamp(F.holeY, u.y - F.h * .9, u.y - F.h * .15) - R + 42);   // đứng sao cho nắm đấm ngang thân boss
-  if (F.t < T.drop) { ynPose('drop', .1); if (F.t < dt * 1.5) S.pops.push({ x: b.x, y: b.y - 70, t: 1.2, text: 'Cầm ô vướng tay quá.', c: '#e8d8ff' }); }
+  const gy = groundYAt(b.x), floorY = (gy != null ? gy : F.uy0) - R;
+  const stand = () => Math.min(floorY, clamp(F.uy0 - F.holeOff, F.uy0 - F.h * .9, F.uy0 - F.h * .15) - R + 42);   // đứng sao cho nắm đấm ngang ngực boss
+  const full = () => Math.max(0, ((u.x + d * (F.w * .38 + 18)) - b.x) * d / .6 - 49.9);
+  if (F.t < T.drop) ynPose('drop', .1);
   else if (F.t < T.walk) {
-    const k = (F.t - T.drop) / (T.walk - T.drop), e = k * k * (3 - 2 * k);
-    b.x = F.x0 + (F.tx - F.x0) * e; b.y = F.y0 + (want() - F.y0) * e; b.face = d;
+    // thong thả bước tới, đòn của boss bật ra khỏi người
+    const k = (F.t - T.drop) / (T.walk - T.drop), e = k * (2 - k) * .5 + k * .5;
+    b.x = F.x0 + (F.tx - F.x0) * e; b.y = F.y0 + (stand() - F.y0) * e; b.face = d;
     ynPose('walk', .1);
+    if (k > .25 + F.deflect * .25 && F.deflect < 3) {
+      F.deflect++;
+      const hx = b.x + (Math.random() - .5) * 14, hy = b.y - 10 - Math.random() * 30;
+      boltSpark(hx, hy, '#ffe08a', 10); sfx('anti');
+      Y.fx.push({ k: 'ring', x: hx, y: hy, t: 0, max: .25 });
+      if (F.deflect === 2) S.pops.push({ x: b.x, y: b.y - 70, t: 1.4, text: 'Không đau.', c: '#e8d8ff' });
+    }
   } else if (F.t < T.wind) {
-    b.x = F.tx; b.y = want(); ynPose('windup', .1);
-    if (!F.zoomed) { F.zoomed = true; F.holeY = clamp(b.y + R - 42, u.y - F.h * .9, u.y - F.h * .12); S.zoom = { z: 1, fx: u.x - d * 20, fy: F.holeY }; sfx('dash'); }
-  } else {
-    b.x = F.tx; b.y = want(); ynPose('thru', .1);
-    // độ dài cẳng tay (đơn vị hình) để nắm đấm thò ra sau lưng boss
-    const full = Math.max(0, ((u.x + d * (F.w * .35 + 16)) - b.x) * d / .6 - 49.9), s = F.t - T.wind;
-    F.reach = s < .06 ? full * s / .06 : s < .75 ? full : s < .95 ? full * (1 - (s - .75) / .2) : 0;
+    b.x = F.tx; b.y = stand(); ynPose('windup', .1);
+    if (!F.zoomed) { F.zoomed = true; F.holeY = clamp(b.y + R - 42, F.uy0 - F.h * .9, F.uy0 - F.h * .12); F.holeOff = F.uy0 - F.holeY; S.zoom = { z: 1, fx: u.x - d * 30, fy: F.holeY }; sfx('swoosh'); }
+  } else if (F.t < T.flick) {
+    b.x = F.tx; b.y = stand();
+    const s = F.t - T.wind;
+    ynPose(F.t < T.lift ? 'thru' : 'lift', .1);
+    F.reach = s < .05 ? full() * s / .05 : full();
     if (!F.hit) {
       F.hit = true; F.hitT = F.t; F.hx = u.x;
       const bx = u.x + d * F.w * .45, cols = devilColors(u);
-      for (let i = 0; i < 70; i++) {
-        const a = (d > 0 ? 0 : Math.PI) + (Math.random() - .5) * .9, sp = 300 + Math.random() * 700;
-        S.parts.push({ x: bx, y: F.holeY + (Math.random() - .5) * 16, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 100, life: .6 + Math.random() * .6, c: i % 4 === 3 ? cols[i % 3] : i % 2 ? '#9a0a18' : '#d0182a', r: 2 + Math.random() * 5 });
+      for (let i = 0; i < 90; i++) {
+        const a = (d > 0 ? 0 : Math.PI) + (Math.random() - .5) * .9, sp = 300 + Math.random() * 800;
+        S.parts.push({ x: bx, y: F.holeY + (Math.random() - .5) * 18, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 100, life: .8 + Math.random() * .8, c: i % 4 === 3 ? cols[i % 3] : i % 2 ? '#9a0a18' : '#d0182a', r: 2 + Math.random() * 5 });
       }
-      Y.fx.push({ k: 'finwave', x: bx, y: F.holeY, d, t: 0, max: .7 });
-      Y.shake = .7; S.flash = Math.max(S.flash, .35); sfx('boom'); sfx('hit');
-      S.pops.push({ x: u.x, y: F.holeY - 90, t: 1.6, text: 'LỦNG!', c: '#ff3a4a', big: true });
+      Y.fx.push({ k: 'finwave', x: bx, y: F.holeY, d, t: 0, max: .9 });
+      Y.shake = .8; S.flash = Math.max(S.flash, .35); sfx('punch'); sfx('boom');
+      S.pops.push({ x: u.x, y: F.holeY - 100, t: 2.2, text: 'LỦNG!', c: '#ff3a4a', big: true });
     }
+    // xiên trên cánh tay: boss bị nhấc bổng theo nắm đấm
+    if (F.t >= T.lift) { const p = ynFist(b, F.reach); if (p) { u.y = Math.min(F.uy0, p.y + F.holeOff); F.holeY = u.y - F.holeOff; } }
+  } else if (F.t < T.end) {
+    // hất tay: xác văng ra sau
+    ynPose('flick', .1);
+    F.reach = Math.max(0, F.reach - dt * 900);
+    if (!F.flung) { F.flung = true; F.fvx = d * 520; F.fvy = -260; sfx('swoosh'); }
+    F.fvy += 1600 * dt; u.x += F.fvx * dt; u.y = Math.min(F.uy0, u.y + F.fvy * dt); F.hx = u.x; F.holeY = u.y - F.holeOff;
   }
   if (S.zoom && F.zoomed) {
-    const zt = F.t < T.wind ? 1.55 : F.t < T.wind + .7 ? 1.9 : 1;
-    S.zoom.z += (zt - S.zoom.z) * Math.min(1, dt * (F.hit && F.t - F.hitT < .1 ? 20 : 5));
+    const zt = F.t < T.wind ? 1.6 : F.t < T.flick ? 1.95 : 1.2;
+    S.zoom.z += (zt - S.zoom.z) * Math.min(1, dt * (F.hit && F.t - F.hitT < .1 ? 25 : 5));
+    S.zoom.fx += ((F.t < T.flick ? u.x - d * 30 : u.x - d * 120) - S.zoom.fx) * Math.min(1, dt * 4); S.zoom.fy += (F.holeY - S.zoom.fy) * Math.min(1, dt * 4);
   }
-  // boss gục sau một nhịp
-  if (F.t > T.end && !F.done) { F.done = true; F.B.ynFin = true; S.zoom = null; killFused(F.B, F.u); }
-  // nhặt ô lên
-  if (F.t > T.end + .15 && F.t < T.pick) { const k = clamp((F.t - T.end - .15) / .4, 0, 1); b.x = F.tx + (m.x - F.tx) * k; ynPose(k < 1 ? 'walk' : 'drop', .1); }
-  if (F.t >= T.pick) { Y.fin = null; ynPose('shoulder', .3); S.pops.push({ x: b.x, y: b.y - 70, t: 1.2, text: 'Tiếp theo.', c: '#e8d8ff' }); }
+  // boss gục
+  if (F.t > T.end && !F.done) { F.done = true; F.B.ynFin = true; S.zoom = null; u.y = F.uy0; killFused(F.B, F.u); }
+  // vẩy máu trên tay rồi nhặt ô
+  if (F.t > T.end && F.t < T.pick) {
+    const s = F.t - T.end;
+    if (s < .3) { ynPose('shake', .1); if (Math.random() < .5) { const p = ynFist(b, 0); if (p) S.parts.push({ x: p.x, y: p.y, vx: (Math.random() - .5) * 200, vy: 60 + Math.random() * 120, life: .5, c: '#9a0a18', r: 2 }); } }
+    else { const k = clamp((s - .3) / .35, 0, 1); b.x = F.tx + (m.x - F.tx) * k; ynPose(k < 1 ? 'walk' : 'drop', .1); }
+  }
+  if (F.t >= T.pick) { Y.fin = null; ynPose('shoulder', .3); S.pops.push({ x: b.x, y: b.y - 70, t: 1.2, text: 'Tiếp theo.', c: '#e8d8ff' }); voSay('', 'Tiếp theo.', VOICE.yuuna, true); }
 }
 // lỗ thủng trên thân boss: vẽ lại nền trong vòng tròn để nhìn xuyên qua được, viền rách đỏ sẫm
 function drawYnFinHole() {
   const F = S.yn && S.yn.fin; if (!F || !F.hit || F.done) return;
-  const k = Math.min(1, (F.t - F.hitT) / .05), r = clamp(F.w * .26, 13, 36) * k, x = F.hx, y = F.holeY;
+  const k = Math.min(1, (F.t - F.hitT) / .04), r = ynHoleR(F) * k, x = F.hx, y = F.holeY;
   if (r < 1) return;
   ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
   const tf = ctx.getTransform(); ctx.setTransform(PX, 0, 0, PX, 0, 0); drawBackground(); ctx.setTransform(tf);
   ctx.restore();
   ctx.save(); ctx.lineJoin = 'round';
   ctx.strokeStyle = '#4a0408'; ctx.lineWidth = 5; ctx.beginPath();
-  for (let i = 0; i <= 14; i++) { const a = i / 14 * Math.PI * 2, rr = r + (i % 2 ? 2 : 4); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.stroke();
+  for (let i = 0; i <= 16; i++) { const a = i / 16 * Math.PI * 2, rr = r + (i % 2 ? 2 : 5); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.stroke();
   ctx.strokeStyle = '#c0182a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r + 1, 0, Math.PI * 2); ctx.stroke();
-  // vết nứt quanh lỗ và máu chảy
   ctx.strokeStyle = 'rgb(40 0 4 / .8)'; ctx.lineWidth = 1.5;
-  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2 + .3, r1 = r + 4, r2 = r + 10 + (i % 3) * 6; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); ctx.lineTo(x + Math.cos(a + .15) * (r1 + r2) / 2, y + Math.sin(a + .15) * (r1 + r2) / 2); ctx.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2); ctx.stroke(); }
-  const drip = Math.min(1, (F.t - F.hitT) / 1) * 30;
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + .3, r1 = r + 4, r2 = r + 12 + (i % 3) * 7; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); ctx.lineTo(x + Math.cos(a + .15) * (r1 + r2) / 2, y + Math.sin(a + .15) * (r1 + r2) / 2); ctx.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2); ctx.stroke(); }
+  const drip = Math.min(1, (F.t - F.hitT) / .8) * 34;
   ctx.fillStyle = '#8a0a14'; for (const o of [-.5, .1, .6]) { ctx.fillRect(x + o * r - 1.5, y + r * .8, 3, drip * (1 - Math.abs(o) * .4)); ctx.beginPath(); ctx.arc(x + o * r, y + r * .8 + drip * (1 - Math.abs(o) * .4), 2.2, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
 }
+const ynHoleR = F => clamp(F.w * .32, 15, 42);
 // trên cùng khung hình: dải đen điện ảnh, đường tập trung kiểu manga, khung đảo màu lúc va chạm
 function drawYnFinTop() {
   const F = S.yn && S.yn.fin; if (!F) return;
   const T = YN_FIN_T, k = Math.min(1, F.t / .3) * (F.t > T.end ? Math.max(0, 1 - (F.t - T.end) / .4) : 1);
   ctx.save(); ctx.setTransform(PX, 0, 0, PX, 0, 0);
-  if (F.t > T.walk - .1 && F.t < T.wind + .5) {
-    const cx = viewW / 2, cy = VIEW_H * .55, a0 = F.t * 3;
+  if (F.t > T.walk - .05 && F.t < T.lift + .1) {
+    const cx = viewW / 2, cy = VIEW_H * .55;
     ctx.strokeStyle = 'rgb(255 255 255 / .35)'; ctx.lineWidth = 1.5; ctx.beginPath();
-    for (let i = 0; i < 60; i++) { const a = i / 60 * Math.PI * 2 + Math.sin(i * 7.3 + a0) * .04, r0 = 200 + mhHash(i + Math.floor(F.t * 12)) * 120; ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * 1200, cy + Math.sin(a) * 1200); }
+    for (let i = 0; i < 64; i++) { const a = i / 64 * Math.PI * 2 + Math.sin(i * 7.3 + F.t * 3) * .04, r0 = 190 + mhHash(i + Math.floor(F.t * 20)) * 130; ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * 1200, cy + Math.sin(a) * 1200); }
     ctx.stroke();
   }
   ctx.fillStyle = '#000000'; const bh = 64 * k; ctx.fillRect(0, 0, viewW, bh); ctx.fillRect(0, VIEW_H - bh, viewW, bh);
-  if (F.hit && F.t - F.hitT < .1) { ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, viewW, VIEW_H); }
+  if (F.hit && F.t - F.hitT < .035) { ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, viewW, VIEW_H); }
   ctx.restore();
 }
 function drawYnFinFx() {
   const F = S.yn && S.yn.fin; if (!F) return;
   const m = F.umb;
-  if (S.ball.x !== undefined && !(F.t >= YN_FIN_T.pick)) {
-    const picked = F.t > YN_FIN_T.end + .55;
-    if (!picked) { ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.down ? 0 : m.rot); drawUmbrella(-F.d * 26, 0, F.d > 0 ? Math.PI / 2 : -Math.PI / 2, 52, false, 0); ctx.restore(); }
-  }
+  if (F.t <= YN_FIN_T.end + .55) { ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.down ? 0 : m.rot); drawUmbrella(-F.d * 26, 0, F.d > 0 ? Math.PI / 2 : -Math.PI / 2, 52, false, 0); ctx.restore(); }
 }
+/* ---------- Lồng tiếng: nhân vật hô tên chiêu (giọng đọc của trình duyệt, Web Speech API) ----------
+   Nhân vật anime hô bằng tiếng Nhật nếu máy có giọng Nhật; không có thì đọc tiếng Việt (tên chiêu trong bảng hướng dẫn).
+   Máy không có giọng nào phù hợp thì im lặng (không đọc sai ngôn ngữ). B / nút "Lồng tiếng" để bật tắt, máy nhớ lựa chọn.
+   Chỉ hô khi chiêu thật sự ra đòn (đo bằng việc chiêu có phát âm thanh hay không), J chỉ thỉnh thoảng hô tiếng hét ngắn. */
+// pitch/rate: cao độ, tốc độ giọng; tap: các tiếng hét ngắn khi đánh J; mỗi phím: [tiếng Nhật, tiếng Việt]
+const VOICE = {
+  pika: { p: 1.9, r: 1.2, tap: ['ピカ!', 'ピッカ!'], hold: ['ピーカー!'], web: ['ピカピカ!'], skill: ['ピカッ!'], volt: ['ピカチュウウ!'], zmove: ['ピカピカピカチュウ!'], dmax: ['ピカチュウ!'] },
+  chii: { p: 2, r: 1.1, tap: ['わっ!', 'ヤー!'], skill: ['わあっ!'] },
+  rimuru: { p: 1.3, tap: ['はっ!'], hold: ['黒雷!', 'Hắc Lôi!'], web: ['暴食者!', 'Kẻ Ăn Thịt!'], volt: ['メギド!', 'Megiddo!'] },
+  stelle: { p: 1.25, vi: true, tap: ['', 'Hây!'] },
+  saiyan: { p: .85, tap: ['はっ!', 'でりゃ!'], hold: ['ギャリック砲!', 'Đấm Galick!'], web: ['はあっ!'], volt: ['ファイナルフラッシュ!', 'Final Flash!'], boom: ['さらばだ、ブルマ…', 'Tạm biệt…'] },
+  kiem: { p: 1, vi: true, tap: ['', 'Hà!'] },
+  asta: { p: 1.05, r: 1.15, tap: ['うおおっ!', 'だあっ!'], hold: ['うおおおお!'], web: ['ブラックディバイダー!', 'Hắc Phân Kiếm!'], volt: ['ブラックメテオライト!', 'Hắc Thiên Thạch!'], terra: ['悪魔同化!', 'Ác Ma Đồng Hoá!'] },
+  yuno: { p: .95, tap: ['はっ!'], hold: ['天つ風の斬撃!', 'Thiên Phong Trảm!'], web: ['風創成魔法!', 'Phong Sáng Tạo Ma Pháp!'], volt: ['スピリット・オブ・ゼファー!', 'Spirit of Zephyr!'], terra: ['精霊同化!', 'Tinh Linh Nhập Thể!'] },
+  pain: { p: .7, r: .9, tap: ['…'], hold: ['万象天引!', 'Vạn Tượng Thiên Dẫn!'], web: ['地爆天星!', 'Địa Bạo Thiên Tinh!'], volt: ['神羅天征!', 'Thần La Thiên Chinh!'] },
+  goku: { p: 1.1, tap: ['はっ!', 'だりゃ!'], hold: ['かーめーはーめー波ー!', 'Kamehameha!'], web: ['瞬間移動!', 'Dịch chuyển tức thời!'], volt: ['身勝手の極意!', 'Bản Năng Vô Cực!'], terra: ['ポタラだ!', 'Hợp thể Potara!'] },
+  namek: { p: .8, tap: ['はっ!'], hold: ['魔閃光!', 'Masenko!'], volt: ['魔貫光殺砲!', 'Makankosappo!'] },
+  luffy: { p: 1.15, r: 1.15, tap: ['ゴムゴムのピストル!', 'Súng Cao Su!'], hold: ['ゴムゴムのガトリング!', 'Gatling!'], web: ['ゴムゴムのバズーカ!', 'Bazooka!'], volt: ['ゴムゴムのキングコングガン!', 'King Kong Gun!'], boom: ['覇王色!'] },
+  kurumi: { p: 1.45, r: .95, tap: ['きひひひ!', 'うふふ!'], hold: ['ザフキエル!', 'Zafkiel!'], web: ['ザイン!', 'Zayin!'], skill: ['アレフ!', 'Aleph!'], volt: ['さあ、わたくしたちの戦争を始めましょう!', 'Bắt đầu cuộc chiến của chúng ta nào!'], heal: ['ダレット!', 'Dalet!'] },
+  mereo: { p: .95, tap: ['はあっ!'], hold: ['カルディア・レオ!'], web: ['獅子の領域!'], volt: ['レオ・パルマ!'] },
+  zenitsu: { p: 1.15, r: 1.1, tap: ['雷の呼吸、壱ノ型、霹靂一閃!', 'Lôi Hô Hấp, Nhất Thức!'], hold: ['六連!', 'Lục Liên!'], web: ['漆ノ型、火雷神!', 'Thất Thức, Hoả Lôi Thần!'], volt: ['神速!', 'Thần Tốc!'] },
+  yuutan: { p: 1.3, vi: true, tap: ['', 'Hư!'], hold: ['', 'Thiên Trảm!'], volt: ['', 'Tam Ảnh Sát!'] },
+  yuutan2: { p: 1.3, vi: true, tap: ['', 'Hừ.'], volt: ['', 'Bỉ Ngạn Hoa!'] },
+  thiquy: { p: 1.25, vi: true, tap: ['', 'Hừ.'], terra: ['', 'Quỷ Thi Giải!'] },
+  yuta: { p: 1, tap: ['はっ!'], web: ['止まれ!', 'Đứng lại!'], volt: ['来い、里香!', 'Đến đây, Rika!'], egg: ['里香!', 'Rika!'] },
+  vegito: { p: .95, tap: ['はっ!', 'ふん!'], hold: ['ファイナルかめはめ波!', 'Final Kamehameha!'], web: ['スピリッツソード!', 'Kiếm Linh Hồn!'], volt: ['これで終わりだ!', 'Kết thúc rồi!'] },
+  bong: { p: 1.6, vi: true, tap: ['', 'Bóng!'], hold: ['', 'Phồng To!'], web: ['', 'Siêu Nảy!'], volt: ['', 'Phân Thân!'] },
+  gabimaru: { p: .9, tap: ['はっ!'], hold: ['忍法!'], web: ['忍法、火法師!', 'Nhẫn pháp, Hoả Pháp Sư!'], skill: ['変わり身!', 'Thế Thân!'], volt: ['忍法、天火蓮華!', 'Thiên Hoả Liên Hoa!'], terra: ['タオ!', 'Đạo!'] },
+  yuuna: { p: 1.35, vi: true, tap: ['', 'Hừ.'], hold: ['', 'Dài ra nào.'], web: ['', 'Bung ô.'], skill: ['', 'Lại đây.'], volt: ['', 'Chó cắn chó.'], egg: ['', 'Bay đi.'], fin: ['', 'Cầm ô vướng tay quá.'], fin2: ['', 'Tiếp theo.'] },
+  luck: { p: 1.15, r: 1.1, tap: ['あはは!', 'それっ!'], hold: ['雷鳴の崩玉!', 'Lôi Minh Băng Cầu!'], web: ['雷神の靴!', 'Lôi Thần Hài!'], skill: ['はやいでしょ?', 'Nhanh chứ hả?'],
+    volt: () => [['雷神の怒り!', 'Lôi Thần Thịnh Nộ!'], ['雷狼百裂!', 'Lôi Lang Bách Liệt!'], ['雷鬼神拳!', 'Thiên Lôi Chiến Quỷ Quyền!']][S.lk ? S.lk.form : 0],
+    terra: () => [['あーあ、もう終わり?', 'Hết vui rồi à?'], ['精霊同化!', 'Tinh Linh Nhập Thể!'], ['雷鬼化! もっと戦おうよ!', 'Sấm Sét Chiến Quỷ! Đánh tiếp đi!']][S.lk ? S.lk.form : 0], egg: ['マナ感知!', 'Cảm nhận ma lực!'] },
+};
+const VO_IDX = { tap: 0, hold: 1, web: 2, skill: 3, volt: 4 };
+var VOICE_ON = true;
+try { VOICE_ON = localStorage.getItem('bongdo.voice') !== '0'; } catch (e) {}
+var SFX_N = 0, VO_LAST = 0, VO_TAPN = 0;
+function voFind(lang) {
+  if (typeof speechSynthesis === 'undefined') return null;
+  const vs = speechSynthesis.getVoices() || [];
+  return vs.find(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith(lang) && /natural|online|google/i.test(v.name)) || vs.find(v => (v.lang || '').toLowerCase().replace('_', '-').startsWith(lang)) || null;
+}
+// nói một câu; prio: tuyệt kĩ, chen ngang câu đang nói
+function voSay(ja, vi, cfg, prio) {
+  if (!VOICE_ON || muted || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
+  const now = performance.now();
+  if (!prio && now - VO_LAST < 650) return;
+  const vJa = !cfg.vi && ja ? voFind('ja') : null, vVi = vi ? voFind('vi') : null;
+  const text = vJa ? ja : vVi ? vi : null, voice = vJa || vVi;
+  if (!text || !voice) return;
+  const ss = speechSynthesis;
+  if (ss.speaking) { if (!prio) return; ss.cancel(); }
+  VO_LAST = now;
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = voice; u.lang = voice.lang; u.pitch = clamp(cfg.p || 1, 0, 2); u.rate = clamp((cfg.r || 1) * 1.05, .5, 2); u.volume = .95;
+  try { ss.speak(u); } catch (e) {}
+}
+// chiêu của phím k vừa ra đòn: hô tên chiêu
+function voiceKey(k) {
+  const cfg = VOICE[CHAR]; if (!cfg) return;
+  let e = cfg[k]; if (typeof e === 'function') e = e();
+  if (k === 'tap') {
+    // đánh thường: thỉnh thoảng hét ngắn
+    if ((VO_TAPN++ % 3) || performance.now() - VO_LAST < 1400) return;
+    const list = cfg.tap || [];
+    if (cfg.vi) voSay('', list[1] || '', cfg, false);
+    else voSay(list[Math.floor(Math.random() * list.length)] || '', '', cfg, false);
+    return;
+  }
+  const short = CHAR_UI[CHAR] && CHAR_UI[CHAR].short, vi0 = VO_IDX[k] != null && short ? short[VO_IDX[k]] : '';
+  if (!e && !vi0) return;
+  const ja = e ? e[0] : '', vi = (e && e[1]) || vi0;
+  voSay(ja, vi, cfg, k === 'volt' || k === 'terra');
+}
+// chạy chiêu fn; nếu chiêu có phát âm thanh (nghĩa là đã ra đòn) thì hô
+function vc(k, fn) { const n0 = SFX_N; fn(); if (SFX_N > n0) voiceKey(k); }
+function setVoice(on) {
+  VOICE_ON = on;
+  try { localStorage.setItem('bongdo.voice', on ? '1' : '0'); } catch (e) {}
+  const el = $('voiceBtn'); if (el) { el.setAttribute('aria-pressed', String(on)); el.textContent = on ? 'Lồng tiếng: Bật (B)' : 'Lồng tiếng: Tắt (B)'; }
+  if (!on && typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+}
+if (typeof speechSynthesis !== 'undefined' && speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', () => {});   // nạp danh sách giọng sớm
+setVoice(VOICE_ON);   // cập nhật nút theo lựa chọn đã lưu
+/* ----- âm thanh hiệu ứng mới ----- */
+Object.assign(SFX, {
+  // sấm: tiếng nổ lách tách cao + tiếng ầm trầm kéo dài
+  thunder() { for (let i = 0; i < 5; i++) noise(.05, .07, 3000 + Math.random() * 4000, i * .035); tone(90, 40, .9, 'sawtooth', .06, .05); noise(1, .06, 180, .05); },
+  crackle() { for (let i = 0; i < 3; i++) noise(.03, .05, 4500 + Math.random() * 3000, i * .03); tone(2400, 900, .06, 'square', .02); },
+  swoosh() { noise(.16, .06, 900); noise(.12, .04, 2600, .03); },
+  // đấm nặng: tiếng thịch trầm + tiếng rắc
+  punch() { tone(160, 40, .35, 'sine', .14); noise(.08, .1, 600); noise(.05, .08, 3500, .03); tone(90, 30, .5, 'triangle', .08, .02); },
+  umbrella() { noise(.18, .06, 400); tone(300, 120, .15, 'triangle', .05); },
+});
 
 /* ----- nền biển: hoàng hôn, đảo xa, thuyền hải tặc buồm đen, hải âu, mặt biển lấp lánh ----- */
 function paintShips(g, W, H) {
