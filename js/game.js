@@ -3428,15 +3428,16 @@ var GXC = {
       web: { t: 'proj', name: 'St. Louis Smash', shape: 'wave', n: 3, spd: 1000, r: 22, dmg: 4, pierce: true, spread: .15, col: '#7af07a', life: .55 }, k: { t: 'blink', name: 'Full Cowl: Lướt', dmg: 2 },
       u: { t: 'nuke', name: 'United States of Smash', dmg: 18, col: '#7af07a' }, e: { t: 'grab', name: 'Blackwhip', range: 420, dmg: 4, col: '#1a1a1a' } },
     forms: [{ name: 'Full Cowl 20%', k: 1 }, { name: 'Full Cowl 45%', k: 1.5, spd: 1.2, aura: '#7af07a' }, { name: 'One For All 100%', k: 2.2, spd: 1.4, fly: true, aura: '#3aff6a' }] },
-  ichigo: { name: 'Kurosaki Ichigo', from: 'Bleach', tag: 'Tử thần thay thế: Getsuga Tenshō, Bankai, mặt nạ Hollow', energy: 'Linh áp',
-    stats: { hp: 3400, atk: 260, def: 100 }, speed: 560, col: '#ff8a2a', guard: { dodge: .15, name: 'Shunpo' },
-    look: { skin: '#f4dcc8', hair: ['#ff8a2a', '#d0602a', 'spiky'], top: ['#14141a', '#f0f0f0', 'shihakusho'], pants: '#14141a', shoes: '#f0f0f0' },
-    weapon: 'cleaver',
-    kit: { tap: { t: 'combo', name: 'Zangetsu', fx: 'slash', dmg: 3, col: '#c8d0e0' }, hold: { t: 'proj', name: 'Getsuga Tenshō', shape: 'crescent', n: 1, spd: 900, r: 40, dmg: 7, pierce: true, col: '#5ad8ff', life: .8 },
-      web: { t: 'dashline', name: 'Shunpo Trảm', len: 360, dmg: 5, col: '#c8d0e0' }, k: { t: 'blink', name: 'Shunpo', dmg: 2 },
-      u: { t: 'bigbeam', name: 'Getsuga Tenshō Tối Thượng', dmg: 18, col: '#14141a' }, e: { t: 'aoe', name: 'Bộc Phát Linh Áp', r: 160, dmg: 4, col: '#5ad8ff' } },
-    forms: [{ name: 'Shikai', k: 1 }, { name: 'BANKAI: Tensa Zangetsu', k: 1.6, spd: 1.3, aura: '#c02a3a', look: { top: ['#14141a', '#c02a3a', 'coat'] }, weapon: 'katana', kit: { hold: { col: '#c02a3a' } } },
-      { name: 'Mặt nạ Hollow', k: 2.3, spd: 1.4, fly: true, aura: '#c02a3a', look: { top: ['#14141a', '#c02a3a', 'coat'], hmask: true }, weapon: 'katana', kit: { hold: { col: '#14141a', n: 3, spread: .2 } } }] },
+  ichigo: { name: 'Kurosaki Ichigo', from: 'Bleach', tag: 'Tử thần thay thế, Bankai Tensa Zangetsu — sprite và lối đánh theo phong cách Bleach vs Naruto: Getsuga Tenshō, Shunpo, mặt nạ Hollow', energy: 'Linh áp',
+    stats: { hp: 3400, atk: 260, def: 100 }, speed: 600, col: '#c02a3a', guard: { dodge: .2, name: 'Shunpo' }, pixel: true,
+    look: { skin: '#f4dcc8', hair: ['#ff8a2a', '#d0602a', 'spiky'], top: ['#14141a', '#c02a3a', 'coat'], pants: '#14141a', shoes: '#14141a' },
+    weapon: 'katana',
+    kit: { tap: { t: 'combo', name: 'Tensa Trảm', fx: 'slash', n: 3, dmg: 3.2, col: '#c02a3a' },
+      hold: { t: 'proj', name: 'Getsuga Tenshō', shape: 'crescent', getsuga: true, airDown: true, n: 1, spd: 950, r: 42, dmg: 7, pierce: true, col: '#c02a3a', life: .8 },
+      web: { t: 'dashline', name: 'Shunpo Trảm', len: 380, dmg: 5.5, col: '#c02a3a' }, k: { t: 'blink', name: 'Shunpo', dmg: 2 },
+      u: { t: 'bigbeam', name: 'Getsuga Tenshō Tối Thượng', dmg: 18, col: '#14141a' }, e: { t: 'aoe', name: 'Bộc Phát Linh Áp', r: 170, dmg: 4, col: '#c02a3a' } },
+    forms: [{ name: 'Bankai: Tensa Zangetsu', k: 1.2, spd: 1.1 },
+      { name: 'Mặt nạ Hollow', k: 2.2, spd: 1.35, dur: 15, aura: '#c02a3a', look: { hmask: true }, kit: { hold: { n: 2, spread: .16, dmg: 8 }, u: { name: 'Getsuga Tenshō Hollow' } } }] },
   killua: { name: 'Killua Zoldyck', from: 'Hunter x Hunter', tag: 'Sát thủ nhà Zoldyck: biến hình Điện, Thần Tốc (Godspeed)', energy: 'Niệm',
     stats: { hp: 2800, atk: 240, def: 80 }, speed: 640, col: '#7ac8ff', guard: { dodge: .3, name: 'Phản xạ sát thủ' },
     look: { skin: '#f6e4d8', hair: ['#f4f4fa', '#c8cce0', 'fluffy'], top: ['#5a3a8a', '#f0f0f0', 'longsleeve'], pants: '#c8c0a8', shoes: '#3a3a4a', shorts: true },
@@ -3489,7 +3490,7 @@ function gxDesc(C, A, cd) {
   const dm = v => Math.round(v * 2.4 * 10 * C.stats.atk / 100), X = A.dmg != null ? dm(A.dmg) : 0, cdt = A.ult ? ' · cần đầy năng lượng' : cd ? ` · hồi ${gxVn(cd)} giây` : '';
   switch (A.t) {
     case 'combo': { const n = A.n || 4; return n === 1 ? `Một cú đấm ~${X} sát thương, lướt tới mục tiêu trong tầm 220, quái thường chết ngay${cdt}` : `Chuỗi ${n} nhát, tự lướt tới mục tiêu trong tầm 220 · mỗi nhát ~${X}, nhát ${n} ×2 (~${X * 2}) · tầm đánh 44${cdt}`; }
-    case 'proj': return `${A.n > 1 ? A.n + ' × ' : ''}${GX_SHAPE[A.shape] || 'Đạn'} bay ${A.spd}/giây trong ${gxVn(A.life)} giây · ${A.tick ? `~${X} mỗi 0,12 giây khi chạm (đánh liên tục)` : `~${X} mỗi mục tiêu`}${A.pierce ? ' · xuyên qua kẻ địch' : ''}${A.boom ? ` · nổ bán kính ${A.boom} (lan ~${Math.round(X * .6)})` : ''}${A.pull ? ' · hút quái lại gần' : ''}${A.back ? ' · bay về tay' : ''}${A.spread && A.n > 1 ? ' · xoè quạt' : ''}${cdt}`;
+    case 'proj': return `${A.n > 1 ? A.n + ' × ' : ''}${GX_SHAPE[A.shape] || 'Đạn'} bay ${A.spd}/giây trong ${gxVn(A.life)} giây · ${A.tick ? `~${X} mỗi 0,12 giây khi chạm (đánh liên tục)` : `~${X} mỗi mục tiêu`}${A.pierce ? ' · xuyên qua kẻ địch' : ''}${A.boom ? ` · nổ bán kính ${A.boom} (lan ~${Math.round(X * .6)})` : ''}${A.pull ? ' · hút quái lại gần' : ''}${A.back ? ' · bay về tay' : ''}${A.spread && A.n > 1 ? ' · xoè quạt' : ''}${A.airDown ? ' · trên không thì bắn chéo xuống' : ''}${cdt}`;
     case 'beam': return `Tia thẳng dài ${A.len}, dày ${A.w} · trúng mọi thứ trên đường, ~${X} mỗi mục tiêu${cdt}`;
     case 'dashline': return `Lướt ${A.len} xuyên qua kẻ địch · ~${X} mỗi mục tiêu trên đường · vô địch 0,3 giây${cdt}`;
     case 'blink': return `Chớp ra sau lưng kẻ địch gần nhất (tầm 380) và đánh ~${X}; không có ai thì lùi 220 · vô địch 0,45 giây${cdt}`;
@@ -3510,7 +3511,7 @@ function gxDesc(C, A, cd) {
 const gxVn = v => String(v).replace('.', ',');
 function gxKitText(C) {
   const K = C.kit, eCd = K.e.t === 'domain' ? 12 : K.e.t === 'heal' ? 10 : .8;
-  const forms = C.forms.slice(1).map(f => `${f.name}: sát thương ×${gxVn(f.k)}${f.spd ? `, tốc độ ×${gxVn(f.spd)}` : ''}${f.fly ? ', bay tự do' : ''}${f.dodge ? `, né ${Math.round(f.dodge * 100)}% đòn` : ''}${f.weapon ? ', đổi vũ khí' : ''}${f.kit ? ', chiêu giữ J mạnh hơn' : ''}`).join(' · ');
+  const forms = C.forms.slice(1).map(f => `${f.name}: sát thương ×${gxVn(f.k)}${f.spd ? `, tốc độ ×${gxVn(f.spd)}` : ''}${f.fly ? ', bay tự do' : ''}${f.dur ? `, kéo dài ${f.dur} giây` : ''}${f.dodge ? `, né ${Math.round(f.dodge * 100)}% đòn` : ''}${f.weapon ? ', đổi vũ khí' : ''}${f.kit ? ', chiêu giữ J mạnh hơn' : ''}`).join(' · ');
   return [['Chỉ số', `Máu ${C.stats.hp} · Công ${C.stats.atk} · Thủ ${C.stats.def} · Tốc độ ${C.speed} · sát thương chiêu ×2,4`],
     ['J', `${K.tap.name}: ${gxDesc(C, K.tap, K.tap.n === 1 ? .3 : .15)}`], ['Giữ J', `${K.hold.name}: ${gxDesc(C, K.hold, .45)}`],
     ['L', `${K.web.name}: ${gxDesc(C, K.web, .55)}`], ['Shift', `${K.k.name}: ${gxDesc(C, K.k, .4)}`], ['U', `${K.u.name}: ${gxDesc(C, K.u)}`],
@@ -3583,7 +3584,8 @@ function gxDo(A, key) {
   if (A.t === 'proj') {
     gxPose('cast', .3);
     const n = A.n || 1;
-    for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * (A.spread || .12); G.shots.push({ x: b.x + d * 30, y: b.y - 16, vx: d * Math.cos(a) * A.spd, vy: Math.sin(a) * A.spd, t: 0, A, col, d, hit: new Set(), x0: b.x }); }
+    const air = A.airDown && !S.onGround;   // Getsuga trên không: bắn chéo xuống như trong Bleach vs Naruto
+    for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * (A.spread || .12) + (air ? .62 : 0); G.shots.push({ x: b.x + d * 30, y: b.y - 16, vx: d * Math.cos(a) * A.spd, vy: Math.sin(a) * A.spd, t: 0, A, col, d, hit: new Set(), x0: b.x, rot: air ? .62 : 0 }); }
     sfx(A.shape === 'orb' || A.shape === 'shuriken' ? 'volt' : 'swoosh'); gxPop(A.name + '!', col, A.ult);
     return true;
   }
@@ -3675,6 +3677,7 @@ function gxF() {
   const G = S.gx, C = gxC(); if (!canAct() || G.ult || !gxCdOk('form', .8)) return;
   G.form = (G.form + 1) % C.forms.length; G.cur = null;
   const f = gxForm(), b = S.ball;
+  G.formT = f.dur || 0;
   S.flash = Math.max(S.flash, G.form ? .6 : .25); sfx(G.form ? 'roar' : 'tele');
   G.fx.push({ k: 'ring', x: b.x, y: b.y - 14, r: 140, t: 0, max: .6, col: f.aura || C.col });
   gxPop(f.name + '!', f.aura || C.col, true);
@@ -3701,6 +3704,7 @@ function updateGxChar(dt) {
   for (const g of G.ghosts) g.t -= dt; G.ghosts = G.ghosts.filter(g => g.t > 0);
   if (!GXC[CHAR]) { G.ult = null; G.shots = []; G.clones = []; G.domain = null; G.bar = null; G.pend = []; G.form = 0; return; }
   const b = S.ball, C = gxC();
+  if (G.formT > 0 && (G.formT -= dt) <= 0 && G.form) { G.form = 0; G.cur = null; gxPop('Mặt nạ vỡ', '#f0f0f0'); boltSpark(b.x, b.y - 30, '#ffffff', 14); applyChar(); }
   for (const p of G.pend) if ((p.t -= dt) <= 0 && !p.done) { p.done = true; if (!S.dead) p.fn(); }
   G.pend = G.pend.filter(p => !p.done);
   if (G.shake > 0) { G.shake -= dt; const k = Math.min(1, G.shake * 5) * 8; S.cam.x += (Math.random() - .5) * k; S.cam.y += (Math.random() - .5) * k; }
@@ -3890,7 +3894,8 @@ function drawGxFig(b, pose, ghost, id) {
 }
 function drawGxChar(b, charged) {
   const G = S.gx, C = gxC(), f = gxForm();
-  for (const g of G.ghosts) { ctx.save(); ctx.globalAlpha = .3 * g.t / g.max; drawGxFig({ x: g.x, y: g.y, face: g.face, vx: g.vx }, g.pose, true); ctx.restore(); }
+  const fig = C.pixel ? drawIchigoPix : drawGxFig;
+  for (const g of G.ghosts) { ctx.save(); ctx.globalAlpha = .3 * g.t / g.max; fig({ x: g.x, y: g.y, face: g.face, vx: g.vx }, g.pose, true); ctx.restore(); }
   if (G.ult && G.ult.A.t === 'rampage' && G.ult.i < G.ult.tg.length) return;
   if (f && f.aura) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -3901,7 +3906,7 @@ function drawGxChar(b, charged) {
   }
   // phân thân Naruto
   for (const c of G.clones) { ctx.save(); ctx.globalAlpha = .85; drawGxFig({ x: c.x, y: c.y, face: c.face, vx: 300 }, null, true); ctx.restore(); }
-  drawGxFig(b, G.pose, false);
+  fig(b, G.pose, false);
   if (charged) { ctx.strokeStyle = C.col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 12, 32 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
 }
 function drawGxFx() {
@@ -3915,13 +3920,13 @@ function drawGxFx() {
     for (let i = 0; i < 80; i++) { const x = S.cam.x + mhHash(i) * viewW, y = S.cam.y + mhHash(i + 9) * VIEW_H; ctx.fillStyle = i % 3 ? '#ffffff' : '#5ad8ff'; ctx.fillRect(x, y, 2, 2); }
     const g = ctx.createRadialGradient(b.x, b.y - 20, 10, b.x, b.y - 20, 400); g.addColorStop(0, 'rgb(90 216 255 / .3)'); g.addColorStop(1, 'rgb(0 0 0 / 0)'); ctx.fillStyle = g; ctx.fillRect(b.x - 400, b.y - 420, 800, 800);
     ctx.restore();
-    if (CHAR && GXC[CHAR]) drawGxFig(b, G.pose, false);
+    if (CHAR && GXC[CHAR]) (gxC().pixel ? drawIchigoPix : drawGxFig)(b, G.pose, false);
   }
   const U = G.ult;
   if (U && U.A.t !== 'rampage') {
     const A = U.A, k = Math.min(1, U.t / .3), d = U.d, col = U.col, post = U.done ? (U.t - U.done) : 0, fade = U.done ? Math.max(0, 1 - post / 1) : 1;
     ctx.save(); ctx.fillStyle = `rgb(0 0 0 / ${(.45 * k * fade).toFixed(2)})`; ctx.fillRect(S.cam.x - 200, S.cam.y - 200, viewW + 400, VIEW_H + 400); ctx.restore();
-    if (GXC[CHAR]) drawGxFig(b, G.pose, false);
+    if (GXC[CHAR]) (gxC().pixel ? drawIchigoPix : drawGxFig)(b, G.pose, false);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     if (A.t === 'bigbeam') {
       if (!U.done) { const r = 10 + U.t * 40; const g = ctx.createRadialGradient(b.x + d * 30, b.y - 14, 2, b.x + d * 30, b.y - 14, r); g.addColorStop(0, '#ffffff'); g.addColorStop(.5, col === '#14141a' ? '#c02a3a' : col); g.addColorStop(1, 'rgb(0 0 0 / 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x + d * 30, b.y - 14, r, 0, Math.PI * 2); ctx.fill(); }
@@ -3943,6 +3948,12 @@ function drawGxFx() {
   for (const q of G.shots) {
     const A = q.A, r = A.r, c = q.col === '#14141a' ? '#c02a3a' : q.col;
     if (A.shape === 'orb') { const g = ctx.createRadialGradient(q.x, q.y, 1, q.x, q.y, r * 1.6); g.addColorStop(0, '#ffffff'); g.addColorStop(.4, c); g.addColorStop(1, 'rgb(0 0 0 / 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, r * 1.6, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(q.x, q.y, r * .7, q.t * 20, q.t * 20 + 4); ctx.stroke(); }
+    else if (A.getsuga) {
+      ctx.save(); ctx.translate(q.x, q.y); ctx.scale(q.d, 1); ctx.rotate(q.rot || 0); ctx.globalCompositeOperation = 'source-over';
+      for (const [w, c2, al] of [[30, '#c02a3a', .35], [20, '#e0303a', .8], [12, '#0a0a0e', 1]]) { ctx.globalAlpha = al; ctx.strokeStyle = c2; ctx.lineWidth = w; ctx.beginPath(); ctx.arc(-r * .7, 0, r * 1.25, -1.15, 1.15); ctx.stroke(); }
+      ctx.globalAlpha = .8; ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-r * .7 + 7, 0, r * 1.25, -1.05, 1.05); ctx.stroke();
+      ctx.restore(); ctx.globalCompositeOperation = 'lighter';
+    }
     else if (A.shape === 'wave' || A.shape === 'crescent') { ctx.save(); ctx.translate(q.x, q.y); ctx.scale(q.d, 1); ctx.strokeStyle = c; ctx.lineWidth = A.shape === 'crescent' ? 12 : 8; ctx.globalAlpha = .85; ctx.beginPath(); ctx.arc(-r * .6, 0, r, -1.2, 1.2); ctx.stroke(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore(); }
     else if (A.shape === 'shuriken') { ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.t * 30); ctx.fillStyle = c; for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(r * 1.4, 0); ctx.lineTo(0, 6); ctx.fill(); } const g = ctx.createRadialGradient(0, 0, 1, 0, 0, r); g.addColorStop(0, '#ffffff'); g.addColorStop(1, 'rgb(90 200 255 / 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     else if (A.shape === 'rock') { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = '#8a7a6a'; ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#6a5a4a'; ctx.beginPath(); ctx.arc(q.x - 6, q.y - 4, r * .4, 0, Math.PI * 2); ctx.fill(); ctx.globalCompositeOperation = 'lighter'; }
@@ -3963,6 +3974,73 @@ function drawGxFx() {
   }
   ctx.globalAlpha = 1;
   ctx.restore();
+}
+/* ----- Ichigo kiểu sprite pixel (phong cách Bleach vs Naruto): vẽ ở độ phân giải thấp, viền đen, phóng to giữ điểm ảnh ----- */
+let IC_PX = null;
+function drawIchigoPix(b, pose, ghost) {
+  const G = S.gx, C = GXC.ichigo, f = C.forms[G.form] || C.forms[0], L = Object.assign({}, C.look, f.look || {}), d = b.face || 1;
+  let P = gxPoseOf(b, pose);
+  if (!ghost) {
+    if (!G.cur) G.cur = JSON.parse(JSON.stringify(P));
+    const k = 1 - Math.exp(-(G.pose ? 34 : 16) / 60), Q = G.cur;
+    Q.hy += (P.hy - Q.hy) * k; Q.lean += (P.lean - Q.lean) * k;
+    for (const n of ['bl', 'fl', 'ba', 'fa']) for (let i = 0; i < 2; i++) Q[n][i] += (P[n][i] - Q[n][i]) * k;
+    P = Q;
+  }
+  const W = 72, H = 64, K = 2;
+  if (!IC_PX) { IC_PX = [document.createElement('canvas'), document.createElement('canvas')]; for (const c of IC_PX) { c.width = W; c.height = H; } }
+  const [O, O2] = IC_PX, g = O.getContext('2d'), g2 = O2.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); g.imageSmoothingEnabled = false;
+  g.translate(W / 2, H - 3); g.scale(d, 1); g.lineCap = 'butt'; g.lineJoin = 'miter';
+  const hy = P.hy * .27, sx = Math.sin(P.lean) * 10, sy = hy - Math.cos(P.lean) * 10, cx = sx + Math.sin(P.lean) * 6, cy = sy - Math.cos(P.lean) * 6;
+  const sp = Math.min(1, Math.abs(b.vx) / 600), wave = Math.sin(G.mt * 10), t = G.mt;
+  const BL = '#141418', RED = '#b01a2a', SK = L.skin;
+  const line = (x1, y1, x2, y2, w, c) => { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+  const arm = (a, front) => { const ox = sx + (front ? 1 : -1), oy = sy + 1.5, ex = ox + Math.sin(a[0]) * 5, ey = oy + Math.cos(a[0]) * 5, hx = ex + Math.sin(a[1]) * 5, hy2 = ey + Math.cos(a[1]) * 5; line(ox, oy, ex, ey, 3, front ? BL : '#0a0a0c'); line(ex, ey, hx, hy2, 2.4, front ? BL : '#0a0a0c'); g.fillStyle = SK; g.fillRect(Math.round(hx) - 1, Math.round(hy2) - 1, 2, 2); return [hx, hy2, a[1]]; };
+  const leg = (a, back) => { const rx = back ? -1 : 1, kx = rx + Math.sin(a[0]) * 6, ky = hy + Math.cos(a[0]) * 6, fx = kx + Math.sin(a[1]) * 6, fy2 = ky + Math.cos(a[1]) * 6; line(rx, hy, kx, ky, 3.4, back ? '#0a0a0c' : BL); line(kx, ky, fx, fy2 - 1, 3, back ? '#0a0a0c' : BL); g.fillStyle = '#0a0a0c'; g.fillRect(Math.round(fx) - 1, Math.round(fy2) - 1, 4, 2); };
+  // tà áo Bankai dài phía sau: đen, lót đỏ, gấu rách tua
+  g.fillStyle = RED; g.beginPath(); g.moveTo(sx - 2, sy + 1); g.lineTo(-3, hy); g.lineTo(-7 - sp * 7 + wave, hy + 9 - sp * 3); g.lineTo(-1 - sp * 4, hy + 10 - sp * 2); g.lineTo(2, hy); g.closePath(); g.fill();
+  g.fillStyle = BL; g.beginPath(); g.moveTo(sx - 3, sy); g.lineTo(-4, hy); g.lineTo(-8 - sp * 8 + wave, hy + 11 - sp * 3); g.lineTo(-6 - sp * 7, hy + 9); g.lineTo(-5 - sp * 6 + wave, hy + 12 - sp * 3); g.lineTo(-3 - sp * 5, hy + 10); g.lineTo(-1 - sp * 4, hy + 12 - sp * 2); g.lineTo(1, hy); g.closePath(); g.fill();
+  arm(P.ba, false); leg(P.bl, true); leg(P.fl, false);
+  // thân: áo choàng đen mở vạt, lót đỏ, cổ áo trắng, đai tối
+  g.fillStyle = BL; g.beginPath(); g.moveTo(sx - 3.5, sy - .5); g.lineTo(sx + 3.5, sy - .5); g.lineTo(3.5, hy + 1); g.lineTo(-3.5, hy + 1); g.closePath(); g.fill();
+  g.fillStyle = RED; g.fillRect(Math.round((sx + 3.5) * .5 + 1), Math.round(sy + 1), 1, Math.max(1, Math.round(hy - sy - 1)));
+  g.fillStyle = '#e8e8ec'; g.fillRect(Math.round(sx - 1), Math.round(sy - .5), 2, 2);
+  g.fillStyle = '#2a2a30'; g.fillRect(-4, Math.round(hy - 2), 8, 1.5);
+  // đầu to kiểu sprite
+  g.fillStyle = SK; g.fillRect(Math.round(sx) - 1, Math.round(sy) - 2, 2, 2);
+  g.beginPath(); g.arc(cx + .5, cy, 4.6, 0, Math.PI * 2); g.fill();
+  if (L.hmask) {
+    g.fillStyle = '#f4f4f0'; g.beginPath(); g.arc(cx + .8, cy, 4.8, -1.4, 2.2); g.fill();
+    g.fillStyle = '#c01a2a'; g.fillRect(Math.round(cx + 1), Math.round(cy - 4), 1, 8); g.fillRect(Math.round(cx + 3), Math.round(cy - 3), 1, 6);
+    g.fillStyle = '#0a0a0c'; g.fillRect(Math.round(cx + 2), Math.round(cy - 1), 3, 2); g.fillStyle = '#ffcc30'; g.fillRect(Math.round(cx + 3), Math.round(cy - 1), 1, 1);
+    g.fillStyle = '#0a0a0c'; g.fillRect(Math.round(cx + 2), Math.round(cy + 2), 3, 1);
+  } else {
+    g.fillStyle = '#3a2a1a'; g.fillRect(Math.round(cx + 2), Math.round(cy - 1), 2, 1);
+    g.fillStyle = '#5a3a1a'; g.fillRect(Math.round(cx + 2), Math.round(cy), 2, 1);
+    g.fillStyle = '#8a4a3a'; g.fillRect(Math.round(cx + 2), Math.round(cy + 2), 2, 1);
+  }
+  // tóc cam nhọn dựng
+  g.fillStyle = '#ff8a2a'; g.beginPath();
+  const hs = [[-5, 1], [-7, -2], [-5, -3], [-7, -6], [-3, -5], [-3, -9], [0, -5], [2, -9], [3, -5], [6, -7], [5, -3], [6, -1], [3, -2], [1, -1], [-1, -2], [-2, 1]];
+  hs.forEach(([x, y], i) => i ? g.lineTo(cx + x - sp * 1.5 * (x < 0), cy + y) : g.moveTo(cx + x, cy + y)); g.closePath(); g.fill();
+  g.fillStyle = '#ffb060'; g.fillRect(Math.round(cx - 1), Math.round(cy - 6), 2, 1);
+  // tay trước + Tensa Zangetsu: kiếm đen, chắn vàng, xích treo ở chuôi
+  const fa = arm(P.fa, true), a = fa[2], ux = Math.sin(a), uy = Math.cos(a);
+  line(fa[0] - ux * 2, fa[1] - uy * 2, fa[0] + ux * 1, fa[1] + uy * 1, 1.6, '#e8e8ec');
+  line(fa[0] + ux * 1, fa[1] + uy * 1, fa[0] + ux * 17, fa[1] + uy * 17, 1.6, '#0a0a0c');
+  line(fa[0] + ux * 3, fa[1] + uy * 3, fa[0] + ux * 16, fa[1] + uy * 16, .8, '#5a5a66');
+  g.fillStyle = '#c8a040'; g.fillRect(Math.round(fa[0] + ux * 1) - 1, Math.round(fa[1] + uy * 1) - 1, 2, 2);
+  g.strokeStyle = '#8a8a96'; g.lineWidth = .8; g.beginPath(); g.moveTo(fa[0] - ux * 2, fa[1] - uy * 2); g.quadraticCurveTo(fa[0] - ux * 2 - 2, fa[1] + 4 + Math.sin(t * 6), fa[0] - ux * 2 - 4, fa[1] + 6 + Math.sin(t * 6)); g.stroke();
+  // viền đen 1 điểm ảnh quanh hình như sprite game đối kháng
+  g2.setTransform(1, 0, 0, 1, 0, 0); g2.clearRect(0, 0, W, H); g2.globalCompositeOperation = 'source-over';
+  for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) g2.drawImage(O, ox, oy);
+  g2.globalCompositeOperation = 'source-in'; g2.fillStyle = '#000000'; g2.fillRect(0, 0, W, H);
+  g2.globalCompositeOperation = 'source-over'; g2.drawImage(O, 0, 0);
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(O2, Math.round(b.x - W / 2 * K), Math.round(b.y + R - 2 - (H - 3) * K), W * K, H * K);
+  ctx.restore();
+  return fa;
 }
 function showKit(id) {
   const u = CHAR_UI[id], el = $('charInfo');
