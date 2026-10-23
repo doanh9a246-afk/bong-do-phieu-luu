@@ -3363,7 +3363,7 @@ const CHAR_UI = {
       ['U', 'Chó Cắn Chó: màn hình tối tím, lao qua từng kẻ địch đấm lủng người, cú cuối đấm xuống đất chấn cả màn hình (cần đầy sát khí)'],
       ['F', 'Bung ô che: giơ cây ô nhỏ lên đầu — đỡ MỌI đòn 4 giây, trên không thì làm dù rơi chậm (F lần nữa để cụp)'],
       ['E', 'Ném dao: ba con dao xoè quạt bay xuyên qua kẻ địch']],
-    passive: 'chỉ số áp đảo mọi nhân vật (15000 máu, 420 công, 220 thủ) · ĐỐI THỦ MẠNH (boss có giáp hoặc máu nhiều hơn Yuuna): sức đánh ×10 · hạ boss bằng cảnh kết liễu một đấm lủng người · cheat: mọi chiêu miễn phí, sát thương ×4, xuyên khiên boss, nhảy 3 lần.',
+    passive: 'chỉ số áp đảo mọi nhân vật (15000 máu, 420 công, 220 thủ) · ĐỐI THỦ MẠNH (boss có giáp hoặc máu nhiều hơn Yuuna; ở đấu trường: nhân vật có máu hoặc thủ cao hơn, vd. Kanna): sức đánh ×10 · hạ boss bằng cảnh kết liễu một đấm lủng người · cheat: mọi chiêu miễn phí, sát thương ×4, xuyên khiên boss, nhảy 3 lần.',
     tip: 'Yuuna: J Liên Quyền (nhát 4 một đấm lủng người) · giữ J Dao · L Chày Ô · Shift Lướt Đấm · U Chó Cắn Chó · F bung ô che · E ném dao.' },
   gabimaru: { name: 'Gabimaru', from: "Hell's Paradise", tag: 'Kẻ Rỗng — nhẫn giả mạnh nhất Iwagakure: Hỏa Pháp Sư, Đạo Hoa (cheat)', energy: 'Năng lượng',
     btn: { bolt: ['Đao', 'Thủ Đao'], web: ['Lửa', 'Hỏa Pháp Sư'], skill: ['Gỗ', 'Thế Thân'], volt: ['Sen', 'Thiên Hỏa Liên Hoa'] },
@@ -17783,8 +17783,18 @@ const ynK = () => 1.3;
 const ynLo = () => S.fight ? ARENA.l + R : R, ynHi = () => S.fight ? ARENA.r - R : LEVEL_W - R;
 function ynGhost(b, t = .25) { S.yn.ghosts.push({ x: b.x, y: b.y, face: b.face || 1, vx: b.vx, pose: S.yn.pose, t, max: t }); }
 function ynLater(t, fn) { S.yn.pend.push({ t, fn }); }
-// đối thủ mạnh (boss có giáp giảm sát thương hoặc máu tối đa nhiều hơn Yuuna): sức đánh ×10
-function ynStrong(t) { if (t.kind !== 'boss') return false; const B = S.boss; return (B.armor || 1) < 1 || (B.maxHp || B.hp || 0) > (S.maxHp || 15000); }
+// đối thủ mạnh: sức đánh ×10
+//  · boss: có giáp giảm sát thương hoặc máu tối đa nhiều hơn Yuuna
+//  · đấu trường, nhân vật đối thủ (đứng sau boss giả): chỉ số máu hoặc thủ cao hơn Yuuna (vd. Kanna 20000 máu / 300 thủ)
+function ynStrong(t) {
+  if (t.kind !== 'boss') return false;
+  const B = S.boss, me = CHAR_STATS.yuuna;
+  if (B.proxy) {
+    const O = BET && BET_CUR && betOther(BET_CUR); if (!O || O.kind !== 'char') return false;
+    const st = CHAR_STATS[betKey('c:' + O.id)] || CHAR_STATS[O.id]; return !!st && (st.hp > me.hp || st.def > me.def);
+  }
+  return (B.armor || 1) < 1 || (B.maxHp || B.hp || 0) > (S.maxHp || me.hp);
+}
 // cú đánh: kẻ địch người thường thì lủng người (gk: 'hole' thủng một lỗ, 'split' đứt đôi)
 function ynHit(t, dmg, gk = 'hole') {
   if (!tAlive(t)) return;
