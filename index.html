@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=2a154768">
+<link rel="stylesheet" href="css/style.css?v=55bc49ba">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -26,7 +26,7 @@
     <button class="restart" id="betBtn" type="button">Cá cược (Q)</button>
     <button class="restart" id="charBtn" type="button">Nhân vật (P)</button>
     <button class="restart" id="mute" type="button" aria-pressed="true">Âm thanh: Bật (M)</button>
-    <button class="restart" id="restart" type="button">Chơi lại (R)</button>
+    <button class="restart" id="restart" type="button">Chơi lại</button>
   </div>
 </div>
 
@@ -241,10 +241,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=2a154768&t=' + Date.now();
+  s.src = 'js/game.js?v=55bc49ba&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=2a154768&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=55bc49ba&t=' + Date.now();
 })();
 </script>
 </body>

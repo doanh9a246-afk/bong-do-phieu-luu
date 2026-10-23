@@ -765,7 +765,6 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyQ') { betOpen(); return; }
   if (e.code === 'KeyP') { if (paused) closeChars(); else openChars(); return; }
   if (paused) return;
-  if (e.code === 'KeyR') { reset(); return; }
   if (e.code === 'KeyN') { setMap(MAP % 22 + 1); return; }
   if (e.code === 'KeyM') { setMuted(!muted); return; }
   if (e.code === 'KeyB' && TEST_MODE) { warpToBoss(); return; }
