@@ -62,6 +62,7 @@ kbd { font: 800 14px var(--f-display); background: var(--paper); color: var(--in
 .card button { margin-top: 10px; border: 0; border-radius: 12px; background: var(--grass); color: var(--ink); font: 800 20px var(--f-display); padding: 8px 22px; cursor: pointer; box-shadow: 0 4px 0 #2a8a18; }
 .touch { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 16px; right: 16px; display: none; justify-content: space-between; pointer-events: none; }
 .touch .grp { display: flex; gap: 12px; }
+.tbtn.oncd { opacity: .38; filter: grayscale(.6); }
 .tbtn { pointer-events: auto; width: 68px; height: 68px; border-radius: 50%; border: 3px solid rgb(255 255 255 / .7); background: rgb(20 48 28 / .35); color: var(--paper); font: 800 26px var(--f-display); touch-action: none; }
 .tbtn.on { background: rgb(20 48 28 / .6); }
 .chip.lives { color: #ffffff; font-size: 14px; }
