@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=55bc49ba">
+<link rel="stylesheet" href="css/style.css?v=2ddb863a">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -218,6 +218,13 @@
     <button class="tbtn lk" type="button" data-key="terra" aria-label="Đổi trạng thái" hidden>Biến</button>
     <button class="tbtn gxc" type="button" data-key="egg" aria-label="Chiêu phụ" hidden>E</button>
     <button class="tbtn gxc" type="button" data-key="terra" aria-label="Đổi trạng thái" hidden>Biến</button>
+    <button class="tbtn tn" type="button" data-key="terra" aria-label="Dạng kế" hidden>Đổi</button>
+    <button class="tbtn tn" type="button" data-key="egg" aria-label="Dạng trước" hidden>Lùi</button>
+    <button class="tbtn tn" type="button" data-key="g1" aria-label="Chiến Mâu" hidden>Mâu</button>
+    <button class="tbtn tn" type="button" data-key="g2" aria-label="Đao" hidden>Đao</button>
+    <button class="tbtn tn" type="button" data-key="g3" aria-label="Súng" hidden>Súng</button>
+    <button class="tbtn tn" type="button" data-key="g4" aria-label="Khiên" hidden>Khiên</button>
+    <button class="tbtn tn" type="button" data-key="g5" aria-label="Gậy phép" hidden>Gậy</button>
     <button class="tbtn yq" type="button" data-key="g1" aria-label="Cường Long Áp" hidden>Áp</button>
     <button class="tbtn yq" type="button" data-key="g2" aria-label="Đấu Phá Sơn Hà" hidden>Sơn</button>
     <button class="tbtn yq" type="button" data-key="g3" aria-label="Gió Cuốn Mây Bay" hidden>Lốc</button>
@@ -241,10 +248,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=55bc49ba&t=' + Date.now();
+  s.src = 'js/game.js?v=2ddb863a&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=55bc49ba&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=2ddb863a&t=' + Date.now();
 })();
 </script>
 </body>
