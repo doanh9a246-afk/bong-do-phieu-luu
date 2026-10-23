@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=2ddb863a">
+<link rel="stylesheet" href="css/style.css?v=a397b17d">
 </head>
 <body>
 <canvas id="game" aria-label="Màn chơi"></canvas>
@@ -218,6 +218,11 @@
     <button class="tbtn lk" type="button" data-key="terra" aria-label="Đổi trạng thái" hidden>Biến</button>
     <button class="tbtn gxc" type="button" data-key="egg" aria-label="Chiêu phụ" hidden>E</button>
     <button class="tbtn gxc" type="button" data-key="terra" aria-label="Đổi trạng thái" hidden>Biến</button>
+    <button class="tbtn kn" type="button" data-key="terra" aria-label="Sạc điện bằng đuôi" hidden>Sạc</button>
+    <button class="tbtn kn" type="button" data-key="egg" aria-label="Ngủ gật" hidden>Ngủ</button>
+    <button class="tbtn kn" type="button" data-key="g1" aria-label="Lực Rồng" hidden>Lực</button>
+    <button class="tbtn kn" type="button" data-key="g2" aria-label="Kết giới" hidden>Kết</button>
+    <button class="tbtn kn" type="button" data-key="g3" aria-label="Chiếu sáng" hidden>Pika</button>
     <button class="tbtn tn" type="button" data-key="terra" aria-label="Dạng kế" hidden>Đổi</button>
     <button class="tbtn tn" type="button" data-key="egg" aria-label="Dạng trước" hidden>Lùi</button>
     <button class="tbtn tn" type="button" data-key="g1" aria-label="Chiến Mâu" hidden>Mâu</button>
@@ -248,10 +253,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=2ddb863a&t=' + Date.now();
+  s.src = 'js/game.js?v=a397b17d&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=2ddb863a&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=a397b17d&t=' + Date.now();
 })();
 </script>
 </body>

@@ -487,6 +487,7 @@ function reset() {
     yta: newYta(),           // Yuta: Rika, sao chép nhân vật / đòn quái, Ngôn Linh
     tq: newTq(),             // YuuTan Thi Quỷ: đồng đội tóc bạc, Quỷ Thi Giải, Đạo Ngũ Hành
     cl: newCl(),             // Asta / Yuno: dạng biến hình, nhát chém, đạn, khiên Notos
+    kn: newKn(),             // Kanna: hồi chiêu, sạc điện, ngủ gật, hóa rồng
     tn: newTn(),             // Quân Mạc Tiếu: dạng Ô Thiên Cơ, hồi chiêu từng kỹ năng, robot, mìn
     yq: newYq(),             // Nhất Diệp Chi Thu: Huyễn Văn, liên kích, khiên ma pháp
     gx: newGx(),             // nhân vật anime (Gojo, Levi, Deku…): trạng thái, chiêu, đạn
@@ -614,7 +615,8 @@ function sfx(name) { if (name === 'deny') DENY_N++; else if (name !== 'step' && 
 const KCD = { tap: .22, hold: 2, web: 3.5, skill: 1.2, volt: 10, egg: 6, terra: 2, heal: 8, learn: 6, regen: 4, whistle: 6, boom: 10, dmax: 3, zmove: 12, g1: 3, g2: 3, g3: 3, g4: 3, g5: 3, gear: 3 };
 const KCD_NAME = { hold: 'Giữ J', web: 'L', skill: 'Shift', volt: 'U', egg: 'E', terra: 'F', heal: 'T', learn: 'Y', regen: 'H', whistle: 'I', boom: 'O', dmax: 'G', zmove: 'Z', g1: '1', g2: '2', g3: '3', g4: '4', g5: '5', gear: 'Gear' };
 // phím không tính hồi: đổi Gear (Luffy), đổi tốc độ (Zenitsu); Shift khi đang bị trói / thoát ngưng thời gian
-const kcdFree = k => !(k in KCD) || (CHAR === 'tannhan' && k !== 'volt' && k !== 'skill') ||   // Quân Mạc Tiếu: hồi chiêu riêng từng kỹ năng
+const kcdFree = k => !(k in KCD) || (CHAR === 'kanna' && k !== 'volt') ||   // Kanna: hồi chiêu riêng từng kỹ năng
+   (CHAR === 'tannhan' && k !== 'volt' && k !== 'skill') ||   // Quân Mạc Tiếu: hồi chiêu riêng từng kỹ năng
    ((CHAR === 'luffy' || CHAR === 'zenitsu') && (/^g[1-5]$/.test(k) || k === 'gear')) || (k === 'skill' && (S.bound > 0 || (S.boss && S.boss.ts > 0)));
 function kcdBlocked(k) {
   if (kcdFree(k) || !S.kcd || !(S.kcd[k] > 0)) return false;
@@ -644,7 +646,7 @@ function setKey(k, on) {
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
-  if (k === 'volt' && on && !keys.volt) (CHAR === 'asta' ? asU() : CHAR === 'yuno' ? yuU() : CHAR === 'tannhan' ? tnUlt() : CHAR === 'yeqiu' ? yqUlt() : GXC[CHAR] ? gxU() : CHAR === 'luck' ? lkUlt() : CHAR === 'yuuna' ? ynUlt() : CHAR === 'gabimaru' ? gbUlt() : CHAR === 'bong' ? bdSplit() : CHAR === 'vegito' ? vgUlt() : CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
+  if (k === 'volt' && on && !keys.volt) (CHAR === 'asta' ? asU() : CHAR === 'yuno' ? yuU() : CHAR === 'kanna' ? knUlt() : CHAR === 'tannhan' ? tnUlt() : CHAR === 'yeqiu' ? yqUlt() : GXC[CHAR] ? gxU() : CHAR === 'luck' ? lkUlt() : CHAR === 'yuuna' ? ynUlt() : CHAR === 'gabimaru' ? gbUlt() : CHAR === 'bong' ? bdSplit() : CHAR === 'vegito' ? vgUlt() : CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
   if (CHAR === 'kurumi' && on && !keys[k]) {
     if (k === 'egg') kuCloneArmy();
     else if (k === 'heal') kuDalet();
@@ -686,6 +688,7 @@ function setKey(k, on) {
     else if (k === 'regen' && S.ape > 0) apeTroi();
   }
   if ((CHAR === 'asta' || CHAR === 'yuno') && k === 'terra' && on && !keys.terra) clForm();   // Asta: Ác Ma Đồng Hóa · Yuno: Tinh Linh Nhập Thể / Tinh Linh Vương
+  if (CHAR === 'kanna' && on && !keys[k]) { const id = { terra: 'chg', egg: 'slp', g1: 'str', g2: 'bar', g3: 'pika' }[k]; if (id) knUse(id); }   // Kanna: Sạc điện · Ngủ gật · Lực Rồng · Kết giới · Chiếu sáng
   if (CHAR === 'tannhan' && on && !keys[k]) { if (k === 'terra') tnSwitch(S.tn.form + 1); else if (k === 'egg') tnSwitch(S.tn.form - 1); else if (/^g[1-5]$/.test(k)) tnSwitch(+k[1]); }   // Quân Mạc Tiếu: đổi dạng Ô Thiên Cơ
   if (CHAR === 'yeqiu' && on && !keys[k]) { if (k === 'egg') yqLaunch(); else if (k === 'terra') yqShield(); else if (k === 'heal') yqSplash(); else if (k === 'learn') yqHeart(); else if (/^g[1-5]$/.test(k)) yqSkill(+k[1]); }   // Nhất Diệp Chi Thu: E/F/T/Y/1–5
   if (GXC[CHAR] && on && !keys[k]) { if (k === 'terra') gxF(); else if (k === 'egg') gxE(); }   // nhân vật anime: F trạng thái, E chiêu phụ
@@ -730,6 +733,7 @@ function activateSkill() {
   if (!S.dead && !S.won && !S.lost && S.ghostCd <= 0) { S.ghost = .7; S.ghostCd = 1; }
   // bị Vegeta trói: Shift/K giật đứt dây
   if (CHAR === 'kurumi' && !S.bound) { if (!S.dead && !S.won && !S.lost) kuAleph(); return; }   // Kurumi: K là Aleph
+  if (CHAR === 'kanna' && !S.bound) { if (!S.dead && !S.won && !S.lost) knUse('dash'); return; }   // Kanna: Bay Lướt
   if (CHAR === 'tannhan' && !S.bound) { if (!S.dead && !S.won && !S.lost) tnRoll(); return; }   // Quân Mạc Tiếu: K lăn né
   if (CHAR === 'yeqiu' && !S.bound) { if (!S.dead && !S.won && !S.lost) yqShadow(); return; }   // Nhất Diệp Chi Thu: K Ảo Ảnh Long Nha
   if (GXC[CHAR] && !S.bound) { if (!S.dead && !S.won && !S.lost) gxKk(); return; }   // nhân vật anime: K
@@ -889,6 +893,8 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
     sfx('tele');
     return;
   }
+  if (!force && CHAR === 'kanna' && S.kn.bar > 0 && !fellOff()) { knBlockHit(); return; }   // Kanna: Kết Giới Rồng
+  if (CHAR === 'kanna' && S.kn) knWake(false);
   if (!force && CHAR === 'tannhan' && S.tn.block > 0 && !fellOff()) { tnBlockHit(); return; }   // Khiên Chắn / Bung Ô
   if (!force && CHAR === 'yeqiu' && !fellOff() && yqAbsorb()) return;   // Khiên Ma Pháp: chịu đòn bằng năng lượng
   if (!force && GXC[CHAR] && !fellOff() && gxGuard()) { gxBlock(); return; }   // nội tại chặn / né của nhân vật anime
@@ -1429,7 +1435,7 @@ const CHARS = {
 };
 // bay tự do: Goku luôn bay, Kurumi bay được khi ngưng đọng thời gian hoặc ở dạng Hồng Liên
 const flying = () => CH().fly || (CHAR === 'kurumi' && !!S.ku && (S.ku.stop || S.ku.crim));
-const CH = () => GXC && GXC[CHAR] && gxFly() ? CHARS.gxFly : CHAR === 'luck' && S.lk && S.lk.form > 0 ? CHARS.luckSD : CHAR === 'asta' && S.cl && S.cl.form === 'devil' ? CHARS.astaDU : CHAR === 'yuno' && S.cl && (S.cl.form === 'dive' || S.cl.form === 'king') ? (S.cl.form === 'king' ? CHARS.yunoKing : CHARS.yunoDive) : CHAR === 'thiquy' && tqForm() ? CHARS.thiquyK : CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
+const CH = () => CHAR === 'kanna' && S.kn && S.kn.dragon > 0 ? CHARS.kannaD : GXC && GXC[CHAR] && gxFly() ? CHARS.gxFly : CHAR === 'luck' && S.lk && S.lk.form > 0 ? CHARS.luckSD : CHAR === 'asta' && S.cl && S.cl.form === 'devil' ? CHARS.astaDU : CHAR === 'yuno' && S.cl && (S.cl.form === 'dive' || S.cl.form === 'king') ? (S.cl.form === 'king' ? CHARS.yunoKing : CHARS.yunoDive) : CHAR === 'thiquy' && tqForm() ? CHARS.thiquyK : CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
 const cost = k => CH().cost[k];
 /* ---------- Pikachu: Dynamax (G) và tuyệt kĩ Z (Z) ----------
    Dynamax: to gấp 10 lần, vĩnh viễn (lưu trên máy tới khi bấm G lần nữa), bộ chiêu chuyển sang hack.
@@ -2198,6 +2204,7 @@ function updateCharMoves(dt) {
   updateGxChar(dt);
   updateYeqiu(dt);
   updateTannhan(dt);
+  updateKanna(dt);
   updateCl(dt);
   updateClover(dt);
   updateNamek(dt);
@@ -3088,7 +3095,7 @@ function hud() {
 const CHAR_KEY = 'bongdo.char';
 // mật khẩu chỉ lưu dưới dạng mã băm; mở rồi thì máy đó nhớ
 const PW_HASH = 2576725674;   // 123456
-const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan', 'yuutan2', 'thiquy', 'yuta', 'bong', 'gabimaru', 'yuuna', 'luck', 'gojo', 'levi', 'deku', 'ichigo', 'killua', 'saitama', 'edward', 'denji', 'naruto', 'kirito', 'yeqiu', 'tannhan']
+const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan', 'yuutan2', 'thiquy', 'yuta', 'bong', 'gabimaru', 'yuuna', 'luck', 'gojo', 'levi', 'deku', 'ichigo', 'killua', 'saitama', 'edward', 'denji', 'naruto', 'kirito', 'yeqiu', 'tannhan', 'kanna']
   .map(id => [id, { hash: PW_HASH, key: 'bongdo.lock.' + id }]));
 // Kurumi khoá riêng bằng mật khẩu đặc biệt (khoá mới: máy đã mở bằng mật khẩu cũ cũng phải nhập lại)
 Object.assign(LOCKS.kurumi, { hash: 890022063, key: 'bongdo.lock2.kurumi' });   // mật khẩu: 0
@@ -3442,6 +3449,7 @@ function applyChar() {
   document.querySelectorAll('.touch .ytc').forEach(el => { el.hidden = !isYuta(); });
   document.querySelectorAll('.touch .pk').forEach(el => { el.hidden = CHAR !== 'pika'; });
   document.querySelectorAll('.touch .cl').forEach(el => { el.hidden = CHAR !== 'asta' && CHAR !== 'yuno'; });
+  document.querySelectorAll('.touch .kn').forEach(el => { el.hidden = CHAR !== 'kanna'; });
   document.querySelectorAll('.touch .tn').forEach(el => { el.hidden = CHAR !== 'tannhan'; });
   document.querySelectorAll('.touch .yq').forEach(el => { el.hidden = CHAR !== 'yeqiu'; });
   document.querySelectorAll('.touch .gxc').forEach(el => { el.hidden = !GXC[CHAR]; });
@@ -7210,6 +7218,600 @@ CHAR_UI.tannhan = { name: 'Quân Mạc Tiếu', from: 'Toàn Chức Cao Thủ', 
     ['F / E', 'Đổi sang dạng kế / dạng trước (tức thì)'], ['1–5', 'Chọn nhanh: 1 Chiến Mâu · 2 Đao · 3 Súng Máy · 4 Khiên · 5 Gậy Phép']],
   passive: 'Tán Nhân Liên Kích: dùng kỹ năng thuộc dạng KHÁC dạng vừa dùng (trong 2,5 giây) +8% sát thương, cộng dồn tối đa 10 lần (+80%) · Khiên Chắn / Bung Ô đỡ mọi đòn · cheat: kỹ năng miễn phí, xuyên khiên boss, nhảy 3 lần.',
   tip: 'Quân Mạc Tiếu: F/E hoặc 1–5 đổi dạng Ô Thiên Cơ, mỗi dạng có J / giữ J / L riêng · xen kẽ các dạng để cộng Tán Nhân Liên Kích · Shift lăn · U Thiên Cơ Biến.' };
+
+/* ---------- Kanna Kamui (Kobayashi-san Chi no Maid Dragon): rồng nhỏ con của thần phe Hỗn Mang, tên theo thần sấm Ainu ----------
+   Bé gái ~9 tuổi: tóc trắng ánh lavender mái bằng, hai lọn tóc bên buộc hạt tròn xanh trắng, sừng nhỏ đen xám cong ra sau,
+   đuôi rồng trắng xù chóp tím, mắt xanh lim dim vô cảm, váy Gothic Lolita trắng viền diềm hồng tím, nơ lớn, tất trắng, giày búp bê.
+   J Lôi Kích (sét nảy 3 mục tiêu) · giữ J Ném Bóng Né siêu tốc · L Thiên Lôi · Shift Bay Lướt · F Sạc Điện Bằng Đuôi
+   E Ngủ Gật · 1 Lực Rồng · 2 Kết Giới Rồng · 3 "Chiếu sáng!" (Pikaa) · U Hóa Rồng (rồng trắng lông xù, bay, đổi bộ chiêu).
+   Mỗi kỹ năng có hồi chiêu riêng. */
+const KN_E = '#7fe9ff', KN_V = '#b388ff', KN_LAV = '#c8b6e2', KN_PINK = '#f4c2d7';
+const KN_SK = {
+  j:    { n: 'Lôi Kích', key: 'J', cd: .35, d: 'tia sét từ tay đánh mục tiêu phía trước rồi nảy sang 2 mục tiêu gần đó (~130 mỗi lần trúng); khi Sạc Đầy nảy 5 mục tiêu' },
+  hj:   { n: 'Ném Bóng Né', key: 'Giữ J', cd: 2.2, d: 'ném quả bóng né bọc điện vượt âm thanh, xuyên mọi thứ (~330) kèm vòng nổ phá âm' },
+  l:    { n: 'Thiên Lôi', key: 'L', cd: 4, d: 'gọi sét trắng tím giáng xuống tối đa 5 kẻ địch (~270 mỗi tia) + vòng điện tỏa trên mặt đất, chớp sáng màn hình' },
+  dash: { n: 'Bay Lướt', key: 'Shift', cd: .9, d: 'lướt bay 190, vô địch 0,35 giây, rơi hạt sáng tím' },
+  chg:  { n: 'Sạc Điện Bằng Đuôi', key: 'F', cd: 14, d: 'cắm chóp đuôi vào ổ điện 1,2 giây: +60 năng lượng và Sạc Đầy 8 giây (sét +50%, Lôi Kích nảy 5 mục tiêu)' },
+  slp:  { n: 'Ngủ Gật', key: 'E', cd: 15, d: 'ngồi ngủ tối đa 4 giây, hồi 4% máu mỗi giây; chạy/nhảy/đánh là tỉnh' },
+  str:  { n: 'Lực Rồng', key: '1', cd: 4, d: 'nhảy tới nhấc bổng rồi đập xuống, sóng xung kích bán kính 120 làm nứt đất (~300), làm boss khựng' },
+  bar:  { n: 'Kết Giới Rồng', key: '2', cd: 10, d: 'vòng ma pháp phù văn tím, kết giới đỡ mọi đòn 2,5 giây' },
+  pika: { n: 'Chiếu Sáng!', key: '3', cd: 12, d: 'giơ tay chữ V "Pikaa", mắt lấp lánh: 3 đòn tiếp theo +60% sát thương' },
+  dj:   { n: 'Lôi Tức', key: 'J (rồng)', cd: .45, d: 'phun tia sét dài 420 xuyên tất cả (~210)' },
+  dhj:  { n: 'Cầu Sấm Rồng', key: 'Giữ J (rồng)', cd: 2, d: 'cầu plasma lớn bay xuyên, cuối đường nổ bán kính 110 (~360 + ~360)' },
+  dl:   { n: 'Lôi Bão', key: 'L (rồng)', cd: 3.5, d: 'bão sét đánh 2 đợt vào tối đa 8 kẻ địch (~300 mỗi tia)' },
+};
+const KN_ATK = new Set(['j', 'hj', 'l', 'str', 'dj', 'dhj', 'dl']);
+const KN_LINES = ['Kanna… đói rồi.', 'Kobayashi, Kanna muốn đi cùng.', 'Kanna muốn ăn kẹo.', 'Riko… phiền quá.'];
+function newKn() { return { cd: {}, pose: null, poseT: 0, cur: null, mt: 0, fx: [], shots: [], parts: [], ghosts: [], gT: 0, pend: [], amp: 0, pika: 0, sleep: 0, chg: 0, bar: 0, dragon: 0, morph: 1, idle: 0, lineT: 0, slpAcc: 0, face: null, faceT: 0 }; }
+const knLo = () => S.fight ? ARENA.l + R : R, knHi = () => S.fight ? ARENA.r - R : LEVEL_W - R;
+function knPose(p, t) { S.kn.pose = p; S.kn.poseT = t; }
+function knPop(text, c, big, dy = 0) { S.pops.push({ x: S.ball.x, y: S.ball.y - 80 - dy, t: big ? 1.4 : .9, text, c: c || KN_LAV, big }); }
+function knSay(text) { knPop(text, '#f4ecff', false, 26); }
+function knLater(t, fn) { S.kn.pend.push({ t, fn }); }
+function knGhost(b, t = .22) { S.kn.ghosts.push({ x: b.x, y: b.y, face: b.face || 1, pose: S.kn.pose, t, max: t, dragon: S.kn.dragon > 0 }); }
+const knK = () => (S.kn.amp > 0 ? 1.5 : 1) * (S.kn.dragon > 0 ? 1.5 : 1);
+function knHit(t, dmg, o = {}) {
+  if (!tAlive(t)) return;
+  const Y = S.kn, p = tPos(t), b = S.ball, col = o.col || KN_E;
+  Y.fx.push({ k: 'hit', x: p.x, y: p.y, t: 0, max: .22, col });
+  const d = dmg * (o.m || 1) * knK();
+  if (t.kind === 'boss') { LAST_PROBE = { x: b.x, y: b.y, t: S.t }; damageBoss(t.ref, d, 'haki'); if (o.stag && !(Y.stagT > S.t)) { S.boss.stagger = Math.max(S.boss.stagger || 0, o.stag); Y.stagT = S.t + 1.5; } }
+  else if (t.kind === 'enemy') { const e = t.ref; e.inv = 0; e.bub = 0; if (o.stun) e.stun = Math.max(e.stun || 0, o.stun); if (e.role === 'khien') e.dir = -(Math.sign(b.x - e.x) || 1); if (d >= 3 && !e.mid) e.hp = 1; e.goreDir = Math.sign(e.x - b.x) || 1; killEnemy(e, col); }
+  else if (t.kind === 'flyer') killFlyer(t.ref);
+  else { const T = S.turret; T.hp -= d; T.flash = .15; if (T.hp <= 0) breakTurret(); }
+}
+function knLine(x, y, d, L, h = 46) { return nkTargets(x + d * L / 2, y, L / 2 + 90, 14).filter(t => { const p = tPos(t), dx = (p.x - x) * d, hh = t.kind === 'boss' ? unitH(t.ref) / 2 + 24 : h; return dx > -20 && dx < L + 24 && Math.abs(p.y - y) < hh; }); }
+// vài tia lửa điện li ti bay ra từ một điểm
+function knSpark(x, y, n = 6, col = KN_E) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 220; S.kn.parts.push({ k: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, max: .25 + Math.random() * .2, col }); } }
+function knWake(say) {
+  const Y = S.kn; if (Y.sleep <= 0) return;
+  Y.sleep = 0; Y.pose = null; Y.face = 'flat'; Y.faceT = .6;
+  if (say) knSay('…Kanna dậy rồi.');
+}
+// dùng kỹ năng theo tên (dạng rồng tự đổi J / giữ J / L)
+function knUse(id) {
+  const Y = S.kn; if (!canAct() || Y.chg > 0) return;
+  if (Y.dragon > 0 && (id === 'j' || id === 'hj' || id === 'l')) id = 'd' + id;
+  if (Y.dragon > 0 && (id === 'slp' || id === 'chg')) { knPop('Đang ở dạng rồng', '#c8c8d0'); return; }
+  const sk = KN_SK[id];
+  if (Y.cd[id] > 0) { if (!(Y.cdMsg > S.t)) { Y.cdMsg = S.t + .5; knPop(`${sk.n}: hồi ${Y.cd[id].toFixed(1)} giây`, '#c8c8d0'); sfx('deny'); } return; }
+  if (id !== 'slp') knWake(false);
+  const m = KN_ATK.has(id) && Y.pika > 0 ? 1.6 : 1;
+  if (knDo(id, m) === false) return;
+  Y.cd[id] = sk.cd; Y.idle = 0;
+  if (m > 1) { Y.pika--; knPop('✦ Pika!', '#fff6a0', false, 14); }
+  if (id !== 'pika' && id !== 'slp') knPop(sk.n, id[0] === 'd' && id !== 'dash' ? '#e8f4ff' : KN_E);
+}
+function knDo(id, m) {
+  const Y = S.kn, b = S.ball, d = b.face || 1, x = b.x, y = b.y - 14;
+  switch (id) {
+    case 'j': {
+      knPose('cast', .22);
+      const hx = x + d * 22, hy = y - 4, n = Y.amp > 0 ? 5 : 3, done = new Set();
+      let cur = kkTarget(400), px = hx, py = hy;
+      if (!cur) { Y.fx.push({ k: 'zap', x1: hx, y1: hy, x2: hx + d * 170, y2: hy + 6, t: 0, max: .18, col: KN_E }); knSpark(hx + d * 170, hy + 6, 5); sfx('zap'); break; }
+      for (let i = 0; i < n && cur; i++) {
+        done.add(cur.ref); const p = tPos(cur);
+        Y.fx.push({ k: 'zap', x1: px, y1: py, x2: p.x, y2: p.y, t: 0, max: .2, col: i % 2 ? KN_V : KN_E });
+        knHit(cur, 2.2, { m, col: i % 2 ? KN_V : KN_E, stun: .3 }); knSpark(p.x, p.y, 4);
+        px = p.x; py = p.y; cur = nkTargets(p.x, p.y, 220, 6).find(t => !done.has(t.ref));
+      }
+      sfx('zap'); break;
+    }
+    case 'hj': {
+      knPose('throw', .32);
+      Y.shots.push({ k: 'ball', x: x + d * 24, y: y - 6, vx: d * 1500, vy: 0, t: 0, life: .7, r: 11, dmg: 5.5, m, pierce: true, col: KN_E, d, hit: new Set() });
+      Y.fx.push({ k: 'sonic', x: x + d * 34, y: y - 6, d, t: 0, max: .35, col: '#ffffff' });
+      knPop('Bóng né!', '#ffd0a0', false, 14); sfx('boom'); break;
+    }
+    case 'l': {
+      knPose('cast', .45);
+      let tg = nkTargets(x, y, 560, 5);
+      if (!tg.length) { const gx = x + d * 160, gy = groundYAt(gx) ?? b.y + R; Y.fx.push({ k: 'sky', x: gx, y: gy - 14, t: 0, max: .35, col: KN_V }); Y.fx.push({ k: 'ground', x: gx, y: gy, r: 110, t: 0, max: .45, col: KN_E }); S.flash = Math.max(S.flash || 0, .2); sfx('thunder'); break; }
+      for (const t of tg) { const p = tPos(t), gy = t.kind === 'boss' ? t.ref.y : (groundYAt(p.x) ?? p.y + 16); Y.fx.push({ k: 'sky', x: p.x, y: p.y, t: 0, max: .35, col: KN_V }); Y.fx.push({ k: 'ground', x: p.x, y: gy, r: 90, t: 0, max: .45, col: KN_E }); knHit(t, 4.5, { m, stag: .3, col: KN_V, stun: .8 }); knSpark(p.x, p.y, 8, '#ffffff'); }
+      S.flash = Math.max(S.flash || 0, .25); sfx('thunder'); break;
+    }
+    case 'dash': {
+      const x0 = b.x; knGhost(b, .3);
+      if (!gbPlace(clamp(x0 + d * 190, knLo(), knHi()), b.y + R, !S.onGround)) gbPlace(clamp(x0 + d * 90, knLo(), knHi()), b.y + R, true);
+      S.safe = Math.max(S.safe, .35); knPose('fly', .3);
+      Y.fx.push({ k: 'dash', x1: x0, x2: b.x, y: b.y - 14, d, t: 0, max: .25, col: KN_LAV });
+      for (let i = 0; i < 10; i++) Y.parts.push({ k: 'mote', x: x0 + (b.x - x0) * i / 10, y: b.y - 14 + (Math.random() - .5) * 24, vx: 0, vy: 30 + Math.random() * 40, t: 0, max: .5 + Math.random() * .4, col: i % 2 ? KN_V : KN_LAV });
+      sfx('dash'); break;
+    }
+    case 'chg': {
+      if (!S.onGround) { knPop('Phải đứng trên mặt đất', '#c8c8d0'); return false; }
+      Y.chg = 1.2; knPose('charge', 1.2); Y.face = 'flat'; b.vx = 0;
+      knSay('Bzzt… Kanna sạc điện.'); sfx('ui'); break;
+    }
+    case 'slp': {
+      if (!S.onGround) { knPop('Phải đứng trên mặt đất', '#c8c8d0'); return false; }
+      Y.sleep = 4; Y.slpAcc = 0; b.vx = 0; knPose('sleep', 4); knSay('Kanna… buồn ngủ.'); sfx('ui'); break;
+    }
+    case 'str': {
+      const tg = kkTarget(240);
+      if (tg) { const p = tPos(tg); if (Math.abs(p.x - b.x) > 70) { knGhost(b); gbPlace(clamp(p.x - d * 56, knLo(), knHi()), gbFeet(tg), tg.kind === 'flyer'); } }
+      knPose('lift', .2);
+      knLater(.18, () => {
+        const bx = S.ball.x, dd = S.ball.face || 1, gy = groundYAt(bx + dd * 30) ?? S.ball.y + R;
+        knPose('slam', .3);
+        for (const t of nkTargets(bx + dd * 30, S.ball.y - 10, 120, 14)) { knHit(t, 5, { m, stag: .6, col: '#ffffff', stun: 1 }); if (t.kind === 'enemy' && t.ref.alive) t.ref.x = clamp(t.ref.x + Math.sign(t.ref.x - bx || dd) * 90, t.ref.min, t.ref.max); }
+        Y.fx.push({ k: 'crack', x: bx + dd * 30, y: gy, r: 120, t: 0, max: .7, col: KN_LAV, seed: Math.random() * 99 });
+        Y.fx.push({ k: 'shock', x: bx + dd * 30, y: gy - 4, r: 130, t: 0, max: .4, col: '#ffffff' });
+        Y.shake = .25; sfx('boom');
+      });
+      sfx('swoosh'); break;
+    }
+    case 'bar': {
+      Y.bar = 2.5; knPose('cast', .4);
+      Y.fx.push({ k: 'rune', x, y: b.y + R, r: 70, t: 0, max: .8, col: KN_V });
+      knSay('Kết giới.'); sfx('anti'); break;
+    }
+    case 'pika': {
+      Y.pika = 3; knPose('vsign', 1); Y.face = 'pika'; Y.faceT = 1;
+      for (let i = 0; i < 8; i++) Y.parts.push({ k: 'star', x: x + (Math.random() - .5) * 70, y: y - 20 - Math.random() * 40, vx: (Math.random() - .5) * 40, vy: -20 - Math.random() * 30, t: 0, max: .8 + Math.random() * .5, col: i % 2 ? '#fff6a0' : '#ffffff' });
+      knPop('Chiếu sáng.', '#fff6a0', true, 14); sfx('star'); break;
+    }
+    case 'dj': {
+      knPose('breath', .3);
+      const hy = y - 18, hit = knLine(x, hy, d, 420, 60);
+      for (const t of hit) knHit(t, 3.5, { m, col: KN_E, stun: .5 });
+      Y.fx.push({ k: 'breath', x: x + d * 34, y: hy, d, len: 420, t: 0, max: .3, col: KN_E });
+      sfx('volt'); break;
+    }
+    case 'dhj': {
+      knPose('breath', .4);
+      Y.shots.push({ k: 'plasma', x: x + d * 40, y: y - 18, vx: d * 700, vy: 0, t: 0, life: .9, r: 24, dmg: 6, m, boom: 110, pierce: true, col: KN_V, d, hit: new Set() });
+      sfx('volt'); break;
+    }
+    case 'dl': {
+      const tg = nkTargets(x, y, 640, 8);
+      if (!tg.length) { knPop('Không có mục tiêu', '#c8c8d0'); return false; }
+      knPose('breath', .5);
+      for (let w = 0; w < 2; w++) knLater(w * .25, () => { for (const t of tg) { if (!tAlive(t)) continue; const p = tPos(t); Y.fx.push({ k: 'sky', x: p.x + (w ? 10 : -10), y: p.y, t: 0, max: .35, col: w ? KN_E : KN_V }); knHit(t, 5, { m, stag: .3, col: KN_V, stun: .8 }); } S.flash = Math.max(S.flash || 0, .2); sfx('thunder'); });
+      break;
+    }
+  }
+  return true;
+}
+// U: Hóa Rồng — cột sáng trắng tím, vòng ma pháp, lông và tia điện bung ra; 10 giây dạng rồng
+function knUlt() {
+  const Y = S.kn; if (!canAct() || Y.dragon > 0) return;
+  if (S.energy < COST.volt) { knPop(`Cần đầy năng lượng (${Math.floor(S.energy)}/100)`, '#ffd27a'); sfx('deny'); return; }
+  knWake(false); Y.chg = 0;
+  S.energy = 0; S.power = Math.max(S.power, 2.5); Y.dragon = 10; Y.morph = 0; S.safe = Math.max(S.safe, 1);
+  const b = S.ball, gy = groundYAt(b.x) ?? b.y + R;
+  Y.fx.push({ k: 'pillar', x: b.x, y: gy, t: 0, max: 1.1, col: KN_V });
+  Y.fx.push({ k: 'rune', x: b.x, y: gy, r: 110, t: 0, max: 1.2, col: KN_V });
+  for (let i = 0; i < 24; i++) { const a = Math.random() * Math.PI * 2, v = 80 + Math.random() * 260; Y.parts.push({ k: i % 3 ? 'fur' : 'spark', x: b.x, y: b.y - 20, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 120, t: 0, max: .8 + Math.random() * .6, col: i % 2 ? '#ffffff' : KN_LAV }); }
+  for (const t of nkTargets(b.x, b.y, 200, 20)) knHit(t, 4, { stag: .5, col: KN_V });
+  S.flash = Math.max(S.flash || 0, .4);
+  sfx('roar'); S.pops.push({ x: b.x, y: b.y - 120, t: 2, text: 'HÓA RỒNG!', c: '#e8dcff', big: true });
+}
+function knBlockHit() { const Y = S.kn, b = S.ball; S.safe = Math.max(S.safe, .35); S.hitAtk = 0; Y.fx.push({ k: 'shock', x: b.x, y: b.y - 16, r: 46, t: 0, max: .25, col: KN_V }); sfx('anti'); if (!(Y.blkT > S.t)) { Y.blkT = S.t + .6; S.pops.push({ x: b.x, y: b.y - 70, t: .6, text: 'Kết giới!', c: KN_V }); } }
+function updateKanna(dt) {
+  const Y = S.kn; if (!Y) return;
+  for (const k in Y.cd) Y.cd[k] -= dt;
+  Y.mt += dt; Y.poseT -= dt; if (Y.poseT <= 0) Y.pose = null; Y.morph = Math.min(1, Y.morph + dt * 2.5);
+  if (Y.faceT > 0 && (Y.faceT -= dt) <= 0) Y.face = null;
+  for (const f of Y.fx) f.t += dt; Y.fx = Y.fx.filter(f => f.t < f.max);
+  for (const g of Y.ghosts) g.t -= dt; Y.ghosts = Y.ghosts.filter(g => g.t > 0);
+  for (const p of Y.parts) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.k === 'fur') { p.vy += 200 * dt; p.vx *= .97; } } Y.parts = Y.parts.filter(p => p.t < p.max);
+  if (CHAR !== 'kanna') { Y.shots = []; Y.pend = []; Y.dragon = 0; Y.sleep = 0; Y.chg = 0; Y.bar = 0; return; }
+  const b = S.ball;
+  for (const p of Y.pend) if ((p.t -= dt) <= 0 && !p.done) { p.done = true; if (!S.dead) p.fn(); }
+  Y.pend = Y.pend.filter(p => !p.done);
+  Y.amp = Math.max(0, Y.amp - dt); Y.bar = Math.max(0, Y.bar - dt);
+  if (Y.shake > 0) { Y.shake -= dt; const k = Math.min(1, Y.shake * 5) * 8; S.cam.x += (Math.random() - .5) * k; S.cam.y += (Math.random() - .5) * k; }
+  // hóa rồng
+  if (Y.dragon > 0 && (Y.dragon -= dt) <= 0) { Y.dragon = 0; Y.morph = 0; Y.fx.push({ k: 'shock', x: b.x, y: b.y - 20, r: 70, t: 0, max: .4, col: '#ffffff' }); for (let i = 0; i < 10; i++) { const a = Math.random() * 6.28; Y.parts.push({ k: 'fur', x: b.x, y: b.y - 20, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160 - 80, t: 0, max: .9, col: '#ffffff' }); } knSay('Kanna… hết sức rồi.'); sfx('tele'); }
+  // sạc điện bằng đuôi: đứng yên, năng lượng tăng dần
+  if (Y.chg > 0) {
+    b.vx = 0; Y.chg -= dt; S.energy = Math.min(100, S.energy + 50 * dt);
+    if (Math.random() < dt * 30) knSpark(b.x - (b.face || 1) * 30, b.y + R - 14, 2, Math.random() < .5 ? KN_E : KN_V);
+    if (Y.chg <= 0) { Y.chg = 0; Y.amp = 8; Y.face = 'pika'; Y.faceT = .6; knPop('Sạc đầy! ⚡', KN_E, true, 10); Y.fx.push({ k: 'shock', x: b.x, y: b.y - 16, r: 60, t: 0, max: .35, col: KN_E }); sfx('volt'); }
+  }
+  // ngủ gật: ngồi yên, hồi máu; di chuyển hay nhảy là tỉnh
+  if (Y.sleep > 0) {
+    b.vx = 0; Y.sleep -= dt; Y.pose = 'sleep'; Y.poseT = .1;
+    if (S.hp < S.maxHp) { Y.slpAcc += S.maxHp * .04 * dt; if (Y.slpAcc >= 1) { const g = Math.floor(Y.slpAcc); Y.slpAcc -= g; S.hp = Math.min(S.maxHp, S.hp + g); hud(); } }
+    if ((Y.zT = (Y.zT || 0) - dt) <= 0) { Y.zT = .55; Y.parts.push({ k: 'z', x: b.x + (b.face || 1) * 8, y: b.y - 34, vx: (b.face || 1) * 14, vy: -26, t: 0, max: 1.3, col: '#d8e8ff' }); }
+    if (keys.left || keys.right || keys.jump || !S.onGround || Y.sleep <= 0) knWake(Y.sleep <= 0);
+  }
+  // đứng yên lâu: nói vài câu
+  const still = S.onGround && Math.abs(b.vx) < 10 && !Y.pose;
+  Y.idle = still ? Y.idle + dt : 0;
+  if (Y.idle > 9 && !(Y.lineT > S.t)) { Y.lineT = S.t + 14; knSay(KN_LINES[Math.floor(Math.random() * KN_LINES.length)]); Y.face = 'pout'; Y.faceT = 1.4; }
+  if (Math.abs(b.vx) > 380 && !S.dead && (Y.gT -= dt) <= 0) { Y.gT = .07; knGhost(b, .16); }
+  // tia điện lách tách quanh sừng và đuôi
+  if (Math.random() < dt * (Y.amp > 0 || Y.dragon > 0 ? 9 : 1.6)) Y.fx.push({ k: 'crackle', x: b.x + (Math.random() - .5) * 26, y: b.y - 30 - Math.random() * 20 - (Y.dragon > 0 ? 20 : 0), t: 0, max: .14, col: Math.random() < .5 ? KN_E : KN_V, seed: Math.random() * 99 });
+  // đạn
+  for (const q of Y.shots) {
+    q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt;
+    if (q.k === 'ball' && Math.random() < dt * 40) Y.parts.push({ k: 'spark', x: q.x, y: q.y, vx: -q.vx * .1 + (Math.random() - .5) * 80, vy: (Math.random() - .5) * 80, t: 0, max: .2, col: Math.random() < .5 ? '#ffb050' : KN_E });
+    for (const t of nkTouch(q.x, q.y, q.r + 8)) { if (q.hit.has(t.ref)) continue; q.hit.add(t.ref); knHit(t, q.dmg, { m: q.m, col: q.col, stag: .3, stun: .6 }); if (!q.pierce) { q.dead = true; break; } }
+    const gy = groundYAt(q.x), end = q.t > q.life || q.x < knLo() - 100 || q.x > knHi() + 100 || (gy != null && q.y > gy + 4);
+    if (end) { q.dead = true; if (q.boom) { Y.fx.push({ k: 'boom', x: q.x, y: q.y, r: q.boom, t: 0, max: .45, col: q.col }); for (const t of nkTargets(q.x, q.y, q.boom, 12)) knHit(t, q.dmg, { m: q.m, col: q.col, stag: .4 }); sfx('boom'); } }
+  }
+  Y.shots = Y.shots.filter(q => !q.dead);
+}
+/* ----- vẽ ----- */
+function knPoseOf(b, pose) {
+  const t = S.kn.mt;
+  if (pose === 'cast') return { hy: -30, lean: .12, bl: [-.35, -.15], fl: [.4, .05], ba: [-.35, -.2], fa: [1.45, 1.55] };
+  if (pose === 'throw') return { hy: -29, lean: .45, bl: [-.8, -.45], fl: [.75, .1], ba: [-1, -.7], fa: [1.6, 1.75] };
+  if (pose === 'lift') return { hy: -30, lean: -.06, bl: [-.25, -.1], fl: [.3, .05], ba: [3, 3.05], fa: [2.95, 3.05] };
+  if (pose === 'slam') return { hy: -23, lean: .5, bl: [-1.1, -.2], fl: [1.1, .1], ba: [1, .6], fa: [1.05, .65] };
+  if (pose === 'vsign') return { hy: -30, lean: 0, bl: [-.1, 0], fl: [.12, 0], ba: [.12, .05], fa: [2.3, 3.5] };
+  if (pose === 'sleep') { const n = Math.sin(t * 2) * .03; return { hy: -10, lean: -.12 + n, bl: [1.4, 1.62], fl: [1.5, 1.66], ba: [.6, 1.3], fa: [.7, 1.4], sit: true }; }
+  if (pose === 'charge') return { hy: -30 + Math.sin(t * 40) * .4, lean: -.05, bl: [-.1, 0], fl: [.12, 0], ba: [.15, .05], fa: [.1, 0] };
+  if (pose === 'fly') return { hy: -32, lean: .75, bl: [-.7, -1], fl: [-.35, -.7], ba: [-.7, -.5], fa: [-.4, -.3] };
+  if (pose === 'breath') return { hy: -30, lean: .3, bl: [-.4, -.2], fl: [.4, .1], ba: [.4, .3], fa: [.6, .5] };
+  if (S.onGround && Math.abs(b.vx) > 60) { const s = Math.sin(t * 17); return { hy: -29, lean: .28, bl: [-.75 * s - .2, -.75 * s - .5 - .9 * Math.max(0, s)], fl: [.75 * s - .2, .75 * s - .5 - .9 * Math.max(0, -s)], ba: [-.9 * s, -.9 * s + .6], fa: [.9 * s, .9 * s + .6] }; }
+  if (!S.onGround) return { hy: -31, lean: .15, bl: [.3, -.8], fl: [1, -.1], ba: [-.9, -.5], fa: [.9, 1.2] };
+  // đứng thẳng, hai tay buông xuôi, nhún nhẹ
+  return { hy: -30 + Math.sin(t * 2.4) * .6, lean: .02, bl: [-.08, 0], fl: [.08, 0], ba: [.1, .04], fa: [-.04, 0] };
+}
+const KN_ART = (function () {
+  const OL = '#2a2036', PI = Math.PI, TAU = PI * 2;
+  const SKN = '#fff1ea', SKS = '#f2d4cc', BLU = '#f9b3c4';
+  const HR = '#efe8f8', HR2 = '#cdbfe6', HRH = '#ffffff';
+  const DR = '#ffffff', DR2 = '#e2daee', FR = '#e6a9cf', FR2 = '#c98ab8', RIB = '#d996c4', RIB2 = '#b06fa0';
+  const SOCK = '#fbfbff', SOCK2 = '#dcd8ea', SHOE = '#4a3550', SHOE2 = '#2e2034';
+  const HORN = '#3c3744', HORN2 = '#6d6878', EYE = '#7fb8e6', EYE2 = '#4a7fb8';
+  const cap = (x0, y0, x1, y1, r0, r1) => { const a = Math.atan2(y1 - y0, x1 - x0); ctx.beginPath(); ctx.arc(x1, y1, r1, a - PI / 2, a + PI / 2); ctx.arc(x0, y0, r0, a + PI / 2, a + PI * 1.5); ctx.closePath(); };
+  const fillOL = (c, lw) => { ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = OL; ctx.lineWidth = lw || 1.2; ctx.stroke(); };
+  const part = (x0, y0, x1, y1, r0, r1, c, sh, lw) => { cap(x0, y0, x1, y1, r0, r1); ctx.fillStyle = c; ctx.fill(); if (sh) { ctx.save(); ctx.clip(); ctx.fillStyle = sh; cap(x0 - 1.2, y0 + .8, x1 - 1.2, y1 + .8, r0 * .7, r1 * .7); ctx.translate(-r0 * .55, 0); ctx.fill(); ctx.restore(); } cap(x0, y0, x1, y1, r0, r1); ctx.strokeStyle = OL; ctx.lineWidth = lw || 1.1; ctx.stroke(); };
+  const circ = (x, y, r, c, lw) => { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); if (lw === 0) { ctx.fillStyle = c; ctx.fill(); } else fillOL(c, lw); };
+  const line = (x0, y0, x1, y1, c, lw) => { ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
+  const star4 = (x, y, r, c) => { ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i * PI / 4, rr = i % 2 ? r * .3 : r; ctx.lineTo(x + Math.sin(a) * rr, y - Math.cos(a) * rr); } ctx.closePath(); ctx.fillStyle = c; ctx.fill(); };
+  // nhúm lông xù: vòng tròn răng cưa mềm
+  const fluff = (x, y, r, c, sh, n = 9, rot = 0) => {
+    ctx.beginPath();
+    for (let i = 0; i <= n * 2; i++) { const a = rot + i * PI / n, rr = i % 2 ? r * (1 - 1.5 / n) : r * 1.04; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    ctx.closePath(); fillOL(c, 1.1);
+    if (sh) { ctx.save(); ctx.clip(); ctx.fillStyle = sh; ctx.beginPath(); ctx.arc(x - r * .3, y + r * .45, r * .9, 0, TAU); ctx.fill(); ctx.restore(); }
+  };
+  // ống mềm thuôn dọc một đường cong bậc hai
+  const tube = (p0, p1, p2, w0, w1, c, sh) => {
+    const N = 14, L = [], Rr = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, u = 1 - t, x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0], y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1];
+      const dx = 2 * u * (p1[0] - p0[0]) + 2 * t * (p2[0] - p1[0]), dy = 2 * u * (p1[1] - p0[1]) + 2 * t * (p2[1] - p1[1]), l = Math.hypot(dx, dy) || 1, w = w0 + (w1 - w0) * t;
+      L.push([x - dy / l * w, y + dx / l * w]); Rr.push([x + dy / l * w, y - dx / l * w]);
+    }
+    ctx.beginPath(); L.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); for (let i = Rr.length - 1; i >= 0; i--) ctx.lineTo(Rr[i][0], Rr[i][1]); ctx.closePath();
+    ctx.fillStyle = c; ctx.fill();
+    if (sh) { ctx.save(); ctx.clip(); ctx.fillStyle = sh; ctx.beginPath(); L.forEach(([x, y], i) => i ? ctx.lineTo(x, y + 2) : ctx.moveTo(x, y + 2)); for (let i = L.length - 1; i >= 0; i--) ctx.lineTo(L[i][0], L[i][1] + 30); ctx.fill(); ctx.restore(); }
+    ctx.beginPath(); L.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); for (let i = Rr.length - 1; i >= 0; i--) ctx.lineTo(Rr[i][0], Rr[i][1]); ctx.closePath();
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.1; ctx.stroke();
+    return p2;
+  };
+  const skel = (P) => {
+    const lean = P.lean, hy = P.hy, sl = Math.sin(lean), cl = Math.cos(lean);
+    const sx = sl * 21, sy = hy - cl * 21, cx = sx + sl * 12.5, cy = sy - cl * 12.5;
+    const leg = (a, side) => { const hx = side * 2.4, kx = hx + Math.sin(a[0]) * 14.5, ky = hy + Math.cos(a[0]) * 14.5; return { hx, hy, kx, ky, fx: kx + Math.sin(a[1]) * 14.5, fy: ky + Math.cos(a[1]) * 14.5, a }; };
+    const arm = (a, side) => { const ox = sx + side * 2.6, oy = sy + 3, ex = ox + Math.sin(a[0]) * 10.5, ey = oy + Math.cos(a[0]) * 10.5; return { ox, oy, ex, ey, hx: ex + Math.sin(a[1]) * 9.5, hy: ey + Math.cos(a[1]) * 9.5, a }; };
+    return { lean, hy, sx, sy, cx, cy, bl: leg(P.bl, -1), fl: leg(P.fl, 1), ba: arm(P.ba, -1), fa: arm(P.fa, 1) };
+  };
+  // đuôi rồng trắng, chóp xù ngả tím; plug: chóp cắm vào ổ điện sau lưng
+  const tail = (K, mt, plug, amp) => {
+    const sw = Math.sin(mt * 2.2) * 3, bx = -3, by = K.hy - 1;
+    let tip;
+    if (plug) tip = tube([bx, by], [-16, by + 12], [-27, -6], 4.2, 2.4, DR, DR2);
+    else tip = tube([bx, by], [-17, by + 9 + sw * .4], [-27 + sw, by - 7 + sw * .6], 4.4, 2.8, DR, DR2);
+    if (plug) { line(tip[0] - 1, tip[1] + 1, tip[0] - 3, tip[1] + 4, '#c9c4d4', 1.6); return; }
+    fluff(tip[0] - 1.5, tip[1] - 2, 5.4, KN_LAV, '#a891cf', 7, mt * .6);
+    ctx.save(); ctx.globalAlpha = .9; fluff(tip[0] - .6, tip[1] - 2.6, 3, '#e7dcf7', null, 6, -mt); ctx.restore();
+    if (amp) { ctx.save(); ctx.globalAlpha = .8; for (let i = 0; i < 2; i++) { const a = mt * 9 + i * 3; line(tip[0] + Math.cos(a) * 4, tip[1] - 2 + Math.sin(a) * 4, tip[0] + Math.cos(a) * 10, tip[1] - 2 + Math.sin(a) * 9, i ? KN_V : KN_E, 1.2); } ctx.restore(); }
+  };
+  const leg = (L, front, sit) => {
+    const c = front ? SOCK : '#ece9f6';
+    part(L.hx, L.hy, L.kx, L.ky, 3.6, 3, c, SOCK2);
+    part(L.kx, L.ky, L.fx, L.fy, 3, 2.5, c, SOCK2);
+    // giày búp bê có quai
+    ctx.save(); ctx.translate(L.fx, L.fy); ctx.rotate(sit ? -1.45 : -Math.min(.6, Math.max(-.6, L.a[1])));
+    ctx.beginPath(); ctx.moveTo(-3, -2); ctx.lineTo(-3.2, 2.2); ctx.lineTo(5.6, 2.2); ctx.quadraticCurveTo(6.4, -.6, 3.6, -1.8); ctx.closePath(); fillOL(front ? SHOE : SHOE2, 1.1);
+    line(-1.2, -2.2, 2.6, -2.2, front ? SHOE : SHOE2, 1.2); line(-1.4, -1.6, 2.4, -2, '#8a6a96', .5);
+    ctx.restore();
+  };
+  // tay áo phồng trắng + diềm hồng ở cổ tay áo, cẳng tay da
+  const arm = (A, front, vsign) => {
+    part(A.ex, A.ey, A.hx, A.hy, 2.2, 1.9, front ? SKN : '#f6e3dc', SKS);
+    const mx = A.ox + (A.ex - A.ox) * .55, my = A.oy + (A.ey - A.oy) * .55;
+    ctx.beginPath(); ctx.ellipse(mx, my, 5.6, 4.6, Math.atan2(A.ey - A.oy, A.ex - A.ox), 0, TAU); fillOL(front ? DR : '#f1edf7', 1.1);
+    ctx.save(); ctx.clip(); ctx.fillStyle = DR2; ctx.beginPath(); ctx.arc(mx - 2.4, my + 2.6, 4.4, 0, TAU); ctx.fill(); ctx.restore();
+    // diềm cổ tay áo
+    const fx = A.ex + (A.ex - A.ox) * .05, fy = A.ey + (A.ey - A.oy) * .05, fa = Math.atan2(A.ey - A.oy, A.ex - A.ox);
+    ctx.save(); ctx.translate(fx, fy); ctx.rotate(fa); ctx.beginPath(); ctx.moveTo(-1, -3.6); for (let i = 0; i <= 4; i++) ctx.quadraticCurveTo(2.2, -3.6 + i * 1.8 + .9, -.2, -3.6 + i * 1.8 + 1.8); ctx.lineTo(-1.8, 3.6); ctx.closePath(); fillOL(FR, .9); ctx.restore();
+    circ(A.hx, A.hy, 2.2, front ? SKN : '#f6e3dc', 1);
+    if (vsign) {
+      // hai ngón chữ V
+      const a = Math.atan2(A.hy - A.ey, A.hx - A.ex);
+      for (const s of [-.28, .22]) { const ex = A.hx + Math.cos(a + s) * 5.4, ey = A.hy + Math.sin(a + s) * 5.4; ctx.lineCap = 'round'; line(A.hx, A.hy, ex, ey, OL, 2.6); line(A.hx, A.hy, ex, ey, SKN, 1.3); }
+    }
+  };
+  // váy Gothic Lolita trắng: chân váy chuông, diềm xếp nếp hồng tím, thân áo + nơ lớn
+  const dress = (K, mt, sit) => {
+    ctx.save(); ctx.translate(0, K.hy); ctx.rotate(K.lean * (sit ? .8 : .45));
+    const sw = Math.sin(mt * 2.4) * .5, bot = sit ? 7 : 11.5, wid = sit ? 15 : 12.5;
+    const sk = () => { ctx.beginPath(); ctx.moveTo(-6, -7); ctx.quadraticCurveTo(-11, -1, -wid + sw, bot); ctx.lineTo(wid + sw + (sit ? 6 : 0), bot); ctx.quadraticCurveTo(11, -1, 6, -7); ctx.closePath(); };
+    sk(); fillOL(DR, 1.2);
+    sk(); ctx.save(); ctx.clip(); ctx.fillStyle = DR2; ctx.beginPath(); ctx.moveTo(-14, -8); ctx.lineTo(-3, -8); ctx.quadraticCurveTo(-6, 2, -5, 14); ctx.lineTo(-16, 14); ctx.fill();
+    ctx.strokeStyle = '#d6cde6'; ctx.lineWidth = .8; ctx.beginPath(); for (const fx of [-5, 0, 5]) { ctx.moveTo(fx * .5, -5); ctx.quadraticCurveTo(fx * .9, 3, fx * 1.3 + sw, bot - 1); } ctx.stroke(); ctx.restore();
+    // diềm xếp nếp hồng tím ở gấu váy
+    const x0 = -wid + sw, x1 = wid + sw + (sit ? 6 : 0), n = 7, step = (x1 - x0) / n;
+    ctx.beginPath(); ctx.moveTo(x0 - .5, bot - 1.6);
+    for (let i = 0; i < n; i++) ctx.quadraticCurveTo(x0 + step * (i + .5), bot + 4.2, x0 + step * (i + 1), bot - 1.2);
+    ctx.lineTo(x1, bot - 2.6); ctx.lineTo(x0, bot - 2.6); ctx.closePath(); fillOL(FR, 1);
+    ctx.strokeStyle = FR2; ctx.lineWidth = .7; ctx.beginPath(); for (let i = 1; i < n; i++) { ctx.moveTo(x0 + step * i, bot - 1.6); ctx.lineTo(x0 + step * i + .4, bot + 1.6); } ctx.stroke();
+    line(x0 + .5, bot - 3.2, x1 - .5, bot - 3.2, FR2, .9);
+    ctx.restore();
+    // thân áo
+    ctx.save(); ctx.translate(0, K.hy); ctx.rotate(K.lean);
+    ctx.beginPath(); ctx.moveTo(-6.4, -6); ctx.lineTo(-6.6, -19); ctx.quadraticCurveTo(0, -22.5, 6.4, -19); ctx.lineTo(6.6, -6); ctx.quadraticCurveTo(0, -4.6, -6.4, -6); ctx.closePath(); fillOL(DR, 1.2);
+    ctx.save(); ctx.clip(); ctx.fillStyle = DR2; ctx.fillRect(-8, -24, 4.4, 22); ctx.restore();
+    // eo: dải hồng tím
+    ctx.beginPath(); ctx.moveTo(-6.6, -8.6); ctx.lineTo(6.8, -8.6); ctx.lineTo(6.7, -5.8); ctx.lineTo(-6.5, -5.8); ctx.closePath(); fillOL(FR, .9);
+    // cổ áo diềm
+    ctx.beginPath(); ctx.moveTo(-5, -19.6); for (let i = 0; i < 5; i++) ctx.quadraticCurveTo(-4 + i * 2.2, -16.4, -2.9 + i * 2.2, -19.4); ctx.lineTo(6, -20.6); ctx.quadraticCurveTo(0, -22.4, -5, -19.6); ctx.closePath(); fillOL('#fdf6fb', .8);
+    // nơ lớn trước ngực
+    const rx = 3.4, ry = -15.2, fl = Math.sin(mt * 3) * .3;
+    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.quadraticCurveTo(rx - 7, ry - 6 + fl, rx - 6.6, ry + 1.4); ctx.closePath(); fillOL(RIB, 1);
+    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.quadraticCurveTo(rx + 7.4, ry - 6 - fl, rx + 6.8, ry + 1.6); ctx.closePath(); fillOL(RIB, 1);
+    ctx.beginPath(); ctx.moveTo(rx - .8, ry + .6); ctx.lineTo(rx - 3.2, ry + 7 + fl); ctx.lineTo(rx - 1.2, ry + 6.2); ctx.lineTo(rx + .4, ry + 1); ctx.closePath(); fillOL(RIB2, .8);
+    ctx.beginPath(); ctx.moveTo(rx + .6, ry + .6); ctx.lineTo(rx + 3.4, ry + 6.8 - fl); ctx.lineTo(rx + 1.6, ry + 6.6); ctx.lineTo(rx - .2, ry + 1); ctx.closePath(); fillOL(RIB2, .8);
+    circ(rx, ry + .2, 1.7, RIB2, .9);
+    ctx.restore();
+  };
+  // đầu: mặt tròn, mắt xanh to lim dim, má hồng; tóc trắng lavender mái bằng; sừng; lọn tóc buộc hạt
+  const head = (K, mt, face, blink) => {
+    ctx.save(); ctx.translate(K.cx, K.cy); ctx.rotate(K.lean * .35 + (face === 'sleep' ? .32 : 0));
+    // tóc sau ngang vai
+    ctx.beginPath(); ctx.moveTo(-10.6, -4); ctx.quadraticCurveTo(-14, 6, -12.4, 13.6); ctx.lineTo(-7.4, 12.4); ctx.lineTo(-5.4, 14.6); ctx.lineTo(-1.6, 11.6); ctx.lineTo(1.6, 12.6); ctx.quadraticCurveTo(3, 4, 0, -2); ctx.closePath(); fillOL(HR2, 1.1);
+    // sừng xa
+    ctx.beginPath(); ctx.moveTo(2.6, -10.6); ctx.quadraticCurveTo(-1, -16.4, -6.4, -16.2); ctx.quadraticCurveTo(-1.8, -14, .2, -9.6); ctx.closePath(); fillOL(HORN, 1);
+    // mặt
+    const fc = () => { ctx.beginPath(); ctx.moveTo(-8.6, -1); ctx.bezierCurveTo(-9.4, -12, 9.6, -13, 10.2, -1); ctx.quadraticCurveTo(10.6, 6.4, 6.4, 9.6); ctx.quadraticCurveTo(1.6, 11.4, -3.4, 9); ctx.quadraticCurveTo(-8.6, 5.6, -8.6, -1); ctx.closePath(); };
+    fc(); fillOL(SKN, 1.2);
+    fc(); ctx.save(); ctx.clip(); ctx.fillStyle = SKS; ctx.beginPath(); ctx.ellipse(-6, 6, 7, 7, 0, 0, TAU); ctx.fill(); ctx.restore();
+    // phồng má khi dỗi
+    if (face === 'pout') { ctx.beginPath(); ctx.ellipse(8.2, 5.4, 3.6, 3.2, 0, -1.4, 1.9); fillOL(SKN, 1); }
+    // má hồng
+    ctx.fillStyle = 'rgb(249 150 175 / .5)'; ctx.beginPath(); ctx.ellipse(1.4, 5.4, 2.6, 1.3, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.ellipse(9, 5, 1.4, 1.2, 0, 0, TAU); ctx.fill();
+    // mắt
+    const eye = (x, w, near) => {
+      if (face === 'sleep' || blink) { ctx.strokeStyle = OL; ctx.lineWidth = near ? 1.3 : 1; ctx.beginPath(); ctx.moveTo(x - w, 1.4); ctx.quadraticCurveTo(x, 3.2, x + w, 1.4); ctx.stroke(); return; }
+      const h = 4.2;
+      const sh = () => { ctx.beginPath(); ctx.ellipse(x, 1.6, w, h, 0, 0, TAU); };
+      sh(); ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.save(); sh(); ctx.clip();
+      ctx.fillStyle = EYE; ctx.beginPath(); ctx.ellipse(x + w * .12, 2, w * .9, h * .95, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = EYE2; ctx.beginPath(); ctx.ellipse(x + w * .12, .4, w * .9, h * .55, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#26324a'; ctx.beginPath(); ctx.ellipse(x + w * .15, 1.6, w * .38, h * .45, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#bfe2ff'; ctx.beginPath(); ctx.ellipse(x + w * .1, 4, w * .6, h * .28, 0, 0, TAU); ctx.fill();
+      // mí trên hạ: ánh nhìn lim dim
+      ctx.fillStyle = SKN; ctx.fillRect(x - w - 1, -4, w * 2 + 2, face === 'pika' ? 1.6 : 2.6);
+      ctx.restore();
+      ctx.strokeStyle = OL; ctx.lineWidth = near ? 1.6 : 1.2; ctx.beginPath(); ctx.moveTo(x - w - .3, -.6 + (face === 'pika' ? -1 : 0)); ctx.lineTo(x + w + .4, -1 + (face === 'pika' ? -1 : 0)); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x - w * .25, .4, Math.max(.6, w * .32), 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(x + w * .4, 3.2, Math.max(.3, w * .14), 0, TAU); ctx.fill();
+      if (face === 'pika') star4(x + w * .15, 1.6, w * 1.05, '#fffbd0');
+    };
+    eye(3.4, 2.5, true); eye(8.6, 1.3, false);
+    // miệng nhỏ
+    if (face === 'sleep') { ctx.strokeStyle = '#a0606e'; ctx.lineWidth = .8; ctx.beginPath(); ctx.arc(5.4, 7.4, .9, 0, TAU); ctx.stroke(); }
+    else line(4.6, 7.4, 6.4, 7.3, '#a0606e', .8);
+    // tóc trên + mái bằng
+    ctx.beginPath(); ctx.moveTo(-10.4, 2); ctx.bezierCurveTo(-12.4, -13, 9.4, -16.6, 11.4, -2.6); ctx.lineTo(11, -1.4); ctx.lineTo(-.6, -1.4); ctx.lineTo(-1.6, 1.4); ctx.lineTo(-4.4, -.4); ctx.lineTo(-6.4, 4); ctx.closePath(); fillOL(HR, 1.2);
+    ctx.save(); ctx.clip(); ctx.fillStyle = HR2; ctx.beginPath(); ctx.ellipse(-8, 0, 6, 9, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = HRH; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(1.6, -2, 9, -2.5, -1.4); ctx.stroke(); ctx.restore();
+    // vạch mái bằng
+    ctx.strokeStyle = HR2; ctx.lineWidth = .6; ctx.beginPath(); for (const fx of [2, 5, 8]) { ctx.moveTo(fx, -1.6); ctx.lineTo(fx - .6, -5); } ctx.stroke();
+    // sừng gần: nhỏ, đen xám, cong ra sau
+    ctx.beginPath(); ctx.moveTo(-2.6, -10.2); ctx.quadraticCurveTo(-7, -15.4, -12.6, -14.2); ctx.quadraticCurveTo(-7.4, -12.6, -5.6, -8.4); ctx.closePath(); fillOL(HORN, 1.1);
+    line(-4.6, -11.2, -9.4, -13.6, HORN2, .8);
+    // lọn tóc dài bên má, buộc hạt tròn xanh trắng
+    const sw = Math.sin(mt * 2.4) * .6;
+    ctx.beginPath(); ctx.moveTo(-6.2, -1.4); ctx.quadraticCurveTo(-7.6 + sw, 6, -6.6 + sw, 15.4); ctx.lineTo(-4 + sw, 15); ctx.quadraticCurveTo(-4, 6, -3, -1.2); ctx.closePath(); fillOL(HR, 1);
+    for (const by of [8.6, 12.2]) { circ(-5.3 + sw * .8, by, 1.9, '#bfe4ff', .8); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(-5.9 + sw * .8, by - .7, .7, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  };
+  // hình người
+  function girl(b, P, o) {
+    const d = b.face || 1, K = skel(P), mt = o.mt;
+    ctx.save(); ctx.translate(b.x, b.y + R - 2); ctx.scale(d * .62, .62); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    if (o.ghost) {
+      ctx.fillStyle = 'rgb(200 182 226 / .55)';
+      for (const L of [K.bl, K.fl]) { cap(L.hx, L.hy, L.kx, L.ky, 3.6, 3); ctx.fill(); cap(L.kx, L.ky, L.fx, L.fy, 3, 2.6); ctx.fill(); }
+      ctx.beginPath(); ctx.moveTo(-11, K.hy + 10); ctx.lineTo(11, K.hy + 10); ctx.lineTo(K.sx + 6, K.sy); ctx.lineTo(K.sx - 6, K.sy); ctx.fill();
+      ctx.beginPath(); ctx.arc(K.cx, K.cy - 1, 11.5, 0, TAU); ctx.fill(); ctx.restore(); return;
+    }
+    tail(K, mt, o.pose === 'charge', o.amp);
+    arm(K.ba, false);
+    leg(K.bl, false, P.sit); leg(K.fl, true, P.sit);
+    dress(K, mt, P.sit);
+    head(K, mt, o.face, o.blink);
+    arm(K.fa, true, o.pose === 'vsign');
+    ctx.restore();
+  }
+  // dạng rồng thật: rồng trắng lông xù kiểu chibi, mảng tím nhạt, sừng dài cong, lông tai rủ, cánh nhỏ
+  function dragon(b, o) {
+    const d = b.face || 1, mt = o.mt, fl = Math.sin(mt * 9), bob = Math.sin(mt * 3) * 2;
+    ctx.save(); ctx.translate(b.x, b.y + R - 6 + bob); ctx.scale(d * .62 * o.sc, .62 * o.sc); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    if (o.ghost) { ctx.fillStyle = 'rgb(220 210 240 / .5)'; ctx.beginPath(); ctx.ellipse(0, -30, 28, 20, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(24, -50, 17, 0, TAU); ctx.fill(); ctx.restore(); return; }
+    // đuôi xù dài phía sau
+    const sw = Math.sin(mt * 2.6) * 5;
+    const tip = tube([-20, -26], [-44, -14 + sw * .3], [-58, -34 + sw], 9, 5, DR, DR2);
+    fluff(tip[0] - 2, tip[1] - 3, 9, KN_LAV, '#a891cf', 8, mt * .5);
+    // cánh nhỏ (xa)
+    ctx.save(); ctx.translate(-4, -46); ctx.rotate(-.5 + fl * .35);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-10, -22, -26, -26); ctx.quadraticCurveTo(-20, -14, -24, -6); ctx.quadraticCurveTo(-14, -6, -14, 2); ctx.closePath(); fillOL('#e9e2f5', 1.2); ctx.restore();
+    // chân sau
+    for (const lx of [-12, 10]) { ctx.beginPath(); ctx.ellipse(lx, -10, 6, 8, 0, 0, TAU); fillOL(lx > 0 ? DR : '#efeaf7', 1.2); for (let i = 0; i < 3; i++) line(lx - 3 + i * 3, -3, lx - 3 + i * 3, -1, '#9b93ab', .9); }
+    // thân tròn lông xù
+    fluff(0, -30, 26, DR, DR2, 20, mt * .1);
+    ctx.save(); ctx.beginPath(); ctx.arc(0, -30, 24, 0, TAU); ctx.clip(); ctx.fillStyle = 'rgb(200 182 226 / .55)'; ctx.beginPath(); ctx.ellipse(-12, -40, 12, 7, -.4, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.ellipse(8, -18, 8, 5, .2, 0, TAU); ctx.fill(); ctx.restore();
+    // bờm lông ngực
+    fluff(14, -32, 11, '#fbf8ff', DR2, 9, -mt * .2);
+    // cánh gần
+    ctx.save(); ctx.translate(-2, -44); ctx.rotate(-.2 - fl * .45);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-8, -26, -28, -32); ctx.quadraticCurveTo(-22, -18, -27, -9); ctx.quadraticCurveTo(-15, -8, -16, 2); ctx.closePath(); fillOL('#ffffff', 1.3);
+    ctx.strokeStyle = KN_LAV; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-3, -3); ctx.lineTo(-24, -26); ctx.moveTo(-4, -2); ctx.lineTo(-22, -12); ctx.stroke(); ctx.restore();
+    // tay trước nhỏ
+    ctx.beginPath(); ctx.ellipse(20, -20, 4.4, 6, -.4, 0, TAU); fillOL(DR, 1.1);
+    // đầu
+    ctx.save(); ctx.translate(24, -54); ctx.rotate((o.pose === 'breath' ? .15 : 0) + Math.sin(mt * 2) * .04);
+    // lông tai dài rủ xuống như tai thỏ
+    const ear = (x, dark) => { ctx.beginPath(); ctx.moveTo(x, -8); ctx.quadraticCurveTo(x - 14, -4, x - 13, 16 + Math.sin(mt * 2.5) * 1.5); ctx.quadraticCurveTo(x - 6, 14, x - 3, 2); ctx.closePath(); fillOL(dark ? '#e4dcf0' : '#fdfbff', 1.2); ctx.save(); ctx.clip(); ctx.fillStyle = KN_LAV; ctx.beginPath(); ctx.ellipse(x - 12, 14, 6, 6, 0, 0, TAU); ctx.fill(); ctx.restore(); };
+    ear(-2, true);
+    // sừng dài cong
+    const horn = (x, s) => { ctx.beginPath(); ctx.moveTo(x, -14); ctx.quadraticCurveTo(x - 12 * s, -28, x - 26 * s, -26); ctx.quadraticCurveTo(x - 30 * s, -24, x - 28 * s, -20); ctx.quadraticCurveTo(x - 14 * s, -22, x + 4, -11); ctx.closePath(); fillOL(HORN, 1.2); line(x - 4, -18, x - 20 * s, -24, HORN2, 1); };
+    horn(4, .85);
+    fluff(0, 0, 17, DR, DR2, 16, .2);
+    horn(-4, 1);
+    ear(-6, false);
+    // mõm tròn
+    ctx.beginPath(); ctx.ellipse(13, 5, 7.4, 6, 0, 0, TAU); fillOL('#fdfbff', 1.1);
+    ctx.fillStyle = OL; ctx.beginPath(); ctx.arc(18.4, 3.4, .9, 0, TAU); ctx.fill();
+    if (o.pose === 'breath') { ctx.beginPath(); ctx.moveTo(13, 7); ctx.quadraticCurveTo(17, 12, 20, 7.6); ctx.closePath(); fillOL('#e07a96', .9); }
+    else line(14, 8.4, 17.4, 8, '#a0606e', .9);
+    // mắt xanh to
+    for (const [ex, w] of [[5, 3.6], [11.4, 2.2]]) {
+      ctx.beginPath(); ctx.ellipse(ex, -2, w, 5, 0, 0, TAU); fillOL('#ffffff', 1);
+      ctx.save(); ctx.clip(); ctx.fillStyle = EYE; ctx.beginPath(); ctx.ellipse(ex + .5, -1.4, w * .9, 4.8, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#26324a'; ctx.beginPath(); ctx.ellipse(ex + .6, -1.4, w * .4, 2.2, 0, 0, TAU); ctx.fill(); ctx.fillStyle = SKN; ctx.fillRect(ex - w - 1, -8, w * 2 + 2, 2.4); ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - w * .3, -3.4, w * .3, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = 'rgb(249 150 175 / .45)'; ctx.beginPath(); ctx.ellipse(4, 5, 3, 1.5, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+  }
+  return { girl, dragon, star4 };
+})();
+function drawKannaFig(b, pose, ghost, isDragon) {
+  const Y = S.kn;
+  if (isDragon) { KN_ART.dragon(b, { mt: Y.mt, pose, ghost, sc: ghost ? 1 : .55 + .45 * Math.min(1, Y.morph * 1.4) }); return; }
+  let P = knPoseOf(b, pose);
+  if (!ghost) {
+    if (!Y.cur) Y.cur = JSON.parse(JSON.stringify(P));
+    const k = 1 - Math.exp(-(Y.pose ? 30 : 14) / 60), Q = Y.cur;
+    Q.hy += (P.hy - Q.hy) * k; Q.lean += (P.lean - Q.lean) * k;
+    for (const n of ['bl', 'fl', 'ba', 'fa']) for (let i = 0; i < 2; i++) Q[n][i] += (P[n][i] - Q[n][i]) * k;
+    Q.sit = P.sit; P = Q;
+  }
+  const face = Y.sleep > 0 ? 'sleep' : Y.face;
+  KN_ART.girl(b, P, { mt: Y.mt, pose, ghost, face, blink: !face && (Y.mt % 3.6) < .12, amp: Y.amp > 0 });
+}
+function drawKanna(b, charged) {
+  const Y = S.kn, dr = Y.dragon > 0;
+  for (const g of Y.ghosts) { ctx.save(); ctx.globalAlpha = .35 * g.t / g.max; drawKannaFig({ x: g.x, y: g.y, face: g.face, vx: 0 }, g.pose, true, g.dragon); ctx.restore(); }
+  // ổ điện khi sạc bằng đuôi
+  if (Y.chg > 0 && !dr) {
+    const d = b.face || 1, ox = b.x - d * 19, oy = b.y + R - 2;
+    ctx.save(); ctx.lineJoin = 'round';
+    afxPoly([[ox - 6, oy], [ox - 6, oy - 12], [ox + 6, oy - 12], [ox + 6, oy]], '#f4f2ea', AFX_INK, 1.4);
+    ctx.fillStyle = '#3a3640'; ctx.fillRect(ox - 3, oy - 9, 1.4, 3.2); ctx.fillRect(ox + 1.6, oy - 9, 1.4, 3.2);
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(ox + 6, oy - 3); ctx.quadraticCurveTo(ox + 14, oy, ox + 22 * -d, oy); ctx.stroke();
+    ctx.restore();
+    const k = 1 - Y.chg / 1.2;
+    ctx.save(); ctx.globalAlpha = .9; afxBolt(ox, oy - 10, b.x - d * 4, b.y - 4, 2, Math.floor(S.t * 20) % 2 ? KN_E : KN_V, 3); ctx.restore();
+    // thanh năng lượng tăng dần
+    ctx.fillStyle = 'rgb(20 16 30 / .8)'; ctx.fillRect(b.x - 22, b.y - 70, 44, 6); ctx.fillStyle = KN_E; ctx.fillRect(b.x - 21, b.y - 69, 42 * k, 4);
+  }
+  if (Y.bar > 0) { ctx.save(); ctx.globalAlpha = .35 + .15 * Math.sin(S.t * 8); ctx.strokeStyle = KN_V; ctx.lineWidth = 3; ctx.fillStyle = 'rgb(179 136 255 / .12)'; ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + S.t; ctx.lineTo(b.x + Math.cos(a) * 40, b.y - 14 + Math.sin(a) * 40); } ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  if (Y.amp > 0 || dr) afxAura(b.x, b.y - (dr ? 26 : 10), dr ? KN_V : KN_E, S.t, dr ? 1.2 : .7, true);
+  drawKannaFig(b, Y.pose, false, dr);
+  if (charged) { ctx.strokeStyle = KN_E; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y - 12, 30 + Math.sin(S.t * 14) * 3, 0, Math.PI * 2); ctx.stroke(); }
+}
+function drawKannaFx() {
+  const Y = S.kn; if (!Y) return;
+  // đạn
+  for (const q of Y.shots) {
+    if (q.k === 'ball') {
+      afxSpeed(q.x - q.d * 110, q.x - q.d * q.r, q.y, q.d, .2, '#ffb050', 22);
+      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.t * 30 * q.d);
+      ctx.fillStyle = '#e8443a'; ctx.beginPath(); ctx.arc(0, 0, q.r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = AFX_INK; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = '#ffd0c0'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, q.r * .65, -.6, 1); ctx.stroke(); ctx.restore();
+      for (let i = 0; i < 2; i++) afxBolt(q.x, q.y, q.x - q.d * (30 + i * 20), q.y + (i ? 14 : -14), 1.5, i ? KN_V : KN_E, q.t * 30 + i);
+    } else if (q.k === 'plasma') { afxOrb(q.x, q.y, q.r, q.col, q.t, 'orb'); afxSpeed(q.x - q.d * 90, q.x - q.d * q.r, q.y, q.d, .3, KN_E, 34); for (let i = 0; i < 3; i++) { const a = q.t * 20 + i * 2.1; afxBolt(q.x, q.y, q.x + Math.cos(a) * q.r * 1.6, q.y + Math.sin(a) * q.r * 1.6, 1.5, KN_E, i + q.t * 10); } }
+  }
+  // hiệu ứng
+  for (const f of Y.fx) {
+    const k = f.t / f.max, c = f.col;
+    if (f.k === 'hit') afxImpact(f.x, f.y, k, c, .7);
+    else if (f.k === 'zap') { ctx.save(); ctx.globalAlpha = 1 - k * .6; afxBolt(f.x1, f.y1, f.x2, f.y2, 3.5, c, f.x2); ctx.restore(); }
+    else if (f.k === 'crackle') { ctx.save(); ctx.globalAlpha = 1 - k; const a = f.seed; afxBolt(f.x, f.y, f.x + Math.cos(a) * 12, f.y + Math.sin(a) * 12, 1, c, a); ctx.restore(); }
+    else if (f.k === 'sky') { ctx.save(); ctx.globalAlpha = 1 - k * .5; afxBolt(f.x + (mhHash(f.x) - .5) * 70, f.y - 460, f.x, f.y, 7, c, f.x); afxBolt(f.x + (mhHash(f.x + 3) - .5) * 90, f.y - 300, f.x + (mhHash(f.x + 1) - .5) * 30, f.y - 90, 2.5, KN_E, f.x + 7); ctx.restore(); afxImpact(f.x, f.y, k, '#ffffff', .9); }
+    else if (f.k === 'ground') { afxShock(f.x, f.y, f.r, k, c, .25); ctx.save(); ctx.globalAlpha = 1 - k; for (let i = 0; i < 4; i++) { const a = i * 1.57 + f.x; afxBolt(f.x, f.y - 3, f.x + Math.cos(a) * f.r * k, f.y - 3 + Math.sin(a) * 8, 1.5, i % 2 ? KN_V : KN_E, i + f.x); } ctx.restore(); }
+    else if (f.k === 'sonic') { ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; for (let i = 0; i < 3; i++) { const r = 10 + k * 50 + i * 10; ctx.beginPath(); ctx.ellipse(f.x - f.d * i * 8, f.y, r * .35, r, 0, 0, Math.PI * 2); ctx.stroke(); } ctx.restore(); }
+    else if (f.k === 'dash') afxSpeed(f.x1, f.x2, f.y, f.d, k, c, 30);
+    else if (f.k === 'shock') afxShock(f.x, f.y, f.r, k, c, .6);
+    else if (f.k === 'boom') { afxImpact(f.x, f.y, k, c, f.r / 60); afxShock(f.x, f.y, f.r, k, c, .5); }
+    else if (f.k === 'breath') afxBeam(f.x, f.y, f.d, f.len, 26, k, c, 1);
+    else if (f.k === 'crack') {
+      ctx.save(); ctx.globalAlpha = Math.min(1, (1 - k) * 2); ctx.strokeStyle = '#2a2230'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      for (let i = 0; i < 6; i++) { let x = f.x, y = f.y; const s = i < 3 ? -1 : 1; ctx.beginPath(); ctx.moveTo(x, y); for (let j = 1; j <= 4; j++) { x += s * f.r / 4 * (.6 + mhHash(f.seed + i * 7 + j) * .6); y += (mhHash(f.seed + i * 3 + j * 5) - .5) * 6; ctx.lineTo(x, y); } ctx.stroke(); }
+      for (let i = 0; i < 6; i++) { const rx = f.x + (mhHash(f.seed + i) - .5) * f.r * 1.6, ry = f.y - k * 50 * mhHash(f.seed + i * 2) - 4 + k * k * 40; afxPoly([[rx - 4, ry], [rx, ry - 5], [rx + 4, ry + 1]], '#8a7f96', AFX_INK, 1); }
+      ctx.restore();
+    }
+    else if (f.k === 'rune') {
+      ctx.save(); ctx.globalAlpha = Math.min(1, (1 - k) * 2.5); ctx.translate(f.x, f.y - 2); ctx.scale(1, .3); ctx.rotate(S.t * 1.5);
+      ctx.strokeStyle = c; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, f.r, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, f.r * .78, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2.5; ctx.beginPath(); for (let i = 0; i <= 6; i++) { const a = i * Math.PI * 2 / 6 * 2; ctx.lineTo(Math.cos(a) * f.r * .78, Math.sin(a) * f.r * .78); } ctx.stroke();
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; ctx.save(); ctx.rotate(a); ctx.fillStyle = '#e8dcff'; ctx.fillRect(f.r * .84, -2, 7, 4); ctx.restore(); }
+      ctx.restore();
+    }
+    else if (f.k === 'pillar') {
+      const a = k < .2 ? k / .2 : 1 - (k - .2) / .8, w = 30 + 20 * Math.sin(k * Math.PI);
+      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = 'rgb(232 220 255 / .75)'; ctx.fillRect(f.x - w, f.y - 900, w * 2, 900); ctx.fillStyle = 'rgb(255 255 255 / .9)'; ctx.fillRect(f.x - w * .45, f.y - 900, w * .9, 900);
+      ctx.strokeStyle = AFX_INK; ctx.lineWidth = 2.5; ctx.strokeRect(f.x - w, f.y - 900, w * 2, 900); ctx.restore();
+      ctx.save(); ctx.globalAlpha = a; for (let i = 0; i < 3; i++) afxBolt(f.x + (i - 1) * w, f.y - 400, f.x + (i - 1) * w * 1.6, f.y - 20, 2, i % 2 ? KN_E : KN_V, i + f.t * 10); ctx.restore();
+    }
+  }
+  // hạt: tia lửa điện, hạt sáng tím, lông, Zzz, lấp lánh
+  for (const p of Y.parts) {
+    const a = 1 - p.t / p.max;
+    ctx.save(); ctx.globalAlpha = a;
+    if (p.k === 'spark') { ctx.strokeStyle = p.col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * .03, p.y - p.vy * .03); ctx.stroke(); }
+    else if (p.k === 'mote') { ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2); ctx.fill(); }
+    else if (p.k === 'fur') { ctx.translate(p.x, p.y); ctx.rotate(p.t * 4); ctx.fillStyle = p.col; ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.2, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgb(140 120 170 / .8)'; ctx.lineWidth = 1; ctx.stroke(); }
+    else if (p.k === 'star') KN_ART.star4(p.x, p.y, 5 + 2 * Math.sin(p.t * 12), p.col);
+    else if (p.k === 'z') { ctx.font = `800 ${10 + p.t * 8}px "Baloo 2", sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = AFX_INK; ctx.strokeText('Z', p.x, p.y); ctx.fillStyle = p.col; ctx.fillText('Z', p.x, p.y); }
+    ctx.restore();
+  }
+  // bảng kỹ năng: ô đang hồi tối dần
+  if (CHAR === 'kanna' && !BET_NOBALL) {
+    ctx.save(); ctx.setTransform(PX, 0, 0, PX, 0, 0);
+    const dr = Y.dragon > 0, ids = dr ? ['dj', 'dhj', 'dl', 'dash', 'str', 'bar', 'pika'] : ['j', 'hj', 'l', 'dash', 'chg', 'slp', 'str', 'bar', 'pika'];
+    const w = 44, x0 = viewW / 2 - ids.length * w / 2, y0 = VIEW_H - 46;
+    ids.forEach((id, i) => {
+      const sk = KN_SK[id], x = x0 + i * w, c = Y.cd[id] > 0 ? Y.cd[id] / sk.cd : 0;
+      ctx.fillStyle = 'rgb(28 22 40 / .8)'; ctx.fillRect(x + 1, y0, w - 2, 28);
+      ctx.strokeStyle = dr ? '#e8dcff' : KN_LAV; ctx.lineWidth = 1.2; ctx.strokeRect(x + 1, y0, w - 2, 28);
+      if (c > 0) { ctx.fillStyle = 'rgb(0 0 0 / .5)'; ctx.fillRect(x + 1, y0 + 28 * (1 - c), w - 2, 28 * c); }
+      ctx.textAlign = 'center'; ctx.fillStyle = c > 0 ? '#9a94a8' : '#f4ecff'; ctx.font = '800 9px "Baloo 2", sans-serif'; ctx.fillText(sk.key.replace(' (rồng)', ''), x + w / 2, y0 + 11);
+      ctx.font = '700 8px "Baloo 2", sans-serif'; ctx.fillText(sk.n.split(' ').slice(-1)[0], x + w / 2, y0 + 23);
+    });
+    const tags = []; if (Y.amp > 0) tags.push(`⚡ Sạc Đầy ${Y.amp.toFixed(1)}s`); if (Y.pika > 0) tags.push(`✦ Pika ×${Y.pika}`); if (dr) tags.push(`Rồng ${Y.dragon.toFixed(1)}s`); if (Y.bar > 0) tags.push('Kết giới');
+    if (tags.length) { ctx.fillStyle = '#e8dcff'; ctx.font = '800 12px "Baloo 2", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(tags.join(' · '), viewW / 2, y0 - 6); }
+    ctx.restore();
+  }
+}
+/* ----- đăng ký nhân vật ----- */
+CHAR_STATS.kanna = { hp: 3400, atk: 260, def: 90 };   // rồng nhỏ: thân hình bé nhưng sức mạnh rồng
+CHARS.kanna = { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .35, regen: 9, speed: 540, airJumps: 2, dmgK: 2.4, pierce: true };
+CHARS.kannaD = { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .3, regen: 10, speed: 600, airJumps: 2, dmgK: 2.4, pierce: true, fly: true };   // dạng rồng: bay
+MOVES.kanna = { tap: () => knUse('j'), hold: () => knUse('hj'), web: () => knUse('l') };
+JUMP_SFX.kanna = 'hop';
+CHAR_UI.kanna = { name: 'Kanna Kamui', from: 'Kobayashi-san Chi no Maid Dragon', tag: 'Rồng nhỏ phe Hỗn Mang mang tên thần sấm Ainu — sét trắng tím, đuôi sạc điện, hóa rồng trắng lông xù', energy: 'Năng lượng',
+  btn: { bolt: ['Sét', 'Lôi Kích (giữ: Ném Bóng Né)'], web: ['L', 'Thiên Lôi'], skill: ['Lướt', 'Bay Lướt'], volt: ['Rồng', 'Hóa Rồng'] },
+  short: ['Lôi Kích', 'Ném Bóng Né', 'Thiên Lôi', 'Bay Lướt', 'Hóa Rồng'],
+  more: ' · <kbd>F</kbd> Sạc điện bằng đuôi · <kbd>E</kbd> Ngủ gật · <kbd>1</kbd> Lực Rồng · <kbd>2</kbd> Kết giới · <kbd>3</kbd> Chiếu sáng', moreTap: ' · Sạc · Ngủ · Lực · Kết · Pika',
+  kit: [['Chỉ số', 'Máu 3400 · Công 260 · Thủ 90 · Tốc độ 540 — thân hình bé nhỏ nhưng là rồng thật; 1 điểm sát thương ≈ 60 lên boss'],
+    ...['j', 'hj', 'l', 'dash', 'chg', 'slp', 'str', 'bar', 'pika'].map(id => [KN_SK[id].key, `${KN_SK[id].n}: ${KN_SK[id].d} · hồi ${String(KN_SK[id].cd).replace('.', ',')} giây`]),
+    ['U', 'Hóa Rồng: cột sáng trắng tím + vòng ma pháp, biến thành rồng trắng lông xù 10 giây — bay tự do, sát thương ×1,5, đổi bộ chiêu · cần đầy năng lượng'],
+    ...['dj', 'dhj', 'dl'].map(id => [KN_SK[id].key, `${KN_SK[id].n}: ${KN_SK[id].d} · hồi ${String(KN_SK[id].cd).replace('.', ',')} giây`])],
+  passive: 'Tia điện lách tách quanh sừng và đuôi · Sạc Đầy: sét +50% · Chiếu Sáng: 3 đòn +60% · Kết giới đỡ mọi đòn · đứng yên lâu sẽ lẩm bẩm "Kanna… đói rồi." · kỹ năng miễn phí, xuyên khiên boss, nhảy 3 lần.',
+  tip: 'Kanna: J sét nảy · giữ J ném bóng né · L Thiên Lôi · F cắm đuôi sạc điện · E ngủ gật hồi máu · 1 Lực Rồng · 2 Kết giới · 3 "Chiếu sáng" · U Hóa Rồng.' };
 
 function showKit(id) {
   const u = CHAR_UI[id], el = $('charInfo');
@@ -25763,6 +26365,7 @@ function drawCharFx() {
   drawGxFx();
   drawYeqiuFx();
   drawTannhanFx();
+  drawKannaFx();
   drawClFx();
   // Kiếm khách: ảnh hiệu ứng gốc và ba cơn lốc Tam kiếm
   for (const o of S.ktor) drawKK('loc', Math.floor(o.ft * 30) % KK.loc.n, o.x, o.y, 80 * KE, 80 * KE, 1);
@@ -26062,8 +26665,8 @@ function drawBall() {
   if (CHAR === 'pika' && DMAX) { drawMaxCore(b, pw && !blink); return; }
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
-const CHAR_COLOR = { tannhan: '#9ad8ff', yeqiu: '#c8a040', ...gxColorMap(), luck: '#ffd23a', yuuna: '#7a4ab8', gabimaru: '#465064', bong: '#e3262b', vegito: '#5fd0ff', pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
-const CHAR_DRAW = { tannhan: drawTannhan, yeqiu: drawYeqiu, ...gxDrawMap(), luck: drawLuck, yuuna: drawYuuna, gabimaru: drawGabimaru, bong: drawBong, vegito: drawVegito, pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
+const CHAR_COLOR = { kanna: '#c8b6e2', tannhan: '#9ad8ff', yeqiu: '#c8a040', ...gxColorMap(), luck: '#ffd23a', yuuna: '#7a4ab8', gabimaru: '#465064', bong: '#e3262b', vegito: '#5fd0ff', pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
+const CHAR_DRAW = { kanna: drawKanna, tannhan: drawTannhan, yeqiu: drawYeqiu, ...gxDrawMap(), luck: drawLuck, yuuna: drawYuuna, gabimaru: drawGabimaru, bong: drawBong, vegito: drawVegito, pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
 // Khiên Hổ Phách của Stelle: vỏ lục giác màu hổ phách
 function drawAmber(b) {
   const r = R * 1.9 + Math.sin(S.t * 6) * 2, fade = S.amber < .8 && Math.floor(S.t * 14) % 2;
