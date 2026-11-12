@@ -3296,7 +3296,7 @@ const CHAR_UI = {
       ['L', 'Song kiếm Lv20: biến mất, hiện ra sát kẻ thù, 2 dải kiếm đỏ quấn lấy rồi chém hai nhát lửa đỏ, hồi 0,6 giây (miễn phí)'],
       ['U', 'Tam kiếm Lv20: “tạo ra những cơn lốc sát thương từ vòng xoay của thanh kiếm”: vòng xoáy đỏ, 3 cơn lốc tự lao tới kẻ thù, hồi 2 giây (miễn phí)'],
       ['Shift', 'Lướt: vô địch khi lướt, hồi 0,35 giây (miễn phí)'],
-      ['F', 'Biến hình KIẾM KHÁCH 4X (đồ +15): áo choàng tím đen, tóc xanh ngọc, lưỡi hái, hào quang lửa xanh; máu 5600 · công 340 · thủ 160, sát thương ×4,5, bay được; bộ chiêu chuyển sang hiệu ứng tím của game gốc (cấp 15+) và mạnh thêm: Nhất kiếm bắn 3 sóng kiếm lửa xanh xuyên màn, Song kiếm chém 4 nhát rồi nổ lửa, Tam kiếm 6 cơn lốc + Phượng Hoàng Giáng Thế. F lần nữa để trở lại'],
+      ['F', 'Biến hình KIẾM KHÁCH 4X: full đồ Kiếm khách cấp 20 (Áo cộc tay, Quần vải đen) +15, hào quang lửa xanh; máu 5600 · công 340 · thủ 160, sát thương ×4,5, bay được; bộ chiêu chuyển sang hiệu ứng tím của game gốc (cấp 15+) và mạnh thêm: Nhất kiếm bắn 3 sóng kiếm lửa xanh xuyên màn, Song kiếm chém 4 nhát rồi nổ lửa, Tam kiếm 6 cơn lốc + Phượng Hoàng Giáng Thế. F lần nữa để trở lại'],
       ['E', 'Trái Phượng Hoàng — Phượng Hoàng Lao Tới: hoá chim lửa xanh lao xuyên kẻ địch, vô địch khi lao (dạng 4X)'],
       ['T', 'Lửa Tái Sinh: hồi 35% máu (dạng 4X). Nội tại: lửa xanh hồi 1,2% máu mỗi giây, hết máu thì tái sinh từ tro tàn với 60% máu (mỗi 60 giây một lần)']],
     passive: 'Song kiếm gây xuất huyết 4 giây · cheat: nhảy 3 lần, chạy nhanh, sát thương ×2, xuyên khiên boss, MP nạp ×6. Bộ skill cấp 20 (màu đỏ). Đổi tóc, phụ kiện, áo, quần ngay bên dưới.',
@@ -28138,7 +28138,7 @@ const kiemFeet = (o, i) => (KKO.feet[o.quan] || KKO.feet[0])[i];
 /* ----- Biến hình (F): trang phục 3x ----- 
    Bộ đồ cấp 30 của Kiếm sĩ trong game gốc: Áo X (zoro_ao_1xxx) + Quần vải đen (zoro_quan_1xxx), tóc dựng kiểu Saiyan
    tô lại màu xanh như Super Saiyan Blue, bộ chiêu chuyển sang bản tím. F lần nữa trở về trang phục đang chọn. */
-const KK3 = { hair: 4, acc: -1, ao: 3, quan: 2, k4: true };
+const KK3 = { hair: 0, acc: -1, ao: 2, quan: 1, k4: true };   // full đồ Kiếm khách cấp 20: Áo cộc tay + Quần vải đen, tóc gốc
 const KK_SSB = [null, null];
 // tóc dựng bạc của game → xanh Saiyan: viền sẫm thành xanh đậm, thân tóc chuyển dần từ xanh lam sang xanh nhạt gần trắng
 function kkSsbHair(run) {
@@ -28271,17 +28271,10 @@ function k4Hair(i, run) {
   ctx.restore();
 }
 function k4Paint(g, i, o, run) {
-  // gọi trong paintKiem khi đang ở dạng 4X: thay áo / quần / tóc bằng hình vẽ, giữ đầu và tay cầm kiếm gốc
-  const im = KKO.img, put = (r, x, y) => { const [sx, sy, w, h] = KKO.R[r]; g.drawImage(im, sx, sy, w, h, x, y, w, h); }, lay = l => put(l[0], l[1], l[2]);
-  const feet = kiemFeet(o, i), mv = run ? 1 : 0;
-  k4Flames(feet, mv);
+  // dạng 4X: hào quang lửa +15 (và cánh lửa khi bay) phía sau, rồi ghép đúng các mảnh gốc của bộ đồ cấp 20
+  k4Flames(kiemFeet(o, i), run ? 1 : 0);
   if (!S.onGround) k4Wings(i);
-  k4Scythe(i);
-  lay(KKO.quan[2][i]);
-  k4Robe(i, feet, mv);
-  lay(KKO.head[i]);
-  k4Hair(i, run);
-  lay(KKO.tay[i]);
+  paintKiem(g, i, { hair: o.hair, acc: o.acc, ao: o.ao, quan: o.quan }, run);
 }
 
 /* ----- chiêu của dạng 4X ----- */
