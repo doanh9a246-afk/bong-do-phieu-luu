@@ -106,6 +106,7 @@ const CHAR_STATS = {
   gabimaru: { hp: 3600, atk: 255, def: 100 },
   yuuna: { hp: 15000, atk: 420, def: 220 },   // Yuuna (Dog Bite Dog): áp đảo mọi nhân vật
   luck: { hp: 3600, atk: 260, def: 100 },
+  wukong: { hp: 4200, atk: 275, def: 125 },   // Tôn Ngộ Không: thân Kim Cương Bất Hoại
   yeqiu: { hp: 4200, atk: 270, def: 115 },   // Nhất Diệp Chi Thu (Toàn Chức Cao Thủ): Đấu Thần   // Luck Voltia (Black Clover)
   kiem3: { hp: 5600, atk: 340, def: 160 },   // Kiếm khách 4X: trang phục cộng đồ +15
   thiquy: { hp: 3600, atk: 250, def: 100 }, thiquyK: { hp: 7000, atk: 300, def: 150 },   // YuuTan Thi Quỷ: Song Thể / dạng Quỷ Thi Giải
@@ -124,7 +125,7 @@ function incomingDmg() {
   const B = S.boss, boss = S.fight && !B.dead;
   let a = boss ? BOSS_ATK[MAP] * (B.phase > 1 ? 1.3 : 1) : MOB_ATK[MAP];
   if (S.hitAtk) { a = S.hitAtk; S.hitAtk = 0; }
-  return Math.max(1, Math.round(a * 100 / (100 + stat().def) * (.9 + Math.random() * .2) * (CHAR === 'bong' ? .6 : 1) * (CHAR === 'yeqiu' && S.yq && S.yq.buffs.ice > 0 ? .8 : 1)));   // Quả Bóng Đỏ: Đàn Hồi
+  return Math.max(1, Math.round(a * 100 / (100 + stat().def) * (.9 + Math.random() * .2) * (CHAR === 'bong' ? .6 : CHAR === 'wukong' ? .75 : 1) * (CHAR === 'yeqiu' && S.yq && S.yq.buffs.ice > 0 ? .8 : 1)));   // Quả Bóng Đỏ: Đàn Hồi
 }
 function healHp(frac) {
   const before = S.hp;
@@ -492,6 +493,7 @@ function reset() {
     tn: newTn(),             // Quân Mạc Tiếu: dạng Ô Thiên Cơ, hồi chiêu từng kỹ năng, robot, mìn
     yq: newYq(),             // Nhất Diệp Chi Thu: Huyễn Văn, liên kích, khiên ma pháp
     gx: newGx(),             // nhân vật anime (Gojo, Levi, Deku…): trạng thái, chiêu, đạn
+    wk: newWk(),             // Tôn Ngộ Không: khỉ con, mây, Hoả Nhãn, Yêu Lực
     lk: newLk(),             // Luck Voltia: trạng thái sấm, cầu sét, hưng phấn
     yn: newYn(),             // Yuuna: cây ô
     dbd: null,               // màn 12: xác lủng người, boss Lee
@@ -609,7 +611,7 @@ const SFX = {
   ki()      { tone(900, 300, .1, 'sine', .06); noise(.08, .04, 3000); },
   ui()      { tone(300, 1600, 1.1, 'sine', .05); tone(450, 2400, 1, 'triangle', .03, .15); noise(1.2, .06, 5200); },
 };
-const JUMP_SFX = { yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', vegito: 'hop', bong: 'boing', gabimaru: 'hop', yuuna: 'hop', luck: 'zap', yeqiu: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
+const JUMP_SFX = { wukong: 'hop', yuta: 'hop', yuutan: 'hop', yuutan2: 'hop', thiquy: 'hop', zenitsu: 'zap', mereo: 'hop', pika: 'pika', chii: 'wa', rimuru: 'boing', stelle: 'hop', saiyan: 'hop', kiem: 'hop', asta: 'hop', yuno: 'hop', pain: 'hop', goku: 'hop', vegito: 'hop', bong: 'boing', gabimaru: 'hop', yuuna: 'hop', luck: 'zap', yeqiu: 'hop', namek: 'hop', luffy: 'boing', kurumi: 'hop' };
 var SFX_N = 0, DENY_N = 0;   // đếm âm thanh đã phát: chiêu có phát âm thanh nghĩa là đã ra đòn (để tính hồi chiêu)
 function sfx(name) { if (name === 'deny') DENY_N++; else if (name !== 'step' && name !== 'hop') SFX_N++; if (!muted && audio()) SFX[name](); }
 /* ----- hồi chiêu chung cho mọi nhân vật: mỗi phím chiêu có thời gian hồi; chỉ tính khi chiêu thật sự ra đòn ----- */
@@ -647,7 +649,7 @@ function setKey(k, on) {
   if (k === 'jump' && on && !keys.jump) S.jumpBuf = .14;
   if (k === 'bolt') { if (on && !keys.bolt) startCharge(); if (!on && keys.bolt) releaseCharge(); }
   if (k === 'web' && on && !keys.web) MOVES[CHAR].web();
-  if (k === 'volt' && on && !keys.volt) (CHAR === 'asta' ? asU() : CHAR === 'yuno' ? yuU() : CHAR === 'kanna' ? knUlt() : CHAR === 'tannhan' ? tnUlt() : CHAR === 'yeqiu' ? yqUlt() : GXC[CHAR] ? gxU() : CHAR === 'luck' ? lkUlt() : CHAR === 'yuuna' ? ynUlt() : CHAR === 'gabimaru' ? gbUlt() : CHAR === 'bong' ? bdSplit() : CHAR === 'vegito' ? vgUlt() : CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
+  if (k === 'volt' && on && !keys.volt) (CHAR === 'wukong' ? wkGiant() : CHAR === 'asta' ? asU() : CHAR === 'yuno' ? yuU() : CHAR === 'kanna' ? knUlt() : CHAR === 'tannhan' ? tnUlt() : CHAR === 'yeqiu' ? yqUlt() : GXC[CHAR] ? gxU() : CHAR === 'luck' ? lkUlt() : CHAR === 'yuuna' ? ynUlt() : CHAR === 'gabimaru' ? gbUlt() : CHAR === 'bong' ? bdSplit() : CHAR === 'vegito' ? vgUlt() : CHAR === 'saiyan' ? apeForm() : CHAR === 'kiem' ? tamKiem() : CHAR === 'pain' ? shinraTensei() : CHAR === 'goku' ? ultraInstinct() : CHAR === 'namek' ? nkMakanko() : CHAR === 'luffy' ? lfU() : CHAR === 'kurumi' ? kuZafkiel() : CHAR === 'mereo' ? mrPurg() : CHAR === 'zenitsu' ? znUlt() : CHAR === 'yuutan' ? ytU() : CHAR === 'yuutan2' ? ybU() : CHAR === 'thiquy' ? tqU() : CHAR === 'yuta' ? ytaU() : fireVolt());
   if (CHAR === 'kurumi' && on && !keys[k]) {
     if (k === 'egg') kuCloneArmy();
     else if (k === 'heal') kuDalet();
@@ -695,6 +697,7 @@ function setKey(k, on) {
   if (CHAR === 'tannhan' && on && !keys[k]) { if (k === 'terra') tnSwitch(S.tn.form + 1); else if (k === 'egg') tnSwitch(S.tn.form - 1); else if (/^g[1-5]$/.test(k)) tnSwitch(+k[1]); }   // Quân Mạc Tiếu: đổi dạng Ô Thiên Cơ
   if (CHAR === 'yeqiu' && on && !keys[k]) { if (k === 'egg') yqLaunch(); else if (k === 'terra') yqShield(); else if (k === 'heal') yqSplash(); else if (k === 'learn') yqHeart(); else if (/^g[1-5]$/.test(k)) yqSkill(+k[1]); }   // Nhất Diệp Chi Thu: E/F/T/Y/1–5
   if (GXC[CHAR] && on && !keys[k]) { if (k === 'terra') gxF(); else if (k === 'egg') gxE(); }   // nhân vật anime: F trạng thái, E chiêu phụ
+  if (CHAR === 'wukong' && on && !keys[k]) { if (k === 'egg') wkEye(); else if (k === 'heal') wkDing(); else if (k === 'terra') wkFrenzy(); }   // Ngộ Không: E Hoả Nhãn, T Định Thân, F Đại Náo
   if (CHAR === 'luck' && on && !keys[k]) { if (k === 'terra') lkForm(); else if (k === 'egg') lkSense(); }   // Luck: F đổi trạng thái, E cảm nhận ma lực
   if (CHAR === 'yuuna' && on && !keys[k]) { if (k === 'terra') ynFold(); else if (k === 'egg') ynThrow(); }   // Yuuna: F gập ô, E ném ô
   if (CHAR === 'gabimaru' && on && !keys[k]) { if (k === 'terra') gbTao(); else if (k === 'egg') gbMask(); }   // Gabimaru: F Đạo Hoa, E khăn che mặt
@@ -740,6 +743,7 @@ function activateSkill() {
   if (CHAR === 'tannhan' && !S.bound) { if (!S.dead && !S.won && !S.lost) tnRoll(); return; }   // Quân Mạc Tiếu: K lăn né
   if (CHAR === 'yeqiu' && !S.bound) { if (!S.dead && !S.won && !S.lost) yqShadow(); return; }   // Nhất Diệp Chi Thu: K Ảo Ảnh Long Nha
   if (GXC[CHAR] && !S.bound) { if (!S.dead && !S.won && !S.lost) gxKk(); return; }   // nhân vật anime: K
+  if (CHAR === 'wukong' && !S.bound) { if (!S.dead && !S.won && !S.lost) wkHair(); return; }   // Ngộ Không: Thân Ngoại Thân
   if (CHAR === 'luck' && !S.bound) { if (!S.dead && !S.won && !S.lost) lkStep(); return; }   // Luck: K Lôi Bộ
   if (CHAR === 'yuuna' && !S.bound) { if (!S.dead && !S.won && !S.lost) ynHook(); return; }   // Yuuna: K Móc Cán
   if (CHAR === 'gabimaru' && !S.bound) { if (!S.dead && !S.won && !S.lost) gbSubst(); return; }   // Gabimaru: K Thế Thân
@@ -902,6 +906,7 @@ function die(force) {   // force: chết chắc chắn, không gì đỡ đượ
   if (!force && CHAR === 'tannhan' && S.tn.block > 0 && !fellOff()) { tnBlockHit(); return; }   // Khiên Chắn / Bung Ô
   if (!force && CHAR === 'yeqiu' && !fellOff() && yqAbsorb()) return;   // Khiên Ma Pháp: chịu đòn bằng năng lượng
   if (!force && GXC[CHAR] && !fellOff() && gxGuard()) { gxBlock(); return; }   // nội tại chặn / né của nhân vật anime
+  if (!force && CHAR === 'wukong' && S.wk && S.wk.see > 0 && !fellOff()) { wkDodge(); return; }   // Hoả Nhãn Kim Tinh nhìn thấu đòn
   if (!force && CHAR === 'luck' && S.lk.sense > 0 && !fellOff()) { lkDodge(); return; }   // Luck: cảm nhận ma lực né trước
   if (!force && CHAR === 'yuuna' && S.yn.open > 0 && !fellOff()) { ynBlock(); return; }   // Yuuna: ô bung đỡ mọi đòn
   if (!force && CHAR === 'vegito' && !fellOff() && Math.random() < .3) { vgDodge(); return; }   // Vegito: Bản Năng Chiến Binh
@@ -1172,7 +1177,7 @@ function frozenNow() {
   const B = S.boss;
   return (B.ts > 0 && !S.tsEsc) || !!(B.cut && B.cut.t < CUT.strike) || !!B.fuse;
 }
-const canAct = () => !(S.dead || S.won || S.lost || frozenNow() || S.bound > 0 || S.blind > 0 || (S.yn && S.yn.fin));
+const canAct = () => !((CHAR === 'wukong' && S.wk && S.wk.band > 0) || S.dead || S.won || S.lost || frozenNow() || S.bound > 0 || S.blind > 0 || (S.yn && S.yn.fin));
 function gainEnergy(n) { S.energy = Math.min(ENERGY_MAX, S.energy + n); }
 function spend(cost) {
   if (S.energy < cost) {
@@ -1431,6 +1436,8 @@ const CHARS = {
   // Nhất Diệp Chi Thu: cheat, Pháp sư chiến đấu
   yeqiu: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .35, regen: 9, speed: 600, airJumps: 2, dmgK: 2.5, pierce: true },
   luck: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .35, regen: 8, speed: 580, airJumps: 2, dmgK: 2, pierce: true },
+  wukong: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .3, regen: 8, speed: 560, airJumps: 2, dmgK: 2.5, pierce: true },
+  wukongC: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .3, regen: 8, speed: 760, airJumps: 2, dmgK: 2.5, pierce: true, fly: true },   // trên Cân Đẩu Vân
   luckSD: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .3, regen: 10, speed: 640, airJumps: 2, dmgK: 2, pierce: true, fly: true },
   yuuna: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .4, regen: 10, speed: 560, airJumps: 2, dmgK: 4, pierce: true },
   gabimaru: { cost: { tap: 0, hold: 0, web: 0, tackle: 0, volt: 0 }, tackleCd: .45, regen: 6, speed: 520, airJumps: 2, dmgK: 2, pierce: true },
@@ -1440,7 +1447,7 @@ const CHARS = {
 };
 // bay tự do: Goku luôn bay, Kurumi bay được khi ngưng đọng thời gian hoặc ở dạng Hồng Liên
 const flying = () => CH().fly || (CHAR === 'kurumi' && !!S.ku && (S.ku.stop || S.ku.crim));
-const CH = () => CHAR === 'kiem' && S.kk3 ? CHARS.kiem3 : CHAR === 'kanna' && S.kn && S.kn.dragon > 0 ? CHARS.kannaD : GXC && GXC[CHAR] && gxFly() ? CHARS.gxFly : CHAR === 'luck' && S.lk && S.lk.form > 0 ? CHARS.luckSD : CHAR === 'asta' && S.cl && S.cl.form === 'devil' ? CHARS.astaDU : CHAR === 'yuno' && S.cl && (S.cl.form === 'dive' || S.cl.form === 'king') ? (S.cl.form === 'king' ? CHARS.yunoKing : CHARS.yunoDive) : CHAR === 'thiquy' && tqForm() ? CHARS.thiquyK : CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
+const CH = () => CHAR === 'wukong' && S.wk && S.wk.cloud > 0 ? CHARS.wukongC : CHAR === 'kiem' && S.kk3 ? CHARS.kiem3 : CHAR === 'kanna' && S.kn && S.kn.dragon > 0 ? CHARS.kannaD : GXC && GXC[CHAR] && gxFly() ? CHARS.gxFly : CHAR === 'luck' && S.lk && S.lk.form > 0 ? CHARS.luckSD : CHAR === 'asta' && S.cl && S.cl.form === 'devil' ? CHARS.astaDU : CHAR === 'yuno' && S.cl && (S.cl.form === 'dive' || S.cl.form === 'king') ? (S.cl.form === 'king' ? CHARS.yunoKing : CHARS.yunoDive) : CHAR === 'thiquy' && tqForm() ? CHARS.thiquyK : CHAR === 'pika' && DMAX ? CHARS.pikaMax : CHAR === 'saiyan' && S.sx && S.sx.blue ? CHARS.ssb : CHARS[CHAR];
 const cost = k => CH().cost[k];
 /* ---------- Pikachu: Dynamax (G) và tuyệt kĩ Z (Z) ----------
    Dynamax: to gấp 10 lần, vĩnh viễn (lưu trên máy tới khi bấm G lần nữa), bộ chiêu chuyển sang hack.
@@ -1514,6 +1521,7 @@ const MOVES = {
   gabimaru: { tap: gbChop, hold: gbStones, web: gbHibo },
   yuuna: { tap: ynTap, hold: ynExtend, web: ynOpen },
   luck: { tap: lkTap, hold: lkOrb, web: lkBoots },
+  wukong: { tap: wkTap, hold: wkStaff, web: wkCloud },
   yeqiu: { tap: yqTap, hold: yqHold, web: yqDragon },
 };
 // chiêu U: sát thương lên boss (trước hệ số nhân vật), thời gian choáng, số tia, âm thanh
@@ -2210,6 +2218,7 @@ function updateCharMoves(dt) {
   updateGabimaru(dt);
   updateYuuna(dt);
   updateLuck(dt);
+  updateWukong(dt);
   updateGxChar(dt);
   updateYeqiu(dt);
   updateTannhan(dt);
@@ -3104,7 +3113,7 @@ function hud() {
 const CHAR_KEY = 'bongdo.char';
 // mật khẩu chỉ lưu dưới dạng mã băm; mở rồi thì máy đó nhớ
 const PW_HASH = 2576725674;   // 123456
-const LOCKS = Object.fromEntries(['pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan', 'yuutan2', 'thiquy', 'yuta', 'bong', 'gabimaru', 'yuuna', 'luck', 'gojo', 'levi', 'deku', 'ichigo', 'killua', 'saitama', 'edward', 'denji', 'naruto', 'kirito', 'yeqiu', 'tannhan', 'kanna']
+const LOCKS = Object.fromEntries(['wukong', 'pika', 'rimuru', 'stelle', 'saiyan', 'kiem', 'asta', 'yuno', 'pain', 'goku', 'namek', 'luffy', 'kurumi', 'mereo', 'zenitsu', 'yuutan', 'yuutan2', 'thiquy', 'yuta', 'bong', 'gabimaru', 'yuuna', 'luck', 'gojo', 'levi', 'deku', 'ichigo', 'killua', 'saitama', 'edward', 'denji', 'naruto', 'kirito', 'yeqiu', 'tannhan', 'kanna']
   .map(id => [id, { hash: PW_HASH, key: 'bongdo.lock.' + id }]));
 // Kurumi khoá riêng bằng mật khẩu đặc biệt (khoá mới: máy đã mở bằng mật khẩu cũ cũng phải nhập lại)
 Object.assign(LOCKS.kurumi, { hash: 890022063, key: 'bongdo.lock2.kurumi' });   // mật khẩu: 0
@@ -3351,6 +3360,20 @@ const CHAR_UI = {
       ['5', 'Phi Long Tại Thiên — bay vọt lên, xoay người xoắn ốc đâm ngược từ trên xuống mục tiêu, nổ thành lốc xoáy bán kính 220 (~473) · hồi 2,8 giây']],
     passive: 'Ý Chí Đấu Giả: liên kích 10/20/30/40/50/60/120 lần (đứt nếu 2,5 giây không trúng) → 7 giai đoạn: tốc đánh (hồi chiêu ngắn lại tới ×0,58), tốc chạy +2…24%, sức mạnh +30…260 (sát thương +6…52%) · khống chế lên boss (choáng) tối đa 1 lần mỗi 1,6 giây · cheat: mọi chiêu miễn phí, xuyên khiên boss, nhảy 3 lần.',
     tip: 'Nhất Diệp Chi Thu: J liên chiêu Long Nha → Đâm Liên Tiếp → Thiên Kích → Lạc Hoa Chưởng → Viên Vũ Côn · giữ J Hào Long Phá Quân · L Phục Long Tường Thiên · Shift Ảo Ảnh Long Nha · U Sao Băng Bách Long · E Huyễn Văn · F Khiên Ma Pháp · T Giao Long · Y Nộ Long · 1–5 kỹ năng cao cấp.' },
+  wukong: { name: 'Tôn Ngộ Không', from: 'Tây Du Ký', tag: 'Tề Thiên Đại Thánh — Như Ý Kim Cô Bổng, Cân Đẩu Vân, phép biến hoá, Hoả Nhãn Kim Tinh; các phép phối hợp với nhau (cheat)', energy: 'Yêu khí',
+    btn: { bolt: ['Gậy', 'Kim Cô Bổng'], web: ['Mây', 'Cân Đẩu Vân'], skill: ['Lông', 'Thân Ngoại Thân'], volt: ['Pháp', 'Pháp Thiên Tượng Địa'] },
+    short: ['Kim Cô Bổng', 'Như Ý nối dài', 'Cân Đẩu Vân', 'Thân Ngoại Thân', 'Pháp Thiên Tượng Địa'],
+    more: ' · <kbd>E</kbd> Hoả Nhãn · <kbd>T</kbd> Định Thân · <kbd>F</kbd> Đại Náo Thiên Cung', moreTap: ' · Mắt · Định · Náo',
+    kit: [['J', 'Như Ý Kim Cô Bổng: liên hoàn quét – chọc – nện (cú nện phá thế Định, rung đất). Đứng trên Cân Đẩu Vân: Thiên Bổng — gậy dài ra nện thẳng xuống đất'],
+      ['Giữ J', 'Như Ý nối dài: “Dài ra!” — gậy vươn tới 1.150, đâm xuyên mọi thứ; có Hoả Nhãn thì tự ngắm vào yêu quái bị đánh dấu'],
+      ['L', 'Cân Đẩu Vân: lộn một vòng nhảy lên mây, bay tự do 10 giây (L lần nữa: xuống mây). Khỉ con cưỡi mây bay theo'],
+      ['Shift', 'Thân Ngoại Thân: nhổ lông thổi “Biến!” ra 3 khỉ con (14 giây) bắt chước mọi đòn gậy. Đã có khỉ con: bấm lại để cả bầy Vây Đánh (ưu tiên kẻ bị Định, rồi kẻ bị Hoả Nhãn đánh dấu)'],
+      ['U', 'Pháp Thiên Tượng Địa: hoá khổng lồ 10 giây — gậy dài ×2,6, sát thương ×1,6, mỗi bước rung đất; khỉ con to theo; khai thân bằng một gậy quét ngang cả màn hình'],
+      ['E', 'Hoả Nhãn Kim Tinh: nhìn thấu yêu quái — đánh dấu mọi kẻ địch trong tầm 12 giây (nhận ×1,5 sát thương) và tự né 2 đòn trong 8 giây'],
+      ['T', 'Định Thân Pháp: chỉ tay quát “Định!” — đứng hình kẻ gần nhất 3 giây; nếu có dấu Hoả Nhãn thì định TẤT CẢ kẻ bị dấu, 5 giây. Đánh kẻ bị Định ×1,5, khỉ con tự xông vào'],
+      ['F', 'Đại Náo Thiên Cung (cần đầy Yêu Lực, tích bằng đòn trúng): 12 giây hồi chiêu giảm nửa, sát thương ×1,3, mỗi đòn gậy gọi thêm một khỉ con đánh cùng']],
+    passive: 'Kim Cương Bất Hoại (luyện 49 ngày trong lò Bát Quái): nhận ít hơn 25% sát thương · Vòng Kim Cô: Yêu Lực đầy mà 6 giây không dùng Đại Náo Thiên Cung thì Đường Tăng niệm Khẩn Cô Chú — ôm đầu 1,2 giây, mất hết Yêu Lực · cheat: mọi chiêu miễn phí, sát thương ×2,5, xuyên khiên boss, nhảy 3 lần.',
+    tip: 'Tôn Ngộ Không: J Kim Cô Bổng · giữ J Như Ý nối dài · L Cân Đẩu Vân · Shift khỉ con (bấm lại: vây đánh) · E Hoả Nhãn đánh dấu · T Định Thân · U Pháp Thiên Tượng Địa · F Đại Náo Thiên Cung. Phối hợp: E rồi T định cả bầy, rồi Shift cho khỉ con vây đánh!' },
   luck: { name: 'Luck Voltia', from: 'Black Clover', tag: 'Kẻ cuồng chiến Hắc Bộc Ngưu — ma pháp Sấm Sét: Tinh Linh Nhập Thể, Sấm Sét Chiến Quỷ (cheat)', energy: 'Ma lực',
     btn: { bolt: ['Quyền', 'Lôi Thần Quyền'], web: ['Hài', 'Lôi Thần Hài'], skill: ['Bộ', 'Lôi Bộ'], volt: ['Lôi', 'Tuyệt kĩ Sấm'] },
     short: ['Lôi Thần Quyền', 'Lôi Minh Băng Cầu', 'Lôi Thần Hài', 'Lôi Bộ', 'Tuyệt kĩ Sấm'],
@@ -3467,6 +3490,7 @@ function applyChar() {
   document.querySelectorAll('.touch .yq').forEach(el => { el.hidden = CHAR !== 'yeqiu'; });
   document.querySelectorAll('.touch .gxc').forEach(el => { el.hidden = !GXC[CHAR]; });
   document.querySelectorAll('.touch .lk').forEach(el => { el.hidden = CHAR !== 'luck'; });
+  document.querySelectorAll('.touch .wk').forEach(el => { el.hidden = CHAR !== 'wukong'; });
   document.querySelectorAll('.touch .yn').forEach(el => { el.hidden = CHAR !== 'yuuna'; });
   document.querySelectorAll('.touch .gb').forEach(el => { el.hidden = CHAR !== 'gabimaru'; });
   document.querySelectorAll('.touch .vg').forEach(el => { el.hidden = !(CHAR === 'goku' || CHAR === 'saiyan' || CHAR === 'vegito') || ytaCp(); el.textContent = CHAR === 'vegito' ? 'Tách' : 'Potara'; });
@@ -19648,6 +19672,521 @@ const LK_FORMS = [
   { id: 'spirit', name: 'TINH LINH NHẬP THỂ', k: 1.7, spd: 1.25, col: ['#ffffff', '#c8f4ff', '#5ad8ff', '#2a6aff'] },
   { id: 'fiend', name: 'SẤM SÉT CHIẾN QUỶ', k: 2.6, spd: 1.5, col: ['#fff4c0', '#ffd23a', '#b84aff', '#3a0a5a'] },
 ];
+/* ---------- Tôn Ngộ Không — Tề Thiên Đại Thánh (Tây Du Ký) ----------
+   Ngoại hình theo nguyên tác: lông vàng nâu, mặt khỉ, Hoả Nhãn Kim Tinh đỏ vàng, mũ Phượng Sí Tử Kim Quan (mũ vàng cắm hai lông trĩ đỏ dài),
+   vòng Kim Cô trên trán, giáp Toả Tử Hoàng Kim Giáp (giáp lưới vàng), áo choàng đỏ, váy da hổ, giày Bộ Vân Lý, đuôi khỉ,
+   gậy Như Ý Kim Cô Bổng (thân đen ánh đỏ, hai đầu bịt vàng). Nặng 13.500 cân, to nhỏ dài ngắn tuỳ ý.
+   J Kim Cô Bổng: liên hoàn quét – chọc – nện (đứng trên mây: Thiên Bổng nện thẳng xuống) · giữ J Như Ý nối dài: gậy dài ra đâm xuyên màn hình
+   · L Cân Đẩu Vân: lộn một vòng lên mây, bay tự do (L lần nữa: nhảy xuống) · Shift Thân Ngoại Thân: nhổ lông thổi hoá 3 khỉ con
+   (bấm lại khi đã có khỉ: cả bầy Vây Đánh) · E Hoả Nhãn Kim Tinh: nhìn thấu yêu quái, đánh dấu và tự né · T Định Thân Pháp: “Định!”
+   · U Pháp Thiên Tượng Địa: hoá khổng lồ · F Đại Náo Thiên Cung (cần đầy Yêu Lực).
+   TƯƠNG TÁC: Hoả Nhãn đánh dấu → kẻ bị dấu nhận ×1,5 sát thương, Như Ý tự ngắm vào chúng, Định Thân trói TẤT CẢ kẻ bị dấu và lâu gấp đôi
+   · khỉ con bắt chước mọi đòn gậy của Đại Thánh, tự xông vào kẻ đang bị Định Thân, cưỡi mây theo khi Đại Thánh bay, to theo khi hoá khổng lồ
+   · đánh kẻ bị Định Thân: ×1,5 và phá thế định bằng cú nện cuối · Cân Đẩu Vân + J = Thiên Bổng · khổng lồ: gậy dài ×2,6, mỗi bước rung đất
+   · Đại Náo Thiên Cung: mỗi đòn gậy gọi thêm một khỉ con đánh cùng, hồi chiêu giảm nửa · Yêu Lực đầy mà không dùng trong 6 giây thì
+   Đường Tăng niệm Khẩn Cô Chú: vòng Kim Cô siết, Đại Thánh ôm đầu 1,2 giây và mất hết Yêu Lực. */
+const WK = { fur: '#c98a32', furD: '#8a5418', furL: '#f0c470', face: '#f4cfa0', faceD: '#d8a070', gold: '#ffd24a', goldD: '#b8860b',
+  red: '#d42a1e', redD: '#8a1410', armor: '#e8b83a', armorD: '#a87a18', tiger: '#f09a2a', ink: '#2a160a', staff: '#3a1210', staffL: '#7a2418' };
+function newWk() { return { cd: {}, pose: null, poseT: 0, cur: null, mt: 0, combo: 0, fx: [], clones: [], pend: [], ghosts: [], gT: 0,
+  cloud: 0, eye: 0, see: 0, giant: 0, gk: 1, frenzy: 0, rage: 0, rageFull: 0, band: 0, stretch: null, step: 0 }; }
+const wkOn = () => CHAR === 'wukong' && !!S.wk;
+function wkCd(k, t) { const W = S.wk; if (W.cd[k] > 0) return false; W.cd[k] = t * (W.frenzy > 0 ? .5 : 1); return true; }
+function wkPose(p, t) { S.wk.pose = p; S.wk.poseT = t; }
+function wkPop(text, c = WK.gold, big) { S.pops.push({ x: S.ball.x, y: S.ball.y - 90 * S.wk.gk, t: big ? 1.4 : 1, text, c, big }); }
+function wkLater(t, fn) { S.wk.pend.push({ t, fn }); }
+const wkLo = () => S.fight ? ARENA.l + R : R, wkHi = () => S.fight ? ARENA.r - R : LEVEL_W - R;
+const wkMarked = r => r && r.wkM > S.t, wkFrozen = r => r && r.wkD > S.t;
+const wkBusy = () => !canAct() || S.wk.band > 0;
+// một đòn trúng mục tiêu: dấu Hoả Nhãn ×1,5, đang bị Định ×1,5, khổng lồ ×1,6, Đại Náo ×1,3; mỗi đòn trúng tăng Yêu Lực
+function wkHit(t, dmg, o = {}) {
+  if (!tAlive(t)) return;
+  const W = S.wk, p = tPos(t), b = S.ball, r = t.ref;
+  const k = (wkMarked(r) ? 1.5 : 1) * (wkFrozen(r) ? 1.5 : 1) * (W.giant > 0 ? 1.6 : 1) * (W.frenzy > 0 ? 1.3 : 1) * (o.clone ? .45 : 1), d = dmg * k;
+  W.fx.push({ k: 'hit', x: p.x, y: p.y, t: 0, max: .25, r: (o.big ? 44 : 26) * (o.clone ? .7 : 1), crit: k >= 2 });
+  for (let i = 0; i < (o.clone ? 3 : 7); i++) { const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 240; S.parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: .35, c: i % 2 ? WK.gold : '#ffffff', r: 2 + Math.random() * 3 }); }
+  if (t.kind === 'boss') { LAST_PROBE = { x: b.x, y: b.y, t: S.t }; damageBoss(r, d, 'shock'); }
+  else if (t.kind === 'enemy') { r.inv = 0; r.bub = 0; if (r.role === 'khien') r.dir = -(Math.sign(b.x - r.x) || 1); if (d >= 3 && !r.mid) r.hp = 1; killEnemy(r, WK.gold); }
+  else if (t.kind === 'flyer') killFlyer(r);
+  else { const T = S.turret; T.hp -= d; T.flash = .15; if (T.hp <= 0) breakTurret(); }
+  if (o.breakDing && wkFrozen(r)) { r.wkD = 0; W.fx.push({ k: 'word', text: 'PHÁ ĐỊNH!', x: p.x, y: p.y - 50, t: 0, max: .8, size: 26 }); }
+  if (!o.clone && W.frenzy <= 0) wkRage(5);
+}
+function wkRage(n) {
+  const W = S.wk, was = W.rage >= 100;
+  W.rage = Math.min(100, W.rage + n);
+  if (!was && W.rage >= 100) { W.rageFull = 6; wkPop('Yêu Lực đầy! F: Đại Náo Thiên Cung', '#ff8a3a'); }
+}
+// tầm và độ dài gậy theo trạng thái
+const wkReach = () => 78 * S.wk.gk;
+// khỉ con bắt chước đòn gậy
+function wkMimic(kind) {
+  for (const c of S.wk.clones) if (!c.rush) { c.pose = kind; c.poseT = .22; c.face = S.ball.face || 1; wkLater(.08 + c.i * .05, () => wkCloneStrike(c, kind)); }
+}
+function wkCloneStrike(c, kind) {
+  if (!S.wk.clones.includes(c)) return;
+  const k = S.wk.gk, x = c.x + c.face * 40 * k, y = c.y - 14 * k;
+  const hit = kind === 'thrust' ? ynLine(c.x, y, c.face, 120 * k, 40 * k) : nkTouch(x, y, 50 * k);
+  for (const t of hit) wkHit(t, 1.5, { clone: true });
+  S.wk.fx.push({ k: 'arc', x: c.x, y: c.y - 16 * k, d: c.face, t: 0, max: .18, r: 40 * k, kind, clone: true });
+}
+
+/* ----- J: Kim Cô Bổng — quét, chọc, nện ----- */
+function wkTap() {
+  const W = S.wk; if (wkBusy() || !wkCd('j', .17)) return;
+  const b = S.ball, d = b.face || 1, k = W.gk;
+  if (W.cloud > 0 && !S.onGround) return wkSkyStaff();
+  const i = W.combo++ % 3, kind = ['sweep', 'thrust', 'slam'][i], reach = wkReach();
+  // áp sát mục tiêu gần (bước tới một nhịp như võ côn)
+  const tg = kkTarget(170 * k);
+  if (tg && i !== 1) { const p = tPos(tg); if (Math.abs(p.x - b.x) > reach * .9) gbPlace(clamp(p.x - d * reach * .75, wkLo(), wkHi()), gbFeet(tg), tg.kind === 'flyer'); }
+  wkPose(kind, .2);
+  const hx = b.x + d * reach * .7, hy = b.y - 12 * k;
+  const hit = kind === 'thrust' ? ynLine(b.x, hy, d, reach * 1.9, 34 * k) : nkTouch(hx, hy, (kind === 'slam' ? 62 : 54) * k);
+  for (const t of hit) wkHit(t, kind === 'slam' ? 4 : 2.6, { big: kind === 'slam', breakDing: kind === 'slam' });
+  W.fx.push({ k: 'arc', x: b.x, y: b.y - 16 * k, d, t: 0, max: .2, r: reach, kind });
+  if (kind === 'slam') { W.fx.push({ k: 'quake', x: hx, y: b.y + R, t: 0, max: .4, r: 90 * k }); if (S.onGround) for (const t of nkTargets(hx, b.y, 110 * k, 6)) if (!hit.includes(t) && t.kind === 'enemy') wkHit(t, 1.5); }
+  if (W.frenzy > 0) wkSummonOne(.9);
+  wkMimic(kind);
+  sfx(hit.length ? (kind === 'slam' ? 'stomp' : 'slash') : 'swoosh');
+}
+// trên Cân Đẩu Vân: Thiên Bổng — gậy dài ra nện thẳng xuống đất trước mặt
+function wkSkyStaff() {
+  const W = S.wk, b = S.ball, d = b.face || 1, k = W.gk, x = b.x + d * 70 * k;
+  const gy = groundYAt(x) ?? b.y + 400, len = Math.max(80, gy - b.y);
+  wkPose('slam', .3);
+  W.stretch = { t: 0, max: .35, x: b.x + d * 30 * k, y: b.y - 10, ang: Math.PI / 2 - d * .15, len, w: 9 * k, down: true };
+  for (const t of nkTargets(x, (b.y + gy) / 2, Math.max(80, len / 2), 8)) if (Math.abs(tPos(t).x - x) < 70 * k) wkHit(t, 4.5, { big: true, breakDing: true });
+  W.fx.push({ k: 'quake', x, y: gy, t: 0, max: .5, r: 140 * k });
+  for (const t of nkTargets(x, gy - 20, 150 * k, 8)) if (t.kind !== 'boss') wkHit(t, 2);
+  W.fx.push({ k: 'word', text: 'THIÊN BỔNG!', x, y: gy - 60, t: 0, max: .7, size: 28 });
+  for (const c of W.clones) { c.pose = 'slam'; c.poseT = .25; }
+  wkMimic('slam'); sfx('stomp');
+}
+/* ----- giữ J: Như Ý nối dài — “Dài ra!” ----- */
+function wkStaff(hold) {
+  const W = S.wk; if (wkBusy() || !wkCd('hold', .5)) return;
+  const b = S.ball, d = b.face || 1, k = W.gk, len = Math.min(1150, 320 + hold * 700) * (W.giant > 0 ? 1.6 : 1);
+  // Hoả Nhãn: gậy tự ngắm vào kẻ bị đánh dấu gần nhất
+  let ang = 0;
+  const mk = nkTargets(b.x, b.y, len, 12).filter(t => wkMarked(t.ref) && (tPos(t).x - b.x) * d > 0)[0];
+  if (mk) { const p = tPos(mk); ang = Math.atan2(p.y - (b.y - 12 * k), Math.abs(p.x - b.x)); ang = clamp(ang, -.9, .9); }
+  const x0 = b.x + d * 20 * k, y0 = b.y - 12 * k, cos = Math.cos(ang), sin = Math.sin(ang);
+  W.stretch = { t: 0, max: .45, x: x0, y: y0, ang: d > 0 ? ang : Math.PI - ang, len, w: (7 + hold * 4) * k };
+  wkPose('thrust', .45);
+  // mọi thứ dọc thân gậy
+  for (const t of nkTargets(x0 + d * cos * len / 2, y0 + sin * len / 2, len / 2 + 100, 14)) {
+    const p = tPos(t), u = ((p.x - x0) * d * cos + (p.y - y0) * sin), v = Math.abs(-(p.x - x0) * d * sin + (p.y - y0) * cos), hh = t.kind === 'boss' ? unitH(t.ref) / 2 + 20 : 40 * k;
+    if (u > -20 && u < len + 20 && v < hh) wkHit(t, 3.5 + hold * 3, { big: true });
+  }
+  wkMimic('thrust');
+  sfx('swoosh'); wkPop(mk ? 'Như Ý · Dài ra! (Hoả Nhãn ngắm)' : 'Như Ý Kim Cô Bổng · Dài ra!');
+}
+/* ----- L: Cân Đẩu Vân — một cái lộn nhào mười vạn tám nghìn dặm ----- */
+function wkCloud() {
+  const W = S.wk; if (wkBusy() || !wkCd('cloud', .6)) return;
+  const b = S.ball;
+  if (W.cloud > 0) { W.cloud = 0; wkPop('Xuống mây'); applyChar(); return; }
+  W.cloud = 10; W.flip = .45; b.vy = -620; b.vx = (b.face || 1) * 520;
+  W.fx.push({ k: 'puff', x: b.x, y: b.y + R, t: 0, max: .6, r: 70 });
+  sfx('swoosh'); wkPop('Cân Đẩu Vân!', '#ffffff', true); applyChar();
+}
+/* ----- Shift: Thân Ngoại Thân — nhổ một nắm lông, nhai vụn, thổi “Biến!” ----- */
+function wkHair() {
+  const W = S.wk; if (wkBusy()) return;
+  if (W.clones.length) return wkRush();
+  if (!wkCd('hair', 9)) { wkPop(`Thân Ngoại Thân hồi ${Math.ceil(W.cd.hair)} giây`, '#ffc890'); sfx('deny'); return; }
+  wkPose('blow', .45);
+  wkLater(.25, () => { for (let i = 0; i < 3; i++) wkSummonOne(14, i); W.fx.push({ k: 'puff', x: S.ball.x + (S.ball.face || 1) * 40, y: S.ball.y - 20, t: 0, max: .6, r: 80 }); sfx('tele'); });
+  wkPop('Thân Ngoại Thân · Biến!', WK.gold, true);
+}
+function wkSummonOne(life, i = S.wk.clones.length) {
+  const b = S.ball, W = S.wk;
+  if (W.clones.length >= 7) return;
+  W.clones.push({ i, x: b.x - (b.face || 1) * (30 + i * 28), y: b.y, vx: 0, vy: 0, face: b.face || 1, t: life, max: life, pose: null, poseT: 0, rush: null, ph: Math.random() * 6, tmp: life < 2 });
+  W.fx.push({ k: 'puff', x: b.x - (b.face || 1) * (30 + i * 28), y: b.y - 10, t: 0, max: .4, r: 30 });
+}
+// cả bầy khỉ con Vây Đánh: ưu tiên kẻ đang bị Định Thân, rồi kẻ bị Hoả Nhãn đánh dấu, rồi kẻ gần nhất
+function wkRush(auto) {
+  const W = S.wk, b = S.ball;
+  const all = nkTargets(b.x, b.y, 900, 10).filter(t => Math.abs(tPos(t).y - b.y) < 420);
+  const pick = all.find(t => wkFrozen(t.ref)) || all.find(t => wkMarked(t.ref)) || all[0];
+  if (!pick) { if (!auto) { wkPop('Không có yêu quái nào!', '#ffc890'); sfx('deny'); } return; }
+  for (const c of W.clones) if (!c.rush) c.rush = { t: pick, n: 3, cd: 0 };
+  if (!auto) { wkPop(wkFrozen(pick.ref) ? 'Vây đánh kẻ bị Định!' : 'Các con, lên!', WK.gold); sfx('swoosh'); }
+}
+/* ----- E: Hoả Nhãn Kim Tinh — đôi mắt luyện 49 ngày trong lò Bát Quái của Thái Thượng Lão Quân ----- */
+function wkEye() {
+  const W = S.wk; if (wkBusy()) return;
+  if (!wkCd('eye', 14)) { wkPop(`Hoả Nhãn hồi ${Math.ceil(W.cd.eye)} giây`, '#ffc890'); sfx('deny'); return; }
+  const b = S.ball; W.eye = 8; W.see = 2;
+  const tg = nkTargets(b.x, b.y, 1000, 16);
+  for (const t of tg) t.ref.wkM = S.t + 12;
+  W.fx.push({ k: 'eye', x: b.x, y: b.y - 30, t: 0, max: .7 });
+  sfx('ui'); wkPop(tg.length ? `Hoả Nhãn Kim Tinh! Thấy rõ ${tg.length} yêu quái` : 'Hoả Nhãn Kim Tinh!', '#ff6a2a', true);
+}
+function wkDodge() {
+  const W = S.wk, b = S.ball;
+  W.see--; S.safe = Math.max(S.safe, .5); S.hitAtk = 0;
+  W.ghosts.push({ x: b.x, y: b.y, face: b.face || 1, t: .3, max: .3 });
+  b.x = clamp(b.x - (b.face || 1) * 70, wkLo(), wkHi());
+  S.pops.push({ x: b.x, y: b.y - 70, t: .7, text: 'Lão Tôn nhìn thấu rồi!', c: '#ff8a3a' }); sfx('tele');
+}
+/* ----- T: Định Thân Pháp — chỉ tay quát “Định!” ----- */
+function wkDing() {
+  const W = S.wk; if (wkBusy()) return;
+  if (!wkCd('ding', 8)) { wkPop(`Định Thân hồi ${Math.ceil(W.cd.ding)} giây`, '#ffc890'); sfx('deny'); return; }
+  const b = S.ball, all = nkTargets(b.x, b.y, 620, 16).filter(t => Math.abs(tPos(t).y - b.y) < 360);
+  const marked = all.filter(t => wkMarked(t.ref)), list = marked.length ? marked : all.slice(0, 1);
+  if (!list.length) { W.cd.ding = 0; wkPop('Không có ai để Định!', '#ffc890'); sfx('deny'); return; }
+  const dur = marked.length ? 5 : 3;
+  wkPose('point', .45);
+  for (const t of list) { ybBind(t, dur); t.ref.wkD = S.t + dur; const p = tPos(t); W.fx.push({ k: 'seal', x: p.x, y: p.y, t: 0, max: .5 }); }
+  W.fx.push({ k: 'word', text: '定!', x: b.x + (b.face || 1) * 60, y: b.y - 70, t: 0, max: .9, size: 44 });
+  if (W.clones.length) wkRush(true);   // khỉ con tự xông vào kẻ bị Định
+  sfx('ui'); wkPop(marked.length ? `Định! ${list.length} yêu quái đứng hình ${dur} giây` : 'Định!', WK.gold, true);
+}
+/* ----- U: Pháp Thiên Tượng Địa — thân cao muôn trượng, đầu như núi Thái Sơn ----- */
+function wkGiant() {
+  const W = S.wk; if (wkBusy()) return;
+  if (W.giant > 0) return;
+  if (!wkCd('giant', 16)) { wkPop(`Pháp Thiên Tượng Địa hồi ${Math.ceil(W.cd.giant)} giây`, '#ffc890'); sfx('deny'); return; }
+  const b = S.ball; W.giant = 10;
+  S.power = Math.max(S.power, 1.2); S.flash = Math.max(S.flash || 0, .3);
+  wkLater(.35, () => {
+    // cú nện khai thân: gậy khổng lồ quét ngang cả màn hình
+    const k = 2.4, d = S.ball.face || 1;
+    W.stretch = { t: 0, max: .5, x: S.ball.x, y: S.ball.y - 60, ang: d > 0 ? .25 : Math.PI - .25, len: 900, w: 22, sweep: true };
+    for (const t of nkTargets(S.ball.x + d * 380, S.ball.y, 620, 16)) if ((tPos(t).x - S.ball.x) * d > -60) wkHit(t, 6, { big: true, breakDing: true });
+    W.fx.push({ k: 'quake', x: S.ball.x + d * 200, y: S.ball.y + R, t: 0, max: .6, r: 400 });
+    sfx('boom');
+  });
+  wkPop('PHÁP THIÊN TƯỢNG ĐỊA!', '#ff6a2a', true); sfx('volt');
+}
+/* ----- F: Đại Náo Thiên Cung — Yêu Lực đầy ----- */
+function wkFrenzy() {
+  const W = S.wk; if (wkBusy()) return;
+  if (W.frenzy > 0) return;
+  if (W.rage < 100) { wkPop(`Cần đầy Yêu Lực (${Math.floor(W.rage)}/100)`, '#ffc890'); sfx('deny'); return; }
+  W.rage = 0; W.rageFull = 0; W.frenzy = 12;
+  for (const kk in W.cd) W.cd[kk] = Math.min(W.cd[kk], .2);
+  for (let i = 0; i < 3; i++) wkSummonOne(12);
+  S.flash = Math.max(S.flash || 0, .5); sfx('boom');
+  wkPop('ĐẠI NÁO THIÊN CUNG! “Hoàng đế thay phiên làm, sang năm đến nhà ta!”', '#ff6a2a', true);
+}
+// Khẩn Cô Chú: Yêu Lực đầy mà không dùng → vòng Kim Cô siết
+function wkBand() {
+  const W = S.wk, b = S.ball;
+  W.band = 1.2; W.rage = 0; W.rageFull = 0; b.vx = 0;
+  S.pops.push({ x: b.x, y: b.y - 100, t: 1.4, text: '“Úm ma ni bát mê hồng…” Khẩn Cô Chú! Đau đầu quá sư phụ ơi!', c: '#ffd24a', big: true });
+  sfx('hurt');
+}
+function updateWukong(dt) {
+  const W = S.wk; if (!W) return;
+  for (const k in W.cd) W.cd[k] -= dt;
+  W.mt += dt; W.poseT -= dt; if (W.poseT <= 0) W.pose = null;
+  for (const f of W.fx) f.t += dt; W.fx = W.fx.filter(f => f.t < f.max);
+  for (const g of W.ghosts) g.t -= dt; W.ghosts = W.ghosts.filter(g => g.t > 0);
+  if (W.stretch && (W.stretch.t += dt) > W.stretch.max) W.stretch = null;
+  if (CHAR !== 'wukong') { W.clones = []; W.pend = []; W.cloud = W.giant = W.frenzy = W.band = 0; W.gk = 1; return; }
+  const b = S.ball;
+  for (const p of W.pend) if ((p.t -= dt) <= 0 && !p.done) { p.done = true; if (!S.dead) p.fn(); }
+  W.pend = W.pend.filter(p => !p.done);
+  W.flip = Math.max(0, (W.flip || 0) - dt);
+  if (W.cloud > 0 && (W.cloud -= dt) <= 0) { W.cloud = 0; applyChar(); }
+  W.eye = Math.max(0, W.eye - dt); if (W.eye <= 0) W.see = 0;
+  if (W.giant > 0) {
+    W.giant -= dt;
+    // khổng lồ: mỗi bước chân rung đất, giẫm nát quái nhỏ
+    if (S.onGround && Math.abs(b.vx) > 60 && (W.step -= dt) <= 0) { W.step = .35; W.fx.push({ k: 'quake', x: b.x, y: b.y + R, t: 0, max: .3, r: 70 }); for (const t of nkTargets(b.x, b.y, 60, 4)) if (t.kind === 'enemy') wkHit(t, 2); }
+  }
+  W.gk += ((W.giant > 0 ? 2.4 : 1) - W.gk) * Math.min(1, dt * 6);
+  if (W.frenzy > 0) W.frenzy -= dt;
+  if (W.band > 0) { W.band -= dt; b.vx *= .8; }
+  else if (W.rage >= 100 && W.frenzy <= 0 && (W.rageFull -= dt) <= 0) wkBand();
+  // khỉ con
+  for (const c of W.clones) {
+    c.t -= dt; c.poseT -= dt; if (c.poseT <= 0) c.pose = null; c.ph += dt;
+    const k = W.gk;
+    if (c.rush) {
+      const R2 = c.rush;
+      if (!tAlive(R2.t)) { c.rush = null; continue; }
+      const p = tPos(R2.t), side = c.i % 2 ? 1 : -1, tx = p.x + side * (30 + c.i * 8) * k, ty = R2.t.kind === 'boss' ? R2.t.ref.y - R : p.y + 6;
+      c.x += (tx - c.x) * Math.min(1, dt * 9); c.y += (ty - c.y) * Math.min(1, dt * 9); c.face = Math.sign(p.x - c.x) || c.face;
+      if (Math.abs(tx - c.x) < 24 && (R2.cd -= dt) <= 0) {
+        R2.cd = .22; R2.n--; c.pose = ['sweep', 'thrust', 'slam'][R2.n % 3]; c.poseT = .2;
+        wkHit(R2.t, 2, { clone: true, breakDing: false });
+        W.fx.push({ k: 'arc', x: c.x, y: c.y - 16 * k, d: c.face, t: 0, max: .18, r: 40 * k, kind: c.pose, clone: true });
+        if (R2.n <= 0) c.rush = null;
+      }
+    } else {
+      // đi theo Đại Thánh thành hàng; Đại Thánh cưỡi mây thì khỉ con cũng bay theo
+      const tx = b.x - (b.face || 1) * (40 + c.i * 30) * k, air = W.cloud > 0 && !S.onGround;
+      const ty = air ? b.y - 20 - c.i * 14 + Math.sin(c.ph * 3) * 6 : (groundYAt(tx) ?? b.y + R) - R;
+      c.x += (tx - c.x) * Math.min(1, dt * 6); c.y += (ty - c.y) * Math.min(1, dt * 6); c.face = b.face || 1;
+      // tự xông vào kẻ đang bị Định Thân ở gần
+      if (!c.tmp) { const fz = nkTargets(c.x, c.y, 420, 6).find(t => wkFrozen(t.ref)); if (fz) c.rush = { t: fz, n: 3, cd: .1 }; }
+    }
+  }
+  const gone = W.clones.filter(c => c.t <= 0);
+  for (const c of gone) W.fx.push({ k: 'puff', x: c.x, y: c.y - 10, t: 0, max: .4, r: 26 });
+  W.clones = W.clones.filter(c => c.t > 0);
+  if (Math.abs(b.vx) > 420 && (W.gT -= dt) <= 0) { W.gT = .06; W.ghosts.push({ x: b.x, y: b.y, face: b.face || 1, t: .15, max: .15 }); }
+}
+
+/* ----- hình vẽ ----- */
+function wkPoseOf(b, pose, air, t) {
+  // hy: hông · lean: nghiêng thân · bl/fl: chân sau/trước [đùi, cẳng] · ba/fa: tay sau/trước [cánh, cẳng] · sa: góc gậy (0 = thẳng đứng chĩa lên, dương = về phía trước)
+  if (pose === 'sweep') return { hy: -40, lean: .4, bl: [-.8, -.4], fl: [.8, .2], ba: [-.4, -1.2], fa: [1.7, 1.6], sa: 1.9 };
+  if (pose === 'thrust') return { hy: -38, lean: .55, bl: [-1, -.6], fl: [.9, .3], ba: [1.3, 1.5], fa: [1.6, 1.57], sa: 1.57 };
+  if (pose === 'slam') return { hy: -36, lean: .7, bl: [-.9, -.3], fl: [1, .6], ba: [1.6, 2.4], fa: [1.9, 2.4], sa: 2.5 };
+  if (pose === 'point') return { hy: -45, lean: .05, bl: [-.25, -.1], fl: [.3, .1], ba: [-.3, .2], fa: [1.7, 1.75], sa: -.5 };
+  if (pose === 'blow') return { hy: -45, lean: -.05, bl: [-.2, -.1], fl: [.25, .1], ba: [.3, .6], fa: [2.6, 3.6], sa: -.4 };
+  if (pose === 'hold') return { hy: -44, lean: .2, bl: [-.5, -.2], fl: [.5, .1], ba: [.9, 1.4], fa: [1.2, 1.5], sa: 1.45 };
+  if (pose === 'band') return { hy: -36, lean: -.25, bl: [-.4, .2], fl: [.6, .4], ba: [2.7, 3.6], fa: [2.9, 3.7], sa: 2.9 };
+  if (air === 'cloud') return { hy: -40, lean: .15 + Math.sin(t * 3) * .03, bl: [-.4, .8], fl: [.6, -.5], ba: [-.2, .4], fa: [.8, 1.6], sa: -.6 };
+  if (air) return { hy: -46, lean: .3, bl: [.3, -1.2], fl: [1.2, -.4], ba: [-1, -.4], fa: [.9, 1.8], sa: -1.1 };
+  if (S.onGround && Math.abs(b.vx) > 60) { const s = Math.sin(t * 15); return { hy: -40, lean: .55, bl: [-.9 * s - .3, -.9 * s - .7 - 1.1 * Math.max(0, s)], fl: [.9 * s - .3, .9 * s - .7 - 1.1 * Math.max(0, -s)], ba: [-1.3, -.8], fa: [-.6, -1.6], sa: -1.9 }; }
+  // đứng: gậy vác trên vai, đuôi ngoe nguẩy, gãi gãi
+  return { hy: -44 + Math.sin(t * 4) * .8, lean: .1 + Math.sin(t * 2) * .03, bl: [-.25, -.05], fl: [.3, .05], ba: [.4, .8], fa: [-.5, -2.3], sa: -2.05 };
+}
+// vẽ Ngộ Không (o.clone: khỉ con nhỏ hơn, mờ hơn) — trả về toạ độ tay trước
+function drawWukongFig(b, pose, o = {}) {
+  const W = S.wk, d = b.face || 1, gk = o.gk || 1, SC = .6 * gk * (o.clone ? .72 : 1), t = (W ? W.mt : S.t) + (o.ph || 0);
+  const air = o.cloud ? 'cloud' : o.air;
+  let P = wkPoseOf(b, pose, air, t);
+  if (o.smooth && W) {
+    if (!W.cur) W.cur = JSON.parse(JSON.stringify(P));
+    const k = 1 - Math.exp(-(W.pose ? 34 : 16) / 60), Q = W.cur;
+    for (const n of ['hy', 'lean', 'sa']) Q[n] += (P[n] - Q[n]) * k;
+    for (const n of ['bl', 'fl', 'ba', 'fa']) for (let i = 0; i < 2; i++) Q[n][i] += (P[n][i] - Q[n][i]) * k;
+    P = Q;
+  }
+  const fy = b.y + R - 2;
+  ctx.save(); ctx.translate(b.x, fy); if (W && W.flip > 0 && !o.clone) { ctx.translate(0, -40); ctx.rotate(-d * (1 - W.flip / .45) * Math.PI * 2); ctx.translate(0, 40); }
+  ctx.scale(d * SC, SC); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const hy = P.hy, sx = Math.sin(P.lean) * 30, sy = hy - Math.cos(P.lean) * 30, cx = sx + Math.sin(P.lean) * 16, cy = sy - Math.cos(P.lean) * 16;
+  const wave = Math.sin(t * 9), sp = Math.min(1, Math.abs(b.vx) / 600), INK = WK.ink;
+  const lw = 1.6;
+  // áo choàng đỏ bay sau lưng
+  ctx.fillStyle = WK.red; ctx.strokeStyle = INK; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(sx - 7, sy - 1); ctx.lineTo(sx + 5, sy - 1);
+  ctx.quadraticCurveTo(sx - 6, sy + 22, sx - 16 - sp * 26 + wave * 3, hy + 14 - sp * 18); ctx.lineTo(sx - 30 - sp * 30, hy + 4 - sp * 20 + wave * 3);
+  ctx.quadraticCurveTo(sx - 22, sy + 12, sx - 7, sy - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = WK.redD; ctx.beginPath(); ctx.moveTo(sx - 9, sy + 4); ctx.quadraticCurveTo(sx - 16, sy + 18, sx - 24 - sp * 24, hy + 6 - sp * 16 + wave * 2); ctx.lineTo(sx - 20 - sp * 20, hy + 8 - sp * 14); ctx.quadraticCurveTo(sx - 12, sy + 18, sx - 6, sy + 4); ctx.fill();
+  // đuôi khỉ cong vút
+  ctx.strokeStyle = INK; ctx.lineWidth = 5.6; ctx.beginPath(); ctx.moveTo(-6, hy - 2); ctx.bezierCurveTo(-24, hy + 4 + wave * 2, -34, hy - 18, -26 + Math.sin(t * 5) * 3, hy - 30); ctx.stroke();
+  ctx.strokeStyle = WK.fur; ctx.lineWidth = 3.4; ctx.stroke();
+  // gậy phía sau khi vác vai / chạy (vẽ trước tay sau)
+  const staff = (hx, hy2, ang, len) => {
+    const ux = Math.sin(ang), uy = -Math.cos(ang), a = [hx - ux * len * .3, hy2 - uy * len * .3], e = [hx + ux * len * .7, hy2 + uy * len * .7];
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = INK; ctx.lineWidth = 6.4; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...e); ctx.stroke();
+    ctx.strokeStyle = WK.staff; ctx.lineWidth = 4.2; ctx.stroke();
+    ctx.strokeStyle = WK.staffL; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(a[0] - uy * .8, a[1] + ux * .8); ctx.lineTo(e[0] - uy * .8, e[1] + ux * .8); ctx.stroke();
+    // hai đầu bịt vàng
+    for (const [p, s] of [[a, 1], [e, -1]]) {
+      const q = [p[0] + ux * s * 9, p[1] + uy * s * 9];
+      ctx.strokeStyle = INK; ctx.lineWidth = 7.4; ctx.beginPath(); ctx.moveTo(...p); ctx.lineTo(...q); ctx.stroke();
+      ctx.strokeStyle = WK.gold; ctx.lineWidth = 5.4; ctx.stroke();
+      ctx.strokeStyle = WK.goldD; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(q[0] - uy * 2.6 - ux * s * 3, q[1] + ux * 2.6 - uy * s * 3); ctx.lineTo(q[0] + uy * 2.6 - ux * s * 3, q[1] - ux * 2.6 - uy * s * 3); ctx.stroke();
+    }
+    ctx.lineCap = 'round';
+  };
+  const limbFur = (x1, y1, x2, y2, w, col) => { ctx.strokeStyle = INK; ctx.lineWidth = w + 2.4; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.stroke(); };
+  const arm = (a, front) => {
+    const ox = sx + (front ? 3 : -3), oy = sy + 4;
+    const ex = ox + Math.sin(a[0]) * 15, ey = oy + Math.cos(a[0]) * 15, hx = ex + Math.sin(a[1]) * 14, hy2 = ey + Math.cos(a[1]) * 14;
+    limbFur(ox, oy, ex, ey, 7, front ? WK.armor : WK.armorD);   // tay áo giáp
+    limbFur(ex, ey, hx, hy2, 5.4, front ? WK.fur : WK.furD);
+    // bao cổ tay đỏ
+    ctx.strokeStyle = WK.red; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(ex + (hx - ex) * .55, ey + (hy2 - ey) * .55); ctx.lineTo(ex + (hx - ex) * .75, ey + (hy2 - ey) * .75); ctx.stroke();
+    ctx.fillStyle = WK.face; ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(hx, hy2, 3.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    return [hx, hy2];
+  };
+  const leg = (a, back) => {
+    const rx = back ? -3 : 3, kx = rx + Math.sin(a[0]) * 21, ky = hy + Math.cos(a[0]) * 21, fx = kx + Math.sin(a[1]) * 21, fy2 = ky + Math.cos(a[1]) * 21;
+    ctx.strokeStyle = INK; ctx.lineWidth = 10.4; ctx.beginPath(); ctx.moveTo(rx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy2 - 5); ctx.stroke();
+    ctx.strokeStyle = back ? WK.furD : WK.fur; ctx.lineWidth = 8; ctx.stroke();
+    // xà cạp vàng + giày Bộ Vân Lý (đen, mũi cong, viền mây vàng)
+    ctx.strokeStyle = back ? WK.armorD : WK.armor; ctx.lineWidth = 8.6; ctx.beginPath(); ctx.moveTo(kx + (fx - kx) * .45, ky + (fy2 - ky) * .45); ctx.lineTo(fx, fy2 - 6); ctx.stroke();
+    ctx.fillStyle = '#1a1414'; ctx.strokeStyle = INK; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(fx - 5, fy2 - 8); ctx.lineTo(fx + 5, fy2 - 8); ctx.quadraticCurveTo(fx + 12, fy2 - 4, fx + 13, fy2 - 8); ctx.lineTo(fx + 12, fy2 + 1.5); ctx.lineTo(fx - 6, fy2 + 1.5); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = WK.gold; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(fx - 5, fy2 - 1); ctx.quadraticCurveTo(fx + 2, fy2 - 4, fx + 10, fy2 - 1); ctx.stroke();
+    return [fx, fy2];
+  };
+  const ba = arm(P.ba, false);
+  const fb = leg(P.bl, true), ff = leg(P.fl, false);
+  // váy da hổ (vằn đen) dưới giáp
+  ctx.fillStyle = WK.tiger; ctx.strokeStyle = INK; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(-11, hy - 4); ctx.lineTo(11, hy - 4); ctx.lineTo(14, hy + 11); ctx.lineTo(4, hy + 8); ctx.lineTo(-2, hy + 12); ctx.lineTo(-9, hy + 8); ctx.lineTo(-15, hy + 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#1a1008'; ctx.lineWidth = 1.6; for (const x of [-9, -3, 4, 10]) { ctx.beginPath(); ctx.moveTo(x, hy - 2); ctx.quadraticCurveTo(x + 2, hy + 3, x - 1, hy + 7); ctx.stroke(); }
+  // thân: Toả Tử Hoàng Kim Giáp (giáp lưới vàng), đai lưng đỏ
+  ctx.fillStyle = WK.armor; ctx.strokeStyle = INK; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(sx - 10, sy - 1); ctx.lineTo(sx + 10, sy - 1); ctx.lineTo(10, hy - 2); ctx.lineTo(-10, hy - 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.save(); ctx.clip(); ctx.strokeStyle = WK.armorD; ctx.lineWidth = .9;
+  for (let i = -24; i < 24; i += 4) { ctx.beginPath(); ctx.moveTo(sx + i, sy - 2); ctx.lineTo(sx + i + 22, hy); ctx.moveTo(sx + i + 22, sy - 2); ctx.lineTo(sx + i, hy); ctx.stroke(); }
+  ctx.restore();
+  ctx.fillStyle = WK.red; ctx.fillRect(-11, hy - 7, 22, 5); ctx.strokeRect(-11, hy - 7, 22, 5);
+  ctx.fillStyle = WK.gold; ctx.beginPath(); ctx.arc(1, hy - 4.5, 2.6, 0, Math.PI * 2); ctx.fill();
+  // giáp vai hình mây
+  ctx.fillStyle = WK.gold; ctx.beginPath(); ctx.ellipse(sx + 1, sy + 2, 9, 5, -.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // cổ + đầu khỉ
+  ctx.fillStyle = WK.fur; ctx.fillRect(sx - 3, sy - 6, 6, 6);
+  ctx.fillStyle = WK.fur; ctx.strokeStyle = INK; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.ellipse(cx, cy, 9.5, 10, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // tai khỉ
+  ctx.fillStyle = WK.face; ctx.beginPath(); ctx.ellipse(cx - 9, cy + 1, 3, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // mặt khỉ hình trái tim
+  ctx.fillStyle = WK.face; ctx.beginPath();
+  ctx.moveTo(cx + 1, cy - 4); ctx.bezierCurveTo(cx + 3, cy - 8, cx + 10, cy - 7, cx + 10, cy - 2); ctx.quadraticCurveTo(cx + 12, cy + 6, cx + 6, cy + 9); ctx.quadraticCurveTo(cx + 1, cy + 9, cx - 1, cy + 5); ctx.quadraticCurveTo(cx - 2, cy, cx + 1, cy - 4); ctx.fill();
+  ctx.strokeStyle = WK.faceD; ctx.lineWidth = 1; ctx.stroke();
+  // Hoả Nhãn Kim Tinh: mắt vàng con ngươi đỏ (phát sáng khi bật)
+  const eyeOn = W && W.eye > 0 && !o.clone;
+  ctx.fillStyle = '#fff6c0'; ctx.beginPath(); ctx.ellipse(cx + 6, cy - 1.5, 2.6, 2.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = eyeOn ? '#ff2a10' : '#d84a10'; ctx.beginPath(); ctx.arc(cx + 6.8, cy - 1.4, 1.3, 0, Math.PI * 2); ctx.fill();
+  if (eyeOn) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgb(255 120 30 / .8)'; ctx.beginPath(); ctx.ellipse(cx + 7, cy - 1.5, 6 + Math.sin(t * 20), 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  // lông mày rậm, mũi, miệng nhe răng cười
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(cx + 3, cy - 4.5); ctx.lineTo(cx + 9, cy - 5.5); ctx.stroke();
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(cx + 9.4, cy + 2.4, .9, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7a1a10'; ctx.beginPath(); ctx.moveTo(cx + 4, cy + 5); ctx.quadraticCurveTo(cx + 7, cy + (pose === 'band' ? 7 : 9), cx + 10, cy + 5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(cx + 5, cy + 5, 4.4, 1.1);
+  // má đỏ khỉ
+  ctx.fillStyle = 'rgb(230 90 70 / .4)'; ctx.beginPath(); ctx.arc(cx + 3.4, cy + 3, 1.8, 0, Math.PI * 2); ctx.fill();
+  // vòng Kim Cô (siết đỏ rực khi bị niệm chú)
+  const bandOn = W && W.band > 0 && !o.clone;
+  ctx.strokeStyle = INK; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.ellipse(cx + 1, cy - 6, 10, 3, -.05, Math.PI * .95, Math.PI * 2.05); ctx.stroke();
+  ctx.strokeStyle = bandOn ? '#ff6a2a' : WK.gold; ctx.lineWidth = 2.2; ctx.stroke();
+  if (bandOn) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgb(255 200 60 / .7)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(cx + 1, cy - 6, 11 + Math.sin(t * 40), 3.6, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+  // Phượng Sí Tử Kim Quan: mũ vàng tím, hai lông trĩ đỏ dài cong vút ra sau
+  if (!o.clone) {
+    for (const [ox, k] of [[-1, 1], [2, .92]]) {
+      const fx0 = cx + ox, fy0 = cy - 12, sway = Math.sin(t * 3 + ox) * 3 + sp * 10;
+      ctx.strokeStyle = INK; ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(fx0, fy0); ctx.bezierCurveTo(fx0 - 4, fy0 - 26 * k, fx0 - 26 - sway, fy0 - 46 * k, fx0 - 50 * k - sway * 2, fy0 - 36 * k + sway); ctx.stroke();
+      ctx.strokeStyle = WK.red; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = 'rgb(255 220 120 / .7)'; ctx.lineWidth = .7; ctx.stroke();
+    }
+  }
+  ctx.fillStyle = WK.gold; ctx.strokeStyle = INK; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(cx - 8, cy - 7); ctx.quadraticCurveTo(cx - 6, cy - 16, cx + 1, cy - 15); ctx.quadraticCurveTo(cx + 8, cy - 15, cx + 9, cy - 7); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#8a3ac8'; ctx.beginPath(); ctx.arc(cx + 1, cy - 11, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = WK.goldD; for (const x of [-5, 6]) { ctx.beginPath(); ctx.arc(cx + x, cy - 9, 1.1, 0, Math.PI * 2); ctx.fill(); }
+  // gậy và tay trước
+  const fa = arm(P.fa, true);
+  const L = (o.staffLen || 64);
+  if (!(W && W.stretch && !o.clone && W.stretch.t < W.stretch.max)) staff(fa[0], fa[1], P.sa, L);
+  else staff(fa[0], fa[1], P.sa, 24);
+  ctx.restore();
+  return { fa, ff, fb, SC, P };
+}
+function drawCloud(x, y, s = 1, a = 1) {
+  // Cân Đẩu Vân: đám mây vàng trắng cuộn xoáy
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s);
+  const t = S.t;
+  ctx.fillStyle = 'rgb(255 236 170 / .55)'; ctx.beginPath(); ctx.ellipse(-30, 6, 26 + Math.sin(t * 6) * 3, 9, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#8a6a2a'; ctx.lineWidth = 2; ctx.fillStyle = '#fff8dc';
+  ctx.beginPath(); for (const [cx, cy, r] of [[-22, 2, 12], [-6, -4, 15], [12, 0, 13], [26, 4, 9], [-34, 6, 8]]) { ctx.moveTo(cx + r, cy); ctx.arc(cx, cy + Math.sin(t * 5 + cx) * 1.2, r, 0, Math.PI * 2); } ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff8dc'; ctx.fillRect(-36, 2, 64, 10);
+  ctx.strokeStyle = '#e8b830'; ctx.lineWidth = 1.6; for (const [cx, cy] of [[-6, -2], [12, 2], [-22, 4]]) { ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 1.5); ctx.stroke(); }
+  ctx.restore();
+}
+function drawWukong(b, charged) {
+  const W = S.wk || newWk(), k = W.gk || 1, cloud = W.cloud > 0 && !S.onGround;
+  for (const g of W.ghosts) { ctx.save(); ctx.globalAlpha = .28 * g.t / g.max; drawWukongFig({ x: g.x, y: g.y, face: g.face, vx: 0 }, null, { gk: k, air: !S.onGround }); ctx.restore(); }
+  // khỉ con (sau lưng)
+  for (const c of W.clones) {
+    const a = Math.min(1, c.t / .4, (c.max - c.t) / .25 + .2);
+    ctx.save(); ctx.globalAlpha = .9 * a;
+    if (W.cloud > 0 && !S.onGround && !c.rush) drawCloud(c.x, c.y + R * .8 * k, .55 * k, .8);
+    drawWukongFig({ x: c.x, y: c.y, face: c.face, vx: c.rush ? 300 : 0 }, c.pose, { clone: true, gk: k, ph: c.ph, air: c.rush ? false : (W.cloud > 0 && !S.onGround ? 'cloud' : false), cloud: !c.rush && W.cloud > 0 && !S.onGround, staffLen: 50 });
+    ctx.restore();
+  }
+  // Đại Náo Thiên Cung: hào quang lửa đỏ vàng · Hoả Nhãn: vầng sáng đỏ quanh đầu
+  if (W.frenzy > 0) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(b.x, b.y - 20 * k, 6, b.x, b.y - 20 * k, 70 * k); g.addColorStop(0, 'rgb(255 180 40 / .5)'); g.addColorStop(.6, 'rgb(255 60 20 / .18)'); g.addColorStop(1, 'rgb(0 0 0 / 0)');
+    ctx.globalAlpha = .8 + .2 * Math.sin(S.t * 18); ctx.fillStyle = g; ctx.fillRect(b.x - 90 * k, b.y - 120 * k, 180 * k, 180 * k); ctx.restore();
+  }
+  if (cloud) drawCloud(b.x, b.y + R * k + 4, .8 * k);
+  ctx.save();
+  if (charged) { ctx.shadowColor = '#ffd24a'; ctx.shadowBlur = 24; }
+  if (W.band > 0) ctx.translate(Math.sin(S.t * 60) * 2, 0);
+  drawWukongFig(b, W.band > 0 ? 'band' : W.pose || (charged ? 'hold' : null), { smooth: true, gk: k, air: !S.onGround, cloud });
+  ctx.restore();
+}
+function drawWukongFx() {
+  const W = S.wk; if (!W) return;
+  const b = S.ball;
+  // dấu Hoả Nhãn và bùa Định trên mục tiêu
+  const list = nkTargets(b.x, b.y, 1400, 24);
+  for (const t of list) {
+    const r = t.ref, p = tPos(t), h = t.kind === 'boss' ? unitH(r) / 2 + 24 : 34;
+    if (wkMarked(r)) {
+      ctx.save(); ctx.translate(p.x, p.y - h - 10); ctx.globalAlpha = .85;
+      ctx.fillStyle = '#ffe9a0'; ctx.strokeStyle = '#ff4a10'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#d81a08'; ctx.beginPath(); ctx.arc(0, 0, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    if (wkFrozen(r)) {
+      ctx.save(); ctx.translate(p.x, p.y); const k = Math.min(1, (r.wkD - S.t) / .4);
+      ctx.strokeStyle = `rgb(255 210 74 / ${(.7 * k).toFixed(2)})`; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(0, 0, h * .9, S.t, S.t + Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      // lá bùa vàng chữ 定
+      ctx.translate(0, -h - 30); ctx.rotate(Math.sin(S.t * 3) * .1);
+      ctx.fillStyle = '#ffd24a'; ctx.strokeStyle = '#8a1410'; ctx.lineWidth = 2; ctx.fillRect(-11, -16, 22, 32); ctx.strokeRect(-11, -16, 22, 32);
+      ctx.fillStyle = '#c0180c'; ctx.font = '900 18px "Noto Serif SC", "SimSun", serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('定', 0, 1);
+      ctx.restore();
+    }
+  }
+  // Như Ý nối dài
+  const st = W.stretch;
+  if (st) {
+    const k = st.t / st.max, grow = Math.min(1, k / .3), len = st.len * grow * (k > .75 ? 1 - (k - .75) / .25 : 1), ux = Math.cos(st.ang), uy = Math.sin(st.ang);
+    const ex = st.x + ux * len, ey = st.y + uy * len;
+    ctx.save(); ctx.lineCap = 'butt';
+    ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgb(255 210 80 / .35)'; ctx.lineWidth = st.w * 3.2; ctx.beginPath(); ctx.moveTo(st.x, st.y); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = WK.ink; ctx.lineWidth = st.w + 3; ctx.stroke();
+    ctx.strokeStyle = WK.staff; ctx.lineWidth = st.w; ctx.stroke();
+    ctx.strokeStyle = WK.staffL; ctx.lineWidth = Math.max(1, st.w * .3); ctx.beginPath(); ctx.moveTo(st.x - uy * st.w * .2, st.y + ux * st.w * .2); ctx.lineTo(ex - uy * st.w * .2, ey + ux * st.w * .2); ctx.stroke();
+    for (const [x, y, s] of [[st.x, st.y, 1], [ex, ey, -1]]) { ctx.strokeStyle = WK.ink; ctx.lineWidth = st.w + 4; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + ux * s * st.w * 2.2, y + uy * s * st.w * 2.2); ctx.stroke(); ctx.strokeStyle = WK.gold; ctx.lineWidth = st.w + 1.5; ctx.stroke(); }
+    if (st.sweep || st.down) afxShock(ex, ey, 60, k, WK.gold, .5);
+    ctx.restore();
+  }
+  for (const f of W.fx) {
+    const k = f.t / f.max;
+    if (f.k === 'arc') {
+      // vệt gậy múa: quét = cung ngang, chọc = vệt thẳng, nện = cung từ trên xuống
+      ctx.save(); ctx.translate(f.x, f.y); ctx.scale(f.d, 1); ctx.globalAlpha = (1 - k) * (f.clone ? .55 : .9);
+      ctx.strokeStyle = f.clone ? '#ffe9a0' : WK.gold; ctx.lineWidth = f.clone ? 4 : 7; ctx.lineCap = 'round';
+      if (f.kind === 'thrust') { ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(f.r * (1.4 + k * .6), 0); ctx.stroke(); }
+      else if (f.kind === 'slam') { ctx.beginPath(); ctx.arc(0, 0, f.r, -Math.PI * .7, -Math.PI * .7 + Math.PI * .9 * Math.min(1, k * 3)); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.arc(0, 0, f.r, -Math.PI * .45, -Math.PI * .45 + Math.PI * .8 * Math.min(1, k * 3)); ctx.stroke(); }
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = f.clone ? 1.5 : 2.5; ctx.stroke();
+      ctx.restore();
+    } else if (f.k === 'hit') { afxImpact(f.x, f.y, k, f.crit ? '#ff6a2a' : WK.gold, f.r / 30); }
+    else if (f.k === 'quake') { afxShock(f.x, f.y, f.r, k, WK.gold, .3); }
+    else if (f.k === 'puff') {
+      // làn khói lông khỉ: “Biến!”
+      ctx.save(); ctx.globalAlpha = 1 - k;
+      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2, rr = f.r * (.3 + k * .7); ctx.fillStyle = i % 2 ? '#fff4d8' : '#f0d8a0'; ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr * .6, f.r * .3 * (1 - k * .4), 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    } else if (f.k === 'seal') { afxShock(f.x, f.y, 70, k, WK.gold, 1); }
+    else if (f.k === 'eye') {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1 - k;
+      const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, 400 * k + 40); g.addColorStop(0, 'rgb(255 160 40 / .6)'); g.addColorStop(1, 'rgb(255 40 0 / 0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, 400 * k + 40, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    } else if (f.k === 'word') {
+      ctx.save(); ctx.globalAlpha = Math.min(1, (1 - k) * 2); ctx.translate(f.x, f.y - k * 20); const s = 1 + Math.max(0, .3 - k) * 2; ctx.scale(s, s);
+      ctx.font = `900 ${f.size}px "Baloo 2", "Noto Serif SC", sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 6; ctx.strokeStyle = '#3a0a04'; ctx.strokeText(f.text, 0, 0); ctx.fillStyle = '#ffd24a'; ctx.fillText(f.text, 0, 0);
+      ctx.restore();
+    }
+  }
+  // thanh Yêu Lực trên đầu khi đang tích
+  if (CHAR === 'wukong' && W.rage > 0 && !S.dead) {
+    const x = b.x - 24, y = b.y - 70 * W.gk - 10;
+    ctx.fillStyle = 'rgb(20 10 4 / .6)'; ctx.fillRect(x, y, 48, 5);
+    ctx.fillStyle = W.rage >= 100 ? (Math.floor(S.t * 8) % 2 ? '#ff4a10' : '#ffd24a') : '#ff9a2a'; ctx.fillRect(x, y, 48 * W.rage / 100, 5);
+  }
+}
 function newLk() { return { cd: {}, pose: null, poseT: 0, cur: null, mt: 0, combo: 0, form: 0, hype: 0, sense: 0, fx: [], orbs: [], bolts: [], ghosts: [], gT: 0, ult: null, pend: [], tf: 0, arcT: 0 }; }
 const lkF = () => LK_FORMS[S.lk ? S.lk.form : 0];
 const lkK = () => lkF().k * (1 + S.lk.hype * .05);
@@ -27544,6 +28083,7 @@ function drawCharFx() {
   drawGabimaruFx();
   drawYuunaFx();
   drawLuckFx();
+  drawWukongFx();
   drawGxFx();
   drawYeqiuFx();
   drawTannhanFx();
@@ -27848,8 +28388,8 @@ function drawBall() {
   if (CHAR === 'pika' && DMAX) { drawMaxCore(b, pw && !blink); return; }
   CHAR_DRAW[CHAR](b, pw && !blink);
 }
-const CHAR_COLOR = { kanna: '#c8b6e2', tannhan: '#9ad8ff', yeqiu: '#c8a040', ...gxColorMap(), luck: '#ffd23a', yuuna: '#7a4ab8', gabimaru: '#465064', bong: '#e3262b', vegito: '#5fd0ff', pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
-const CHAR_DRAW = { kanna: drawKanna, tannhan: drawTannhan, yeqiu: drawYeqiu, ...gxDrawMap(), luck: drawLuck, yuuna: drawYuuna, gabimaru: drawGabimaru, bong: drawBong, vegito: drawVegito, pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
+const CHAR_COLOR = { wukong: '#e8b030', kanna: '#c8b6e2', tannhan: '#9ad8ff', yeqiu: '#c8a040', ...gxColorMap(), luck: '#ffd23a', yuuna: '#7a4ab8', gabimaru: '#465064', bong: '#e3262b', vegito: '#5fd0ff', pika: '#fff27a', chii: '#ffffff', rimuru: '#5ec8f2', stelle: '#ffd65e', saiyan: '#9fd8ff', kiem: '#e8f6ff', asta: '#2a2a30', yuno: '#9cf0b4', pain: '#ff9a3c', goku: '#f47b20', namek: '#5fd05a', luffy: '#d8282e', kurumi: '#c8102e', mereo: '#e8452a', zenitsu: '#ffd21a', yuutan: '#e2e5ee', yuutan2: '#c2182a', thiquy: '#f4f6ff', yuta: '#eef0f4' };
+const CHAR_DRAW = { wukong: drawWukong, kanna: drawKanna, tannhan: drawTannhan, yeqiu: drawYeqiu, ...gxDrawMap(), luck: drawLuck, yuuna: drawYuuna, gabimaru: drawGabimaru, bong: drawBong, vegito: drawVegito, pika: drawPikachu, chii: drawChiikawa, rimuru: drawRimuru, stelle: drawStelle, saiyan: drawSaiyan, kiem: drawKiem, asta: drawAsta, yuno: drawYuno, pain: drawPain, goku: drawGoku, namek: drawNamek, luffy: drawLuffy, kurumi: drawKurumi, mereo: drawMereo, zenitsu: drawZenitsu, yuutan: drawYuutan, yuutan2: drawYuutan2, thiquy: drawThiQuy, yuta: drawYuta };
 // Khiên Hổ Phách của Stelle: vỏ lục giác màu hổ phách
 function drawAmber(b) {
   const r = R * 1.9 + Math.sin(S.t * 6) * 2, fade = S.amber < .8 && Math.floor(S.t * 14) % 2;

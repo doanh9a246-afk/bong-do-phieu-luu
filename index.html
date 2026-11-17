@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=30334ab7">
+<link rel="stylesheet" href="css/style.css?v=1463b0fc">
 </head>
 <body>
 <canvas id="game3d" aria-hidden="true"></canvas>
@@ -216,6 +216,9 @@
     <button class="tbtn gb" type="button" data-key="terra" aria-label="Đạo Hoa" hidden>Đạo</button>
     <button class="tbtn yn" type="button" data-key="egg" aria-label="Ném dao" hidden>Dao</button>
     <button class="tbtn yn" type="button" data-key="terra" aria-label="Bung ô" hidden>Ô</button>
+    <button class="tbtn wk" type="button" data-key="egg" aria-label="Hoả Nhãn Kim Tinh" hidden>Mắt</button>
+    <button class="tbtn wk" type="button" data-key="heal" aria-label="Định Thân Pháp" hidden>Định</button>
+    <button class="tbtn wk" type="button" data-key="terra" aria-label="Đại Náo Thiên Cung" hidden>Náo</button>
     <button class="tbtn lk" type="button" data-key="egg" aria-label="Cảm nhận ma lực" hidden>Cảm</button>
     <button class="tbtn lk" type="button" data-key="terra" aria-label="Đổi trạng thái" hidden>Biến</button>
     <button class="tbtn gxc" type="button" data-key="egg" aria-label="Chiêu phụ" hidden>E</button>
@@ -258,10 +261,10 @@
 // Luôn tải bản game mới nhất, kể cả khi trình duyệt còn giữ trang cũ trong bộ nhớ đệm
 (function () {
   var s = document.createElement('script');
-  s.src = 'js/game.js?v=30334ab7&t=' + Date.now();
+  s.src = 'js/game.js?v=1463b0fc&t=' + Date.now();
   document.body.appendChild(s);
   var c = document.querySelector('link[href^="css/style.css"]');
-  if (c) c.href = 'css/style.css?v=30334ab7&t=' + Date.now();
+  if (c) c.href = 'css/style.css?v=1463b0fc&t=' + Date.now();
 })();
 </script>
 </body>
